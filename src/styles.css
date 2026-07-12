@@ -61,6 +61,7 @@ body {
   display: flex;
   justify-content: center;
   min-height: 100vh;
+  min-height: 100dvh;
   touch-action: manipulation; /* 消除双击延时，允许缩放 */
 }
 
@@ -97,6 +98,7 @@ button {
   width: 100%;
   max-width: 430px;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
   position: relative;
   overflow-x: hidden;
@@ -105,6 +107,7 @@ button {
 
 .view {
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 18px 18px 112px;
 }
 
@@ -788,5 +791,22 @@ textarea {
     scroll-behavior: auto !important;
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* 针对手机/真机的全面自适应（去掉模拟外框，彻底融入系统） */
+@media (max-width: 480px) {
+  body {
+    background: var(--bg) !important;
+  }
+  .phone {
+    max-width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .view {
+    padding-bottom: calc(112px + env(safe-area-inset-bottom));
   }
 }
