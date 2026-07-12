@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { Recording } from '../domain/recording'
 import { useRecorder } from '../hooks/use-recorder'
 import { listRecordings, recordingDb } from '../lib/recording-db'
 import { RecordingCard } from '../components/RecordingCard'
-import { TypePicker } from '../components/TypePicker'
 import { getNoteTypes, type UserNoteType } from '../lib/config-store'
 import { useProcessor } from '../hooks/use-processor'
 
@@ -13,10 +13,14 @@ function formatElapsed(elapsedMs: number) {
 }
 
 export function HomePage({ recorder }: { recorder: ReturnType<typeof useRecorder> }) {
+  const navigate = useNavigate()
   const [types, setTypes] = useState<UserNoteType[]>([])
   const [selectedType, setSelectedType] = useState<UserNoteType | null>(null)
   const [recent, setRecent] = useState<Recording[]>([])
   const [highlightedId, setHighlightedId] = useState<string | null>(null)
+  
+  // 底部抽屉与遮罩
+  const [showMoreSheet, setShowMoreSheet] = useState(false)
 
   const { processRecording } = useProcessor()
 
@@ -24,7 +28,6 @@ export function HomePage({ recorder }: { recorder: ReturnType<typeof useRecorder
     setRecent((await listRecordings()).slice(0, 2))
     const noteTypes = getNoteTypes()
     setTypes(noteTypes)
-    // 首次加载如果没有设置 selectedType，则默认选中 default 或第 0 个
     if (!selectedType && noteTypes.length > 0) {
       const def = noteTypes.find((t) => t.isDefault) || noteTypes[0]
       setSelectedType(def)
@@ -49,14 +52,11 @@ export function HomePage({ recorder }: { recorder: ReturnType<typeof useRecorder
     if (id) {
       setHighlightedId(id)
       
-      // 开启了“自动整理”时：
       const autoProcess = localStorage.getItem('vn_auto_process') === 'true'
       if (autoProcess) {
         if (navigator.onLine) {
-          // 在线：开始全链路 ASR + LLM + Sync 处理
           void processRecording(id, 'full').then(() => refresh())
         } else {
-          // 离线：把当前录音卡片置为等待网络状态，前台联网会自动重试
           await recordingDb.recordings.update(id, {
             status: 'waiting_network',
             updatedAt: new Date().toISOString()
@@ -67,57 +67,119 @@ export function HomePage({ recorder }: { recorder: ReturnType<typeof useRecorder
     }
   }
 
+  const handleRecordClick = () => {
+    if (!selectedType) return
+    if (recorder.state === 'idle') {
+      void recorder.start(selectedType)
+    }
+  }
+
   return (
-    <section className="page home-page">
+    <section className="view">
+      {/* 顶部栏 */}
       <header className="topbar">
         <div>
-          <span className="eyebrow">VOICE INBOX</span>
-          <h1>记录此刻</h1>
+          <span className="eyebrow">Voice Inbox</span>
+          <h1>记录一个想法</h1>
         </div>
+        <button className="icon-btn" onClick={() => navigate('/settings')} aria-label="设置">
+          ⚙
+        </button>
       </header>
 
-      {types.length > 0 && selectedType && (
-        <TypePicker
-          onChange={setSelectedType}
-          selectedId={selectedType.id}
-          types={types}
-        />
-      )}
-
-      <section className="recorder-panel" aria-live="polite">
-        <span className={recorder.state === 'recording' ? 'recording-indicator active' : 'recording-indicator'}>
-          {recorder.state === 'recording' ? '正在录音' : recorder.state === 'paused' ? '已暂停' : '准备录音'}
-        </span>
-        <strong className="timer">{formatElapsed(recorder.elapsedMs)}</strong>
-        {recorder.state === 'idle' && selectedType && (
+      {/* 分类选项行 */}
+      <div className="type-row">
+        {types.slice(0, 4).map((t) => (
           <button
-            className="record-button"
-            onClick={() => void recorder.start(selectedType)}
-            type="button"
-            aria-label="开始录音"
+            key={t.id}
+            className={`chip ${selectedType?.id === t.id ? 'active' : ''}`}
+            onClick={() => setSelectedType(t)}
           >
-            ●
+            {t.name}
+          </button>
+        ))}
+        {types.length > 4 && (
+          <button className="chip more" onClick={() => setShowMoreSheet(true)}>
+            更多 ···
           </button>
         )}
-        {recorder.state === 'recording' && <button className="record-button recording" onClick={recorder.pause} type="button">暂停</button>}
-        {recorder.state === 'paused' && <button className="record-button" onClick={recorder.resume} type="button">继续</button>}
-        {recorder.state !== 'idle' && <button className="text-button" onClick={() => void complete()} type="button">完成录音</button>}
-        <p>{recorder.state === 'idle' ? '点击开始录音' : '请保持页面前台'}</p>
-        {recorder.error && <div className="error-message" role="alert">{recorder.error}<button onClick={recorder.clearError} type="button">知道了</button></div>}
-      </section>
+      </div>
 
-      <section className="recent-section">
-        <div className="section-head">
-          <h2>最近录音</h2>
+      {/* 录音大卡片 */}
+      <div className="rec-card">
+        <div className="prototype-badge">随记空间</div>
+        <div className="rec-status">
+          {recorder.state === 'recording' ? '正在录音' : recorder.state === 'paused' ? '已暂停' : '准备录音'}
         </div>
+        <div className="timer">{formatElapsed(recorder.elapsedMs)}</div>
+        
+        <button
+          className={`record-btn ${recorder.state === 'recording' ? 'recording' : ''}`}
+          onClick={handleRecordClick}
+          aria-label="录音主控"
+        />
+
+        {/* 暂停与完成控制行 */}
+        <div className={`pause-row ${recorder.state !== 'idle' ? 'show' : ''}`}>
+          {recorder.state === 'recording' && (
+            <button className="ghost" onClick={recorder.pause}>暂停</button>
+          )}
+          {recorder.state === 'paused' && (
+            <button className="ghost" onClick={recorder.resume}>继续</button>
+          )}
+          <button className="ghost" onClick={() => void complete()}>完成</button>
+        </div>
+
+        <div className="rec-hint">
+          {recorder.state === 'idle' ? '点击开始录音' : '请保持页面前台'}
+        </div>
+      </div>
+
+      {/* 最近录音板块 */}
+      <div className="section-head" id="recentHead">
+        <h2>最近录音</h2>
+        <button onClick={() => navigate('/recordings')}>查看全部</button>
+      </div>
+
+      <div className="list" id="recentList">
         {recent.length ? (
           recent.map((recording) => (
-            <RecordingCard highlighted={recording.id === highlightedId} key={recording.id} recording={recording} />
+            <RecordingCard
+              highlighted={recording.id === highlightedId}
+              key={recording.id}
+              recording={recording}
+              onRefresh={refresh}
+            />
           ))
         ) : (
-          <p className="empty-state">还没有本地录音。</p>
+          <p className="empty-state">还没有本地录音，立即点击按钮录制一个吧！</p>
         )}
-      </section>
+      </div>
+
+      {/* 更多分类抽屉 */}
+      <div className={`overlay ${showMoreSheet ? 'show' : ''}`} onClick={() => setShowMoreSheet(false)} />
+      <div className={`sheet ${showMoreSheet ? 'show' : ''}`}>
+        <div className="grab" />
+        <div className="sheet-head">
+          <h3>选择笔记类型</h3>
+          <button className="icon-btn" onClick={() => setShowMoreSheet(false)}>×</button>
+        </div>
+        <div className="type-grid">
+          {types.map((t) => (
+            <button
+              key={t.id}
+              className="type-option"
+              onClick={() => {
+                setSelectedType(t)
+                setShowMoreSheet(false)
+              }}
+            >
+              <b>{t.name}</b>
+              <small>{t.obsidianPath}</small>
+            </button>
+          ))}
+        </div>
+      </div>
     </section>
   )
 }

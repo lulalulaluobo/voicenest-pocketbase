@@ -1,19 +1,34 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { Recording } from '../domain/recording'
 import { StatusBadge } from '../components/StatusBadge'
 import { deleteRecording, getChunks, getRecording, recordingDb } from '../lib/recording-db'
+import { getNoteTypes, type UserNoteType } from '../lib/config-store'
 import { useProcessor } from '../hooks/use-processor'
+
+function formatTime(secs: number) {
+  if (isNaN(secs)) return '00:00'
+  const m = String(Math.floor(secs / 60)).padStart(2, '0')
+  const s = String(Math.floor(secs % 60)).padStart(2, '0')
+  return `${m}:${s}`
+}
 
 export function RecordingDetailPage() {
   const { recordingId } = useParams<{ recordingId: string }>()
   const navigate = useNavigate()
   const [recording, setRecording] = useState<Recording | null | undefined>(undefined)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
+  const [noteTypes, setNoteTypes] = useState<UserNoteType[]>([])
   
   // 编辑文本 State
   const [transcript, setTranscript] = useState('')
   const [summary, setSummary] = useState('')
+
+  // 自定义播放器 State
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [audioDuration, setAudioDuration] = useState(0)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const { isProcessing, processRecording } = useProcessor()
 
@@ -21,6 +36,7 @@ export function RecordingDetailPage() {
     if (!recordingId) return
     const rec = await getRecording(recordingId)
     setRecording(rec ?? null)
+    setNoteTypes(getNoteTypes())
     if (rec) {
       setTranscript(rec.transcript || '')
       setSummary(rec.summary || '')
@@ -78,166 +94,210 @@ export function RecordingDetailPage() {
     navigate('/recordings')
   }
 
-  if (recording === undefined) return <section className="page"><p className="empty-state">正在加载录音…</p></section>
-  if (!recording) return <section className="page"><p className="empty-state">录音不存在或已删除。</p></section>
+  // 自定义播放器控制
+  const handlePlayPause = () => {
+    if (recording?.isAudioCleared) {
+      alert('音频已被本地到期策略自动清理，无法播放')
+      return
+    }
+    if (!audioRef.current) return
+    if (isPlaying) {
+      audioRef.current.pause()
+      setIsPlaying(false)
+    } else {
+      audioRef.current.play()
+      setIsPlaying(true)
+    }
+  }
+
+  const onAudioTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime)
+    }
+  }
+
+  const onAudioLoadedMetadata = () => {
+    if (audioRef.current) {
+      setAudioDuration(audioRef.current.duration || 0)
+    }
+  }
+
+  const onAudioEnded = () => {
+    setIsPlaying(false)
+    setCurrentTime(0)
+  }
+
+  if (recording === undefined) return <section className="view"><p className="empty-state">正在加载录音…</p></section>
+  if (!recording) return <section className="view"><p className="empty-state">录音不存在或已删除。</p></section>
 
   const isWorking = isProcessing || recording.status === 'processing'
+  const currentType = noteTypes.find(t => t.id === recording.typeId) || noteTypes[0]
+
+  const progressPercent = audioDuration ? (currentTime / audioDuration) * 100 : 0
 
   return (
-    <section className="page detail-page" style={{ paddingBottom: '100px' }}>
+    <section className="view" style={{ paddingBottom: '112px' }}>
+      {/* 隐藏的 HTML5 播放器引脚 */}
+      {audioUrl && (
+        <audio
+          ref={audioRef}
+          src={audioUrl}
+          onTimeUpdate={onAudioTimeUpdate}
+          onLoadedMetadata={onAudioLoadedMetadata}
+          onEnded={onAudioEnded}
+          style={{ display: 'none' }}
+        />
+      )}
+
+      {/* 顶部导航 */}
       <header className="topbar">
         <div>
-          <span className="eyebrow">RECORDING DETAIL</span>
+          <span className="eyebrow">Recording Detail</span>
           <h1>录音详情</h1>
         </div>
-        <button className="icon-button" onClick={() => navigate('/recordings')} type="button" aria-label="返回列表">×</button>
+        <button className="icon-btn" onClick={() => navigate('/recordings')} aria-label="返回列表">
+          ×
+        </button>
       </header>
 
       {/* 错误提示栏 */}
       {recording.errorMessage && (
-        <div className="error-message" role="alert" style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
-          <strong>⚠️ 处理遇到错误：</strong>
+        <div className="error-message" role="alert" style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <strong>⚠️ 整理遇到错误：</strong>
           <span style={{ fontSize: '13px', opacity: 0.9 }}>{recording.errorMessage}</span>
         </div>
       )}
 
-      <article className="detail-card" style={{ display: 'grid', gap: '16px' }}>
-        <div className="detail-title">
+      {/* 录音主属性卡片 */}
+      <div className="detail-card" style={{ display: 'grid', gap: '16px' }}>
+        <div className="detail-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2>{recording.localTitle}</h2>
           <StatusBadge status={recording.status} />
         </div>
-        <dl>
-          <dt>录音时间</dt>
-          <dd>{new Date(recording.createdAt).toLocaleString('zh-CN')}</dd>
-          <dt>笔记类型</dt>
-          <dd>{recording.typeName}</dd>
-          <dt>音频格式</dt>
-          <dd>{recording.mimeType}</dd>
+        
+        <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: '88px 1fr', gap: '10px', fontSize: '13px' }}>
+          <dt style={{ color: 'var(--muted)', fontWeight: 'bold' }}>录音时间</dt>
+          <dd style={{ margin: 0 }}>{new Date(recording.createdAt).toLocaleString('zh-CN')}</dd>
+          <dt style={{ color: 'var(--muted)', fontWeight: 'bold' }}>笔记分类</dt>
+          <dd style={{ margin: 0 }}>{recording.typeName}</dd>
+          <dt style={{ color: 'var(--muted)', fontWeight: 'bold' }}>音频格式</dt>
+          <dd style={{ margin: 0 }}>{recording.mimeType}</dd>
         </dl>
 
+        {/* 拟物高档自定义播放器 */}
         {recording.isAudioCleared ? (
-          <div style={{ padding: '12px', background: '#fcf8e3', border: '1px solid #fbeed5', borderRadius: '8px', color: '#c09853', fontSize: '13px' }}>
-            ℹ️ 本条录音的音频文件已触发本地自动保留策略被清理，已安全保留其文字记录。
+          <div style={{ padding: '12px', background: 'var(--warnBg)', border: '1px solid var(--line)', borderRadius: '12px', color: 'var(--warn)', fontSize: '13px', display: 'flex', gap: '6px' }}>
+            <span>ℹ️</span> 本条录音的音频分片已触发本地自动保留策略被清理，已安全保留其文字记录。
           </div>
         ) : audioUrl ? (
-          <audio controls preload="metadata" src={audioUrl} style={{ width: '100%' }}>
-            当前浏览器无法播放这段音频。
-          </audio>
+          <div className="player" style={{ marginTop: '10px' }}>
+            <button className="play-circle" onClick={handlePlayPause}>
+              {isPlaying ? '⏸' : '▶'}
+            </button>
+            <div className="progress">
+              <i style={{ width: `${progressPercent}%` }} />
+            </div>
+            <span className="meta" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              {formatTime(currentTime)} / {formatTime(audioDuration || recording.durationMs / 1000)}
+            </span>
+          </div>
         ) : (
-          <p className="empty-state">这条录音没有可播放的音频分片。</p>
+          <p className="empty-state" style={{ padding: '12px' }}>音频文件尚未就绪。</p>
         )}
-      </article>
+      </div>
 
-      {/* API 管道流操作控制板 */}
-      <section className="settings-card" style={{ marginTop: '16px' }}>
-        <h2>语音整理管线操作</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' }}>
-          {recording.status !== 'synced' ? (
-            <button
-              className="btn"
-              disabled={isWorking || !!recording.isAudioCleared}
-              onClick={() => handleAction('full')}
-              style={{
-                minHeight: '44px',
-                background: '#bf3b3b',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                opacity: (isWorking || !!recording.isAudioCleared) ? 0.6 : 1
-              }}
-              type="button"
-            >
-              {isWorking ? '处理中...' : '上传并整理 (ASR+LLM)'}
-            </button>
+      {/* 同步路径信息卡片 */}
+      <div className="detail-card">
+        <h3>同步信息</h3>
+        <div className="row">
+          <div className="row-main">
+            <div className="row-title">Obsidian 路径</div>
+            <div className="row-sub">{currentType?.obsidianPath || '未指定路径'}</div>
+          </div>
+          <div style={{ color: 'var(--muted)' }}>›</div>
+        </div>
+        <div className="row">
+          <div className="row-main">
+            <div className="row-title">文件名</div>
+            <div className="row-sub">{recording.localTitle}.md</div>
+          </div>
+          <div style={{ color: 'var(--muted)' }}>›</div>
+        </div>
+        <div className="row">
+          <div className="row-main">
+            <div className="row-title">当前状态</div>
+            <div className="row-sub">
+              {recording.status === 'synced' ? '已同步 · 可重新同步或整理' : '未同步 · 待激活上传'}
+            </div>
+          </div>
+          {recording.status === 'synced' ? (
+            <div className="status ok">已同步</div>
           ) : (
-            <button
-              className="btn"
-              disabled={isWorking || !!recording.isAudioCleared}
-              onClick={() => handleAction('full')}
-              style={{
-                minHeight: '44px',
-                background: '#5b5148',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                opacity: (isWorking || !!recording.isAudioCleared) ? 0.6 : 1
-              }}
-              type="button"
-            >
-              {isWorking ? '处理中...' : '重新整理生成'}
-            </button>
+            <div className="status wait">待处理</div>
           )}
+        </div>
+      </div>
 
+      {/* 原始转写文本域 */}
+      <div className="detail-card">
+        <h3>原始转写</h3>
+        <textarea
+          value={transcript}
+          onChange={(e) => handleTranscriptChange(e.target.value)}
+          disabled={isWorking}
+          placeholder="等待 ASR 转写或手动编辑录入..."
+        />
+      </div>
+
+      {/* 整理后的 Markdown 文本域 */}
+      <div className="detail-card">
+        <h3>整理后的 Markdown</h3>
+        <textarea
+          value={summary}
+          onChange={(e) => handleSummaryChange(e.target.value)}
+          disabled={isWorking}
+          placeholder="等待 LLM 整理或手动编辑..."
+          style={{ fontFamily: 'monospace', fontSize: '13px', minHeight: '220px' }}
+        />
+      </div>
+
+      {/* 动作按钮行 */}
+      <div className="detail-card" style={{ background: 'transparent', border: 0, padding: 0 }}>
+        <div className="btn-row">
           <button
-            className="btn"
-            disabled={isWorking || !summary}
-            onClick={() => handleAction('sync_only')}
-            style={{
-              minHeight: '44px',
-              background: '#315d92',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: 'bold',
-              opacity: (isWorking || !summary) ? 0.6 : 1
-            }}
-            type="button"
+            className="wide-btn"
+            onClick={() => handleAction('full')}
+            disabled={isWorking || !!recording.isAudioCleared}
+            style={{ opacity: (isWorking || !!recording.isAudioCleared) ? 0.6 : 1 }}
           >
-            仅同步到 Obsidian
+            {isWorking ? '重新整理中...' : '重新整理生成'}
+          </button>
+          
+          <button
+            className="wide-btn primary"
+            onClick={() => handleAction('sync_only')}
+            disabled={isWorking || !summary}
+            style={{ opacity: (isWorking || !summary) ? 0.6 : 1 }}
+          >
+            重新同步
           </button>
         </div>
-      </section>
 
-      {/* 文本域可编辑编辑区域 */}
-      <section className="settings-card" style={{ marginTop: '16px', display: 'grid', gap: '16px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>原始转写文本 (ASR)</label>
-          <textarea
-            value={transcript}
-            onChange={(e) => handleTranscriptChange(e.target.value)}
-            disabled={isWorking}
-            placeholder="等待 ASR 转写或手动录入..."
-            style={{
-              minHeight: '120px',
-              padding: '10px',
-              borderRadius: '8px',
-              border: '1px solid #ded6cb',
-              fontSize: '14px',
-              fontFamily: 'inherit',
-              lineHeight: '1.5',
-              background: isWorking ? '#f5f2ec' : '#fff',
-              color: '#27241f'
-            }}
-          />
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>整理后的 Markdown 笔记 (LLM)</label>
-          <textarea
-            value={summary}
-            onChange={(e) => handleSummaryChange(e.target.value)}
-            disabled={isWorking}
-            placeholder="等待 LLM 整理或手动编辑..."
-            style={{
-              minHeight: '180px',
-              padding: '10px',
-              borderRadius: '8px',
-              border: '1px solid #ded6cb',
-              fontSize: '13px',
-              fontFamily: 'monospace',
-              lineHeight: '1.5',
-              background: isWorking ? '#f5f2ec' : '#fff',
-              color: '#27241f'
-            }}
-          />
-        </div>
-      </section>
-
-      <button className="danger-button" onClick={() => void remove()} type="button" style={{ marginTop: '24px' }}>
-        删除本地音频与所有相关缓存
-      </button>
+        <button 
+          className="wide-btn danger" 
+          onClick={() => void remove()} 
+          style={{ 
+            marginTop: '12px', 
+            width: '100%', 
+            background: 'var(--dangerBg)', 
+            color: 'var(--danger)', 
+            borderColor: 'var(--line)', 
+            border: '1px solid var(--line)' 
+          }}
+        >
+          🗑 删除本地音频与全部缓存
+        </button>
+      </div>
     </section>
   )
 }

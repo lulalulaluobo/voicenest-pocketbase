@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   getASRConfig,
   saveASRConfig,
@@ -21,6 +22,8 @@ import { formatNote } from '../lib/llm'
 import { testSyncConnection } from '../lib/sync'
 
 export function SettingsPage() {
+  const navigate = useNavigate()
+
   // ASR
   const [asrConfig, setAsrConfig] = useState(getASRConfig())
   const [asrTesting, setAsrTesting] = useState(false)
@@ -48,6 +51,13 @@ export function SettingsPage() {
   const [audioRetention, setAudioRetention] = useState<AudioRetentionType>(getAudioRetention())
   const [textRetention, setTextRetention] = useState<TextRetentionType>(getTextRetention())
 
+  // 折叠状态管理：'' | 'asr' | 'llm' | 'sync' | 'audio_retention' | 'text_retention' | 'backup'
+  const [activeCollapse, setActiveCollapse] = useState<string | null>(null)
+
+  const toggleCollapse = (name: string) => {
+    setActiveCollapse(activeCollapse === name ? null : name)
+  }
+
   const handleAudioRetentionChange = (val: AudioRetentionType) => {
     setAudioRetention(val)
     saveAudioRetention(val)
@@ -58,129 +68,37 @@ export function SettingsPage() {
     saveTextRetention(val)
   }
 
-  // 导出备份：脱敏导出 JSON 配置文件
-  const handleExportBackup = () => {
-    try {
-      const backupData = {
-        version: '1.0',
-        exportDate: new Date().toISOString(),
-        autoProcess,
-        noteTypes,
-        asrConfig: { ...asrConfig, apiKey: '' },
-        llmConfig: { ...llmConfig, apiKey: '' },
-        syncConfig: { ...syncConfig, apiToken: '' },
-        audioRetention,
-        textRetention
-      }
-      
-      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      const now = new Date()
-      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
-      a.href = url
-      a.download = `voicenest_backup_${dateStr}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (err: any) {
-      alert(`导出备份失败: ${err.message}`)
-    }
-  }
-
-  // 导入备份：智能融合逻辑，如果备份里是空 key 而本地原本有有效密钥，则自动保留本地已有密钥
-  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      try {
-        const raw = event.target?.result as string
-        const parsed = JSON.parse(raw)
-
-        if (!parsed.noteTypes || !Array.isArray(parsed.noteTypes)) {
-          throw new Error('备份文件格式不正确，缺少有效的分类配置。')
-        }
-
-        if (parsed.asrConfig) {
-          const mergedAsr = { ...parsed.asrConfig }
-          if (!mergedAsr.apiKey && asrConfig.apiKey) {
-            mergedAsr.apiKey = asrConfig.apiKey
-          }
-          setAsrConfig(mergedAsr)
-          saveASRConfig(mergedAsr)
-        }
-
-        if (parsed.llmConfig) {
-          const mergedLlm = { ...parsed.llmConfig }
-          if (!mergedLlm.apiKey && llmConfig.apiKey) {
-            mergedLlm.apiKey = llmConfig.apiKey
-          }
-          setLlmConfig(mergedLlm)
-          saveLLMConfig(mergedLlm)
-        }
-
-        if (parsed.syncConfig) {
-          const mergedSync = { ...parsed.syncConfig }
-          if (!mergedSync.apiToken && syncConfig.apiToken) {
-            mergedSync.apiToken = syncConfig.apiToken
-          }
-          setSyncConfig(mergedSync)
-          saveSyncConfig(mergedSync)
-        }
-
-        setNoteTypes(parsed.noteTypes)
-        saveNoteTypes(parsed.noteTypes)
-
-        if (parsed.autoProcess !== undefined) {
-          setAutoProcess(parsed.autoProcess)
-          localStorage.setItem('vn_auto_process', parsed.autoProcess ? 'true' : 'false')
-        }
-        if (parsed.audioRetention !== undefined) {
-          setAudioRetention(parsed.audioRetention)
-          saveAudioRetention(parsed.audioRetention)
-        }
-        if (parsed.textRetention !== undefined) {
-          setTextRetention(parsed.textRetention)
-          saveTextRetention(parsed.textRetention)
-        }
-
-        alert('🎉 备份导入成功！已为您恢复所有分类、同步策略及选项。已自动为您保留本地已填写的 API 鉴权密钥，无需重填。')
-        window.location.reload()
-      } catch (err: any) {
-        alert(`导入备份失败: ${err.message}`)
-      }
-    }
-    reader.readAsText(file)
-  }
-
   // ASR Save & Test
   const handleASRChange = (field: string, value: string) => {
     const updated = { ...asrConfig, [field]: value }
-    setAsrConfig(updated as any)
-    saveASRConfig(updated as any)
-  }
-
-  const handleASRTypeChange = (newType: 'openai' | 'step' | 'custom') => {
-    const updated = { ...asrConfig, type: newType }
-    if (newType === 'openai') {
-      updated.endpoint = 'https://api.openai.com/v1'
-      updated.model = 'whisper-1'
-    } else if (newType === 'step') {
-      updated.endpoint = 'https://api.stepfun.com/v1'
-      updated.model = 'stepaudio-2.5-asr'
-    }
     setAsrConfig(updated)
     saveASRConfig(updated)
+  }
+
+  const handleASRTypeChange = (type: 'openai' | 'step') => {
+    let defaults = {
+      type,
+      endpoint: 'https://api.openai.com/v1',
+      model: 'whisper-1',
+      apiKey: asrConfig.apiKey
+    }
+    if (type === 'step') {
+      defaults = {
+        type,
+        endpoint: 'https://api.stepfun.com/v1',
+        model: 'stepaudio-2.5-asr',
+        apiKey: asrConfig.apiKey
+      }
+    }
+    setAsrConfig(defaults)
+    saveASRConfig(defaults)
   }
 
   const handleTestASR = async () => {
     setAsrTesting(true)
     setAsrTestResult(null)
     try {
-      const base64ToBlob = (base64: string, mimeType: string): Blob => {
+      function base64ToBlob(base64: string, mimeType: string) {
         const byteCharacters = atob(base64)
         const byteNumbers = new Array(byteCharacters.length)
         for (let i = 0; i < byteCharacters.length; i++) {
@@ -327,556 +245,534 @@ export function SettingsPage() {
     setEditingType(null)
   }
 
-  const handleSetDefaultType = (id: string) => {
-    const list = noteTypes.map(t => ({
-      ...t,
-      isDefault: t.id === id
-    }))
-    setNoteTypes(list)
-    saveNoteTypes(list)
+  // 导出备份
+  const handleExportBackup = () => {
+    try {
+      const backupData = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        autoProcess,
+        noteTypes,
+        asrConfig: { ...asrConfig, apiKey: '' },
+        llmConfig: { ...llmConfig, apiKey: '' },
+        syncConfig: { ...syncConfig, apiToken: '' },
+        audioRetention,
+        textRetention
+      }
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const now = new Date()
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+      a.href = url
+      a.download = `voicenest_backup_${dateStr}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      alert(`导出备份失败: ${err.message}`)
+    }
+  }
+
+  // 导入备份
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const raw = event.target?.result as string
+        const parsed = JSON.parse(raw)
+
+        if (!parsed.noteTypes || !Array.isArray(parsed.noteTypes)) {
+          throw new Error('备份文件格式不正确，缺少有效的分类配置。')
+        }
+
+        if (parsed.asrConfig) {
+          const mergedAsr = { ...parsed.asrConfig }
+          if (!mergedAsr.apiKey && asrConfig.apiKey) {
+            mergedAsr.apiKey = asrConfig.apiKey
+          }
+          setAsrConfig(mergedAsr)
+          saveASRConfig(mergedAsr)
+        }
+
+        if (parsed.llmConfig) {
+          const mergedLlm = { ...parsed.llmConfig }
+          if (!mergedLlm.apiKey && llmConfig.apiKey) {
+            mergedLlm.apiKey = llmConfig.apiKey
+          }
+          setLlmConfig(mergedLlm)
+          saveLLMConfig(mergedLlm)
+        }
+
+        if (parsed.syncConfig) {
+          const mergedSync = { ...parsed.syncConfig }
+          if (!mergedSync.apiToken && syncConfig.apiToken) {
+            mergedSync.apiToken = syncConfig.apiToken
+          }
+          setSyncConfig(mergedSync)
+          saveSyncConfig(mergedSync)
+        }
+
+        setNoteTypes(parsed.noteTypes)
+        saveNoteTypes(parsed.noteTypes)
+
+        if (parsed.autoProcess !== undefined) {
+          setAutoProcess(parsed.autoProcess)
+          localStorage.setItem('vn_auto_process', parsed.autoProcess ? 'true' : 'false')
+        }
+        if (parsed.audioRetention !== undefined) {
+          setAudioRetention(parsed.audioRetention)
+          saveAudioRetention(parsed.audioRetention)
+        }
+        if (parsed.textRetention !== undefined) {
+          setTextRetention(parsed.textRetention)
+          saveTextRetention(parsed.textRetention)
+        }
+
+        alert('🎉 备份导入成功！已为您恢复所有分类、同步策略及选项。已自动为您保留本地已填写的 API 鉴权密钥，无需重填。')
+        window.location.reload()
+      } catch (err: any) {
+        alert(`导入备份失败: ${err.message}`)
+      }
+    }
+    reader.readAsText(file)
   }
 
   return (
-    <section className="page" style={{ display: 'grid', gap: '20px' }}>
+    <section className="view" style={{ paddingBottom: '112px' }}>
+      {/* 顶部栏 */}
       <header className="topbar">
         <div>
-          <span className="eyebrow">PREFERENCES</span>
+          <span className="eyebrow">Preferences</span>
           <h1>设置</h1>
         </div>
+        <button className="icon-btn" onClick={() => navigate('/')} aria-label="关闭设置">
+          ×
+        </button>
       </header>
 
-      {/* 自动化设置 */}
+      {/* 1. 录音与处理卡片 */}
       <section className="settings-card">
-        <h2>自动化配置</h2>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '44px' }}>
-          <div>
-            <strong>自动处理</strong>
-            <span style={{ fontSize: '13px', opacity: 0.8 }}>录音完成后自动执行转写与同步</span>
+        <h3>录音与处理</h3>
+        
+        {/* 自动处理 */}
+        <div className="row" onClick={handleToggleAutoProcess}>
+          <div className="row-main">
+            <div className="row-title">录音结束后自动处理</div>
+            <div className="row-sub">自动转写、整理并同步到 Obsidian</div>
           </div>
-          <input
-            type="checkbox"
-            checked={autoProcess}
-            onChange={handleToggleAutoProcess}
-            style={{ width: '44px', height: '24px', cursor: 'pointer' }}
-          />
+          <div className={`switch ${autoProcess ? 'on' : ''}`} />
         </div>
-      </section>
 
-      {/* ASR 配置 */}
-      <section className="settings-card">
-        <h2>ASR 转写配置 (Whisper 兼容)</h2>
-        <div style={{ display: 'grid', gap: '12px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>ASR 服务类型</label>
+        {/* 音频保留 */}
+        <div className="row" onClick={() => toggleCollapse('audio_retention')}>
+          <div className="row-main">
+            <div className="row-title">音频保留策略</div>
+            <div className="row-sub">
+              {audioRetention === 'forever' ? '永久保留' : audioRetention === 'immediate' ? '立即删除' : `同步成功后保留 ${audioRetention}`}
+            </div>
+          </div>
+          <div style={{ color: 'var(--muted)' }}>{activeCollapse === 'audio_retention' ? '▼' : '›'}</div>
+        </div>
+        {activeCollapse === 'audio_retention' && (
+          <div style={{ padding: '10px 0', borderTop: '1px dashed var(--line)' }}>
             <select
-              value={asrConfig.type}
-              onChange={(e) => handleASRTypeChange(e.target.value as any)}
-              style={{ minHeight: '44px', padding: '0 8px', borderRadius: '8px', border: '1px solid #ded6cb' }}
+              value={audioRetention}
+              onChange={(e) => handleAudioRetentionChange(e.target.value as AudioRetentionType)}
+              style={{ width: '100%', minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)', fontSize: '13px' }}
             >
-              <option value="openai">OpenAI Whisper</option>
-              <option value="step">阶跃星辰 StepAudio</option>
-              <option value="custom">自定义 Whisper 接口</option>
+              <option value="forever">永久保留 (默认)</option>
+              <option value="immediate">同步成功后立即删除 (仅保留文本历史)</option>
+              <option value="7d">保留 7 天后删除</option>
+              <option value="30d">保留 30 天后删除</option>
             </select>
           </div>
+        )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>API Endpoint</label>
-            <input
-              type="text"
-              value={asrConfig.endpoint}
-              onChange={(e) => handleASRChange('endpoint', e.target.value)}
-              placeholder="https://api.openai.com/v1"
-              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
-            />
+        {/* 文本保留 */}
+        <div className="row" onClick={() => toggleCollapse('text_retention')}>
+          <div className="row-main">
+            <div className="row-title">文本保留策略</div>
+            <div className="row-sub">
+              {textRetention === 'forever' ? '永久保留' : `同步成功后保留 ${textRetention}`}
+            </div>
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>API Key</label>
-            <input
-              type="password"
-              value={asrConfig.apiKey}
-              onChange={(e) => handleASRChange('apiKey', e.target.value)}
-              placeholder="sk-..."
-              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
-            />
+          <div style={{ color: 'var(--muted)' }}>{activeCollapse === 'text_retention' ? '▼' : '›'}</div>
+        </div>
+        {activeCollapse === 'text_retention' && (
+          <div style={{ padding: '10px 0', borderTop: '1px dashed var(--line)' }}>
+            <select
+              value={textRetention}
+              onChange={(e) => handleTextRetentionChange(e.target.value as TextRetentionType)}
+              style={{ width: '100%', minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)', fontSize: '13px' }}
+            >
+              <option value="forever">永久保留 (默认)</option>
+              <option value="7d">保留 7 天后全部删除</option>
+              <option value="30d">保留 30 天后全部删除</option>
+            </select>
           </div>
+        )}
+      </section>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>Model 名称</label>
-            <input
-              type="text"
-              value={asrConfig.model}
-              onChange={(e) => handleASRChange('model', e.target.value)}
-              placeholder="whisper-1"
-              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
-            />
+      {/* 2. 模型服务卡片 */}
+      <section className="settings-card">
+        <h3>模型服务</h3>
+
+        {/* ASR 服务 */}
+        <div className="row" onClick={() => toggleCollapse('asr')}>
+          <div className="row-main">
+            <div className="row-title">ASR 服务</div>
+            <div className="row-sub">
+              {asrConfig.type === 'step' ? '阶跃星辰 StepAudio' : 'OpenAI Whisper'} · {asrConfig.model}
+            </div>
           </div>
-
-          <div style={{ marginTop: '8px' }}>
+          <div style={{ color: 'var(--muted)' }}>{activeCollapse === 'asr' ? '▼' : '›'}</div>
+        </div>
+        {activeCollapse === 'asr' && (
+          <div style={{ padding: '12px 0', borderTop: '1px dashed var(--line)', display: 'grid', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>服务商类型</label>
+              <select
+                value={asrConfig.type}
+                onChange={(e) => handleASRTypeChange(e.target.value as 'openai' | 'step')}
+                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+              >
+                <option value="openai">OpenAI 兼容</option>
+                <option value="step">阶跃星辰 StepAudio</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>API 端点 URL</label>
+              <input
+                type="text"
+                value={asrConfig.endpoint}
+                onChange={(e) => handleASRChange('endpoint', e.target.value)}
+                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>API Key</label>
+              <input
+                type="password"
+                value={asrConfig.apiKey}
+                onChange={(e) => handleASRChange('apiKey', e.target.value)}
+                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>转写模型</label>
+              <input
+                type="text"
+                value={asrConfig.model}
+                onChange={(e) => handleASRChange('model', e.target.value)}
+                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+              />
+            </div>
             <button
               type="button"
               onClick={handleTestASR}
               disabled={asrTesting}
-              className="btn"
-              style={{
-                minHeight: '44px',
-                width: '100%',
-                background: '#bf3b3b',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                opacity: asrTesting ? 0.6 : 1
-              }}
+              style={{ minHeight: '40px', background: 'var(--accent)', color: 'var(--accentText)', border: 0, borderRadius: '6px', fontWeight: 'bold', marginTop: '6px' }}
             >
-              {asrTesting ? '正在测试...' : 'ASR 测试连接'}
+              {asrTesting ? '正在测试...' : '测试 ASR 连接'}
             </button>
             {asrTestResult && (
-              <div style={{ marginTop: '8px', fontSize: '13px', padding: '8px', borderRadius: '6px', background: '#f5f2ec', wordBreak: 'break-all' }}>
+              <div style={{ fontSize: '12px', background: 'var(--soft)', padding: '8px', borderRadius: '6px', marginTop: '4px' }}>
                 {asrTestResult}
               </div>
             )}
           </div>
+        )}
+
+        {/* LLM 服务 */}
+        <div className="row" onClick={() => toggleCollapse('llm')}>
+          <div className="row-main">
+            <div className="row-title">默认 LLM</div>
+            <div className="row-sub">OpenAI 兼容 · {llmConfig.model}</div>
+          </div>
+          <div style={{ color: 'var(--muted)' }}>{activeCollapse === 'llm' ? '▼' : '›'}</div>
         </div>
-      </section>
-
-      {/* LLM 配置 */}
-      <section className="settings-card">
-        <h2>LLM 整理配置 (GPT 兼容)</h2>
-        <div style={{ display: 'grid', gap: '12px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>API Endpoint</label>
-            <input
-              type="text"
-              value={llmConfig.endpoint}
-              onChange={(e) => handleLLMChange('endpoint', e.target.value)}
-              placeholder="https://api.openai.com/v1"
-              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>API Key</label>
-            <input
-              type="password"
-              value={llmConfig.apiKey}
-              onChange={(e) => handleLLMChange('apiKey', e.target.value)}
-              placeholder="sk-..."
-              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>Model 名称</label>
-            <input
-              type="text"
-              value={llmConfig.model}
-              onChange={(e) => handleLLMChange('model', e.target.value)}
-              placeholder="gpt-4o"
-              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
-            />
-          </div>
-
-          <div style={{ marginTop: '8px' }}>
+        {activeCollapse === 'llm' && (
+          <div style={{ padding: '12px 0', borderTop: '1px dashed var(--line)', display: 'grid', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>API 端点 URL</label>
+              <input
+                type="text"
+                value={llmConfig.endpoint}
+                onChange={(e) => handleLLMChange('endpoint', e.target.value)}
+                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>API Key</label>
+              <input
+                type="password"
+                value={llmConfig.apiKey}
+                onChange={(e) => handleLLMChange('apiKey', e.target.value)}
+                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>模型名称</label>
+              <input
+                type="text"
+                value={llmConfig.model}
+                onChange={(e) => handleLLMChange('model', e.target.value)}
+                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+              />
+            </div>
             <button
               type="button"
               onClick={handleTestLLM}
               disabled={llmTesting}
-              className="btn"
-              style={{
-                minHeight: '44px',
-                width: '100%',
-                background: '#bf3b3b',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                opacity: llmTesting ? 0.6 : 1
-              }}
+              style={{ minHeight: '40px', background: 'var(--accent)', color: 'var(--accentText)', border: 0, borderRadius: '6px', fontWeight: 'bold', marginTop: '6px' }}
             >
-              {llmTesting ? '正在测试...' : 'LLM 测试连接'}
+              {llmTesting ? '正在测试...' : '测试 LLM 连接'}
             </button>
             {llmTestResult && (
-              <div style={{ marginTop: '8px', fontSize: '13px', padding: '8px', borderRadius: '6px', background: '#f5f2ec', wordBreak: 'break-all' }}>
+              <div style={{ fontSize: '12px', background: 'var(--soft)', padding: '8px', borderRadius: '6px', marginTop: '4px' }}>
                 {llmTestResult}
               </div>
             )}
           </div>
+        )}
+
+        {/* Fast Note Sync */}
+        <div className="row" onClick={() => toggleCollapse('sync')}>
+          <div className="row-main">
+            <div className="row-title">Fast Note Sync (Obsidian)</div>
+            <div className="row-sub">{syncConfig.api ? `已连接 · Vault: ${syncConfig.vault}` : '未配置'}</div>
+          </div>
+          <div style={{ color: 'var(--muted)' }}>{activeCollapse === 'sync' ? '▼' : '›'}</div>
         </div>
-      </section>
-
-      {/* Fast Note Sync 同步配置 */}
-      <section className="settings-card">
-        <h2>Obsidian 同步端点 (Fast Note Sync)</h2>
-        <div style={{ display: 'grid', gap: '12px' }}>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>一键粘贴 FNS 配置 JSON</label>
-            <textarea
-              value={fnsJsonInput}
-              onChange={(e) => setFnsJsonInput(e.target.value)}
-              placeholder='例: {"api":"http://localhost:8080","apiToken":"...","vault":"obsidian"}'
-              style={{ minHeight: '70px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #ded6cb', fontFamily: 'monospace', fontSize: '12px' }}
-            />
-            <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-              <button
-                type="button"
-                onClick={handleClipboardImport}
-                style={{
-                  minHeight: '36px',
-                  padding: '0 12px',
-                  borderRadius: '6px',
-                  background: '#5b5148',
-                  color: '#fff',
-                  border: 'none',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer'
-                }}
-              >
-                📋 从剪贴板导入并解析
-              </button>
-              <button
-                type="button"
-                onClick={() => handleParseFnsJson(fnsJsonInput)}
-                disabled={!fnsJsonInput.trim()}
-                style={{
-                  minHeight: '36px',
-                  padding: '0 12px',
-                  borderRadius: '6px',
-                  background: '#ded6cb',
-                  color: '#27241f',
-                  border: 'none',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  opacity: fnsJsonInput.trim() ? 1 : 0.6
-                }}
-              >
-                ⚙️ 解析并填充
-              </button>
+        {activeCollapse === 'sync' && (
+          <div style={{ padding: '12px 0', borderTop: '1px dashed var(--line)', display: 'grid', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>一键导入 FNS JSON</label>
+              <textarea
+                value={fnsJsonInput}
+                onChange={(e) => setFnsJsonInput(e.target.value)}
+                placeholder='例: {"api":"https://...","apiToken":"...","vault":"obsidian"}'
+                style={{ minHeight: '60px', fontSize: '12px', fontFamily: 'monospace' }}
+              />
+              <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
+                <button
+                  type="button"
+                  className="action"
+                  onClick={handleClipboardImport}
+                  style={{ padding: '6px 10px', fontSize: '12px' }}
+                >
+                  📋 剪贴板导入
+                </button>
+                <button
+                  type="button"
+                  className="action primary"
+                  onClick={() => handleParseFnsJson(fnsJsonInput)}
+                  disabled={!fnsJsonInput.trim()}
+                  style={{ padding: '6px 10px', fontSize: '12px' }}
+                >
+                  解析并填充
+                </button>
+              </div>
             </div>
-          </div>
 
-          <hr style={{ border: '0', borderTop: '1px dashed #e5ddd4', margin: '8px 0' }} />
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>FNS 基础地址 (API)</label>
-            <input
-              type="text"
-              value={syncConfig.api}
-              onChange={(e) => handleSyncFieldChange('api', e.target.value)}
-              placeholder="http://localhost:8080"
-              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>FNS Vault 名称</label>
-            <input
-              type="text"
-              value={syncConfig.vault}
-              onChange={(e) => handleSyncFieldChange('vault', e.target.value)}
-              placeholder="obsidian"
-              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>FNS API Token</label>
-            <input
-              type="password"
-              value={syncConfig.apiToken}
-              onChange={(e) => handleSyncFieldChange('apiToken', e.target.value)}
-              placeholder="FNS 鉴权密钥"
-              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
-            />
-          </div>
-
-          <div style={{ marginTop: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>FNS 基础地址 (API)</label>
+              <input
+                type="text"
+                value={syncConfig.api}
+                onChange={(e) => handleSyncFieldChange('api', e.target.value)}
+                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>Vault 名称</label>
+              <input
+                type="text"
+                value={syncConfig.vault}
+                onChange={(e) => handleSyncFieldChange('vault', e.target.value)}
+                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>API Token</label>
+              <input
+                type="password"
+                value={syncConfig.apiToken}
+                onChange={(e) => handleSyncFieldChange('apiToken', e.target.value)}
+                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+              />
+            </div>
             <button
               type="button"
               onClick={handleTestSync}
               disabled={syncTesting}
-              style={{
-                minHeight: '44px',
-                width: '100%',
-                background: '#bf3b3b',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: 'bold',
-                opacity: syncTesting ? 0.6 : 1
-              }}
+              style={{ minHeight: '40px', background: 'var(--accent)', color: 'var(--accentText)', border: 0, borderRadius: '6px', fontWeight: 'bold', marginTop: '6px' }}
             >
-              {syncTesting ? '正在测试...' : '测试 Obsidian FNS 连接'}
+              {syncTesting ? '正在测试...' : '测试 FNS 连接'}
             </button>
             {syncTestResult && (
-              <div style={{ marginTop: '8px', fontSize: '13px', padding: '8px', borderRadius: '6px', background: '#f5f2ec', wordBreak: 'break-all' }}>
+              <div style={{ fontSize: '12px', background: 'var(--soft)', padding: '8px', borderRadius: '6px', marginTop: '4px' }}>
                 {syncTestResult}
               </div>
             )}
           </div>
-
-        </div>
+        )}
       </section>
 
-      {/* 笔记类型管理 */}
+      {/* 3. 笔记类型卡片 */}
       <section className="settings-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2>笔记类型管理</h2>
-          <button
-            type="button"
-            onClick={handleAddNoteType}
-            style={{
-              minHeight: '36px',
-              padding: '0 12px',
-              borderRadius: '6px',
-              background: '#5b5148',
-              color: '#fff',
-              border: 'none',
-              fontWeight: 'bold',
-              fontSize: '12px'
-            }}
-          >
-            ➕ 新增类型
-          </button>
-        </div>
-
-        <div style={{ display: 'grid', gap: '10px', marginTop: '10px' }}>
-          {noteTypes.map(type => (
-            <div
-              key={type.id}
-              style={{
-                border: '1px solid #e5ddd4',
-                borderRadius: '10px',
-                padding: '12px',
-                display: 'grid',
-                gap: '8px'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <strong>{type.name}</strong>
-                  {type.isDefault && <span style={{ marginLeft: '8px', fontSize: '11px', color: '#bf3b3b', fontWeight: 'bold' }}>(默认)</span>}
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setEditingType(type)}
-                    style={{ background: 'transparent', border: 'none', color: '#315d92', fontWeight: 'bold', cursor: 'pointer', minWidth: '44px', minHeight: '44px' }}
-                  >
-                    编辑
-                  </button>
-                  {!type.isDefault && (
-                    <button
-                      type="button"
-                      onClick={() => handleSetDefaultType(type.id)}
-                      style={{ background: 'transparent', border: 'none', color: '#865c12', cursor: 'pointer', minWidth: '44px', minHeight: '44px' }}
-                    >
-                      设默认
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteNoteType(type.id)}
-                    style={{ background: 'transparent', border: 'none', color: '#a83330', cursor: 'pointer', minWidth: '44px', minHeight: '44px' }}
-                  >
-                    删除
-                  </button>
-                </div>
-              </div>
-              <span style={{ fontSize: '12px', opacity: 0.8 }}>📂 存储路径: {type.obsidianPath}</span>
+        <h3>笔记分类管理</h3>
+        {noteTypes.map((type) => (
+          <div key={type.id} className="row" onClick={() => setEditingType(type)}>
+            <div className="row-main">
+              <div className="row-title">{type.name}</div>
+              <div className="row-sub">{type.obsidianPath} · {type.isDefault ? '默认分类' : '普通分类'}</div>
             </div>
-          ))}
+            <div style={{ color: 'var(--muted)' }}>›</div>
+          </div>
+        ))}
+        
+        {/* 新增分类 */}
+        <div className="row" onClick={handleAddNoteType} style={{ color: 'var(--success)' }}>
+          <div className="row-main">
+            <div className="row-title" style={{ fontWeight: 'bold' }}>＋ 新增笔记分类</div>
+            <div className="row-sub" style={{ color: 'var(--success)' }}>点击在此配置新笔记模版和保存目录</div>
+          </div>
+          <div>＋</div>
         </div>
       </section>
 
-      {/* 编辑弹窗模态框 */}
+      {/* 4. 数据备份与恢复卡片 */}
+      <section className="settings-card">
+        <h3>数据备份与恢复</h3>
+        <div className="row" onClick={() => toggleCollapse('backup')}>
+          <div className="row-main">
+            <div className="row-title">备份与恢复</div>
+            <div className="row-sub">脱敏导出 JSON 备份与合并式导入配置</div>
+          </div>
+          <div style={{ color: 'var(--muted)' }}>{activeCollapse === 'backup' ? '▼' : '›'}</div>
+        </div>
+        {activeCollapse === 'backup' && (
+          <div style={{ padding: '12px 0', borderTop: '1px dashed var(--line)', display: 'grid', gap: '10px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+              ⚠️ 安全提示：为了您的密钥安全，备份文件中不包含任何 API 密码与 FNS Token。导入时会合并保留您已有的密钥。
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="action primary"
+                onClick={handleExportBackup}
+                style={{ padding: '10px' }}
+              >
+                📤 导出备份
+              </button>
+              <label
+                className="action"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'var(--soft)',
+                  cursor: 'pointer'
+                }}
+              >
+                📥 导入备份
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleImportBackup}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* 类别编辑悬浮弹层 */}
       {editingType && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.5)',
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-          }}
-        >
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.42)' }} onClick={() => setEditingType(null)} />
           <div
-            className="settings-card"
+            className="sheet show"
             style={{
-              width: '100%',
-              maxWidth: '500px',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              margin: 0,
-              gap: '12px'
+              zIndex: 85,
+              maxHeight: '85vh',
+              overflowY: 'auto'
             }}
           >
-            <h3>编辑笔记分类: {editingType.name}</h3>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>分类名称</label>
-              <input
-                type="text"
-                value={editingType.name}
-                onChange={(e) => setEditingType({ ...editingType, name: e.target.value })}
-                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid #ded6cb' }}
-              />
+            <div className="grab" />
+            <div className="sheet-head">
+              <h3>编辑分类: {editingType.name}</h3>
+              <button className="icon-btn" onClick={() => setEditingType(null)}>×</button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>Obsidian 目录路径</label>
-              <input
-                type="text"
-                value={editingType.obsidianPath}
-                onChange={(e) => setEditingType({ ...editingType, obsidianPath: e.target.value })}
-                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid #ded6cb' }}
-              />
-            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>分类名称</label>
+                <input
+                  type="text"
+                  value={editingType.name}
+                  onChange={(e) => setEditingType({ ...editingType, name: e.target.value })}
+                  style={{ minHeight: '40px', padding: '0 8px', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+                />
+              </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>LLM 整理提示词</label>
-              <textarea
-                value={editingType.prompt}
-                onChange={(e) => setEditingType({ ...editingType, prompt: e.target.value })}
-                style={{ minHeight: '60px', padding: '8px', borderRadius: '6px', border: '1px solid #ded6cb', fontFamily: 'inherit' }}
-              />
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>Obsidian 目录</label>
+                <input
+                  type="text"
+                  value={editingType.obsidianPath}
+                  onChange={(e) => setEditingType({ ...editingType, obsidianPath: e.target.value })}
+                  style={{ minHeight: '40px', padding: '0 8px', borderRadius: '8px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+                />
+              </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>Markdown 模板</label>
-              <textarea
-                value={editingType.template}
-                onChange={(e) => setEditingType({ ...editingType, template: e.target.value })}
-                style={{ minHeight: '120px', padding: '8px', borderRadius: '6px', border: '1px solid #ded6cb', fontFamily: 'monospace', fontSize: '13px' }}
-              />
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>整理提示词 (LLM)</label>
+                <textarea
+                  value={editingType.prompt}
+                  onChange={(e) => setEditingType({ ...editingType, prompt: e.target.value })}
+                  style={{ minHeight: '60px' }}
+                />
+              </div>
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => handleSaveTypeEdit(editingType)}
-                style={{ flex: 1, background: '#bf3b3b', color: '#fff', border: 'none', borderRadius: '6px', minHeight: '44px', fontWeight: 'bold' }}
-              >
-                保存
-              </button>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => setEditingType(null)}
-                style={{ flex: 1, background: '#ded6cb', color: '#5b5148', border: 'none', borderRadius: '6px', minHeight: '44px', fontWeight: 'bold' }}
-              >
-                取消
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>Markdown 模板</label>
+                <textarea
+                  value={editingType.template}
+                  onChange={(e) => setEditingType({ ...editingType, template: e.target.value })}
+                  style={{ minHeight: '100px', fontFamily: 'monospace', fontSize: '13px' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  className="action primary"
+                  onClick={() => handleSaveTypeEdit(editingType)}
+                  style={{ minHeight: '44px' }}
+                >
+                  保存配置
+                </button>
+                <button
+                  type="button"
+                  className="action danger"
+                  onClick={() => handleDeleteNoteType(editingType.id)}
+                  style={{ minHeight: '44px', background: 'var(--dangerBg)', border: '1px solid var(--line)' }}
+                >
+                  删除该分类
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
-
-      {/* 存储容量与保留策略 */}
-      <section className="settings-card">
-        <h2>本地存储容量与保留策略</h2>
-        <div style={{ display: 'grid', gap: '12px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>已同步音频保留策略</label>
-            <select
-              value={audioRetention}
-              onChange={(e) => handleAudioRetentionChange(e.target.value as AudioRetentionType)}
-              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb', background: '#fff', fontSize: '13px' }}
-            >
-              <option value="forever">永久保留 (默认，可能会占满磁盘)</option>
-              <option value="immediate">同步成功后立即删除 (仅保留文本历史，最省空间)</option>
-              <option value="7d">保留 7 天后删除</option>
-              <option value="30d">保留 30 天后删除</option>
-            </select>
-            <div style={{ fontSize: '12px', opacity: 0.7, color: '#81766c', marginTop: '2px' }}>
-              💡 当录音同步到 Obsidian 成功后，自动根据设定的期限清空本地 IndexedDB 中的音频文件。
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>已同步文本及卡片保留策略</label>
-            <select
-              value={textRetention}
-              onChange={(e) => handleTextRetentionChange(e.target.value as TextRetentionType)}
-              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb', background: '#fff', fontSize: '13px' }}
-            >
-              <option value="forever">永久保留 (默认，保留卡片列表与转写)</option>
-              <option value="7d">保留 7 天后全部删除</option>
-              <option value="30d">保留 30 天后全部删除</option>
-            </select>
-            <div style={{ fontSize: '12px', opacity: 0.7, color: '#81766c', marginTop: '2px' }}>
-              💡 清理到期卡片记录时，会自动同时清理其文字记录与音频。
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 备份与恢复 */}
-      <section className="settings-card">
-        <h2>应用备份与恢复</h2>
-        <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
-          <div style={{ fontSize: '13px', color: '#81766c' }}>
-            您可以将当前配置的应用设置和自定义笔记分类备份导出到本地。在更换设备或清理浏览器缓存时一键还原。
-            <strong style={{ display: 'block', marginTop: '6px', color: '#bf3b3b' }}>
-              ⚠️ 安全提示：为了您的账号安全，导出的备份文件中绝对不包含您的 API Key 与 FNS Token。
-            </strong>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-            <button
-              type="button"
-              onClick={handleExportBackup}
-              style={{
-                flex: 1,
-                minHeight: '44px',
-                borderRadius: '8px',
-                background: '#5b5148',
-                color: '#fff',
-                border: 'none',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                fontSize: '13px'
-              }}
-            >
-              📤 导出当前配置备份
-            </button>
-            
-            <label
-              style={{
-                flex: 1,
-                minHeight: '44px',
-                borderRadius: '8px',
-                background: '#ded6cb',
-                color: '#27241f',
-                border: 'none',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '13px'
-              }}
-            >
-              📥 导入本地备份文件
-              <input
-                type="file"
-                accept=".json"
-                onChange={handleImportBackup}
-                style={{ display: 'none' }}
-              />
-            </label>
-          </div>
-        </div>
-      </section>
     </section>
   )
 }

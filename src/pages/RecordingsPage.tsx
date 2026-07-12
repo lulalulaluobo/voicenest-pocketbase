@@ -10,14 +10,12 @@ interface FilterOption {
 }
 
 const statusFilters: FilterOption[] = [
-  { value: '', label: '全部状态' },
+  { value: '', label: '全部' },
   { value: 'ready', label: '待处理' },
   { value: 'waiting_network', label: '等待网络' },
   { value: 'processing', label: '处理中' },
   { value: 'synced', label: '已同步' },
-  { value: 'failed', label: '失败' },
-  { value: 'recovered', label: '已恢复' },
-  { value: 'interrupted', label: '已中断' }
+  { value: 'failed', label: '失败' }
 ]
 
 export function RecordingsPage() {
@@ -25,6 +23,8 @@ export function RecordingsPage() {
   const [filterStatus, setFilterStatus] = useState<'' | RecordingStatus>('')
   const [filterType, setFilterType] = useState<string>('')
   const [noteTypes, setNoteTypes] = useState<UserNoteType[]>([])
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const refresh = useCallback(async () => {
     setRecordings(await listRecordings())
@@ -38,60 +38,95 @@ export function RecordingsPage() {
   const visible = recordings.filter((recording) => {
     const matchStatus = !filterStatus || recording.status === filterStatus
     const matchType = !filterType || recording.typeId === filterType
-    return matchStatus && matchType
+    const matchQuery = !searchQuery.trim() || 
+      recording.localTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (recording.transcript && recording.transcript.toLowerCase().includes(searchQuery.toLowerCase()))
+    return matchStatus && matchType && matchQuery
   })
 
   return (
-    <section className="page">
+    <section className="view">
+      {/* 顶部栏 */}
       <header className="topbar">
         <div>
-          <span className="eyebrow">LIBRARY</span>
+          <span className="eyebrow">Library</span>
           <h1>音频列表</h1>
         </div>
+        <button 
+          className="icon-btn" 
+          onClick={() => setShowSearch(!showSearch)}
+          style={{ background: showSearch ? 'var(--soft)' : 'var(--card)' }}
+          aria-label="搜索"
+        >
+          ⌕
+        </button>
       </header>
 
-      {/* 标签过滤组 */}
-      <div className="filters" aria-label="类型筛选" style={{ marginBottom: '12px' }}>
+      {/* 搜索框 */}
+      {showSearch && (
+        <div style={{ marginBottom: '14px' }}>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="搜索录音标题或转写内容..."
+            style={{ 
+              width: '100%', 
+              minHeight: '44px', 
+              padding: '0 12px', 
+              borderRadius: '12px', 
+              border: '1px solid var(--line)',
+              background: 'var(--card2)',
+              color: 'var(--text)'
+            }}
+          />
+        </div>
+      )}
+
+      {/* 分类标签筛选行 */}
+      <div className="type-row" style={{ marginBottom: '10px' }}>
         <button
-          className={filterType === '' ? 'selected' : ''}
+          className={`chip ${filterType === '' ? 'active' : ''}`}
           onClick={() => setFilterType('')}
-          type="button"
         >
-          全部标签
+          所有标签
         </button>
         {noteTypes.map((type) => (
           <button
-            className={filterType === type.id ? 'selected' : ''}
             key={type.id}
+            className={`chip ${filterType === type.id ? 'active' : ''}`}
             onClick={() => setFilterType(type.id)}
-            type="button"
           >
             {type.name}
           </button>
         ))}
       </div>
 
-      {/* 状态过滤组 */}
-      <div className="filters" aria-label="状态筛选" style={{ marginBottom: '6px' }}>
+      {/* 状态过滤行 */}
+      <div className="type-row" style={{ marginBottom: '18px' }}>
         {statusFilters.map((item) => (
           <button
-            className={filterStatus === item.value ? 'selected' : ''}
             key={item.label}
+            className={`chip ${filterStatus === item.value ? 'active' : ''}`}
             onClick={() => setFilterStatus(item.value)}
-            type="button"
           >
             {item.label}
           </button>
         ))}
       </div>
 
-      <div className="recording-list">
+      {/* 核心列表容器 */}
+      <div className="list">
         {visible.length ? (
           visible.map((recording) => (
-            <RecordingCard key={recording.id} recording={recording} />
+            <RecordingCard 
+              key={recording.id} 
+              recording={recording} 
+              onRefresh={refresh}
+            />
           ))
         ) : (
-          <p className="empty-state">没有符合条件的本地录音。</p>
+          <p className="empty-state">没有符合筛选条件的录音。</p>
         )}
       </div>
     </section>

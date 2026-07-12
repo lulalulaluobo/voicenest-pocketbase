@@ -32,11 +32,11 @@ export function App() {
     }
   }, [restored, processQueue])
 
-  if (!restored) return <main className="app-shell"><p className="empty-state">正在恢复本地录音…</p></main>
+  if (!restored) return <div className="phone" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p className="empty-state">正在恢复本地录音…</p></div>
 
   return (
     <BrowserRouter>
-      <main className="app-shell">
+      <div className="phone">
         <Routes>
           <Route path="/" element={<HomePage recorder={recorder} />} />
           <Route path="/recordings" element={<RecordingsPage />} />
@@ -47,7 +47,7 @@ export function App() {
         {needRefresh && recorder.state === 'idle' && (
           <button className="update-button" onClick={() => void updateServiceWorker()} type="button">发现新版本，点击更新</button>
         )}
-      </main>
+      </div>
     </BrowserRouter>
   )
 }
