@@ -35,6 +35,51 @@ describe('API Clients Unit Tests', () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(1)
   })
 
+  it('uses StepAudio multipart requirements for Ogg recordings', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ text: '转写成功内容' }),
+    } as Response)
+
+    await transcribeAudio(new Blob(['audio'], { type: 'audio/ogg;codecs=opus' }), {
+      type: 'step',
+      endpoint: 'https://api.stepfun.com/v1',
+      apiKey: 'step-test',
+      model: 'stepaudio-2.5-asr',
+    })
+
+    const [, request] = vi.mocked(globalThis.fetch).mock.calls[0]
+    const formData = request?.body as FormData
+    expect(formData.get('response_format')).toBe('json')
+    expect((formData.get('file') as File).name).toBe('audio.ogg')
+  })
+
+  it('rejects unsupported StepAudio recording formats before sending a request', async () => {
+    await expect(transcribeAudio(new Blob(['audio'], { type: 'audio/webm' }), {
+      type: 'step',
+      endpoint: 'https://api.stepfun.com/v1',
+      apiKey: 'step-test',
+      model: 'stepaudio-2.5-asr',
+    })).rejects.toThrow('StepAudio 当前仅支持 Ogg、MP3、WAV 或 PCM 录音')
+
+    expect(globalThis.fetch).not.toHaveBeenCalled()
+  })
+
+  it('keeps the safe StepAudio no-speech error code for connection testing', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { code: 'no_speech_found' } }),
+    } as Response)
+
+    await expect(transcribeAudio(new Blob(['audio'], { type: 'audio/wav' }), {
+      type: 'step',
+      endpoint: 'https://api.stepfun.com/v1',
+      apiKey: 'step-test',
+      model: 'stepaudio-2.5-asr',
+    })).rejects.toThrow('ASR API 调用失败 (400): no_speech_found')
+  })
+
   it('should format note via LLM chat completions and parse JSON', async () => {
     const mockResponse = {
       choices: [
