@@ -13,6 +13,7 @@ describe('API Clients Unit Tests', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('should send form data correctly in transcribeAudio', async () => {
@@ -72,15 +73,37 @@ describe('API Clients Unit Tests', () => {
     expect((formData.get('file') as File).name).toBe('audio.ogg')
   })
 
-  it('rejects unsupported StepAudio recording formats before sending a request', async () => {
+  it('converts WebM recordings to WAV before sending them to StepAudio', async () => {
+    class FakeAudioContext {
+      async decodeAudioData() {
+        return {
+          numberOfChannels: 1,
+          length: 2,
+          sampleRate: 16_000,
+          getChannelData: () => new Float32Array([0, 0.5]),
+        } as unknown as AudioBuffer
+      }
+
+      async close() {}
+    }
+
+    vi.stubGlobal('AudioContext', FakeAudioContext)
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ text: '转写成功内容' }),
+    } as Response)
+
     await expect(transcribeAudio(new Blob(['audio'], { type: 'audio/webm' }), {
       type: 'step',
       endpoint: 'https://api.stepfun.com/v1',
       apiKey: 'step-test',
       model: 'stepaudio-2.5-asr',
-    })).rejects.toThrow('StepAudio 当前仅支持 Ogg、MP3、WAV 或 PCM 录音')
+    })).resolves.toBe('转写成功内容')
 
-    expect(globalThis.fetch).not.toHaveBeenCalled()
+    const [, request] = vi.mocked(globalThis.fetch).mock.calls[0]
+    const file = (request?.body as FormData).get('file') as File
+    expect(file.name).toBe('audio.wav')
+    expect(file.type).toBe('audio/wav')
   })
 
   it('keeps the safe StepAudio no-speech error code for connection testing', async () => {
