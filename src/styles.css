@@ -118,6 +118,7 @@ button {
 
 .view {
   padding: 18px 18px 100px;
+  overflow-x: hidden;
 }
 
 .topbar {
@@ -179,9 +180,12 @@ h3 {
 .type-row {
   display: flex;
   gap: 9px;
-  overflow: auto;
-  padding-bottom: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 18px 4px;
+  margin: 0 -18px;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .type-row::-webkit-scrollbar {
