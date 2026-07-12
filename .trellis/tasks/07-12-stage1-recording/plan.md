@@ -32,10 +32,10 @@
 
 **文件：** 创建 `package.json`、`index.html`、`vite.config.ts`、`tsconfig*.json`、`public/icon.svg`、`src/main.tsx`、`src/App.tsx`、`src/styles.css`、`src/test/setup.ts`。
 
-- [ ] 安装 `react react-dom react-router-dom dexie` 与开发依赖 `@types/react @types/react-dom @vitejs/plugin-react fake-indexeddb typescript vite vite-plugin-pwa vitest`。
-- [ ] 配置 `VitePWA`：名称 `Voice Inbox`、`display: 'standalone'`、`registerType: 'prompt'`、主题色和 `public/icon.svg`。
-- [ ] 配置脚本 `dev: vite`、`build: tsc -b && vite build`、`test: vitest run`；测试 setup 为 `import 'fake-indexeddb/auto'`。
-- [ ] 创建入口：
+- [x] 安装 `react react-dom react-router-dom dexie` 与开发依赖 `@types/react @types/react-dom @vitejs/plugin-react fake-indexeddb typescript vite vite-plugin-pwa vitest`。
+- [x] 配置 `VitePWA`：名称 `Voice Inbox`、`display: 'standalone'`、`registerType: 'prompt'`、主题色和 `public/icon.svg`。
+- [x] 配置脚本 `dev: vite`、`build: tsc -b && vite build`、`test: vitest run`；测试 setup 为 `import 'fake-indexeddb/auto'`。
+- [x] 创建入口：
 
 ```tsx
 createRoot(document.getElementById('root')!).render(
@@ -43,8 +43,8 @@ createRoot(document.getElementById('root')!).render(
 )
 ```
 
-- [ ] 运行 `npm run build`；预期成功，`dist/` 有 manifest 和 Service Worker。
-- [ ] 提交：`feat: 初始化录音 PWA`。
+- [x] 运行 `npm run build`；预期成功，`dist/` 有 manifest 和 Service Worker。
+- [x] 提交：`feat: 初始化录音 PWA`。
 
 ## 任务 2：建立数据模型与 IndexedDB
 
