@@ -4,14 +4,14 @@ import { formatNote } from './llm'
 import { syncToObsidian } from './sync'
 
 describe('API Clients Unit Tests', () => {
-  const originalFetch = global.fetch
+  const originalFetch = globalThis.fetch
 
   beforeEach(() => {
-    global.fetch = vi.fn()
+    globalThis.fetch = vi.fn()
   })
 
   afterEach(() => {
-    global.fetch = originalFetch
+    globalThis.fetch = originalFetch
     vi.restoreAllMocks()
   })
 
@@ -19,7 +19,7 @@ describe('API Clients Unit Tests', () => {
     const mockBlob = new Blob(['wav-content'], { type: 'audio/webm' })
     const mockResponse = { text: '转写成功内容' }
     
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => mockResponse
     } as Response)
@@ -32,7 +32,7 @@ describe('API Clients Unit Tests', () => {
     })
 
     expect(text).toBe('转写成功内容')
-    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1)
   })
 
   it('should format note via LLM chat completions and parse JSON', async () => {
@@ -49,7 +49,7 @@ describe('API Clients Unit Tests', () => {
       ]
     }
 
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       json: async () => mockResponse
     } as Response)
@@ -69,7 +69,7 @@ describe('API Clients Unit Tests', () => {
   })
 
   it('should sync markdown file to Obsidian via Fast Note Sync', async () => {
-    vi.mocked(global.fetch).mockResolvedValueOnce({
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
       status: 200
     } as Response)
