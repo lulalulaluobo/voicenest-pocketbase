@@ -88,8 +88,8 @@ export function selectAudioMime(isSupported: (mime: string) => boolean): string 
 export function useRecorder(): { state: RecorderState; elapsedMs: number; error: string | null; start(type: NoteType): Promise<void>; pause(): void; resume(): void; stop(): Promise<string | null>; clearError(): void }
 ```
 
-- [ ] 先写失败测试：优先 `audio/webm;codecs=opus`，仅支持 `audio/mp4` 时返回 mp4，均不支持时返回 `undefined`。
-- [ ] 实现候选顺序：
+- [x] 先写失败测试：优先 `audio/webm;codecs=opus`，仅支持 `audio/mp4` 时返回 mp4，均不支持时返回 `undefined`。
+- [x] 实现候选顺序：
 
 ```ts
 const AUDIO_MIME_CANDIDATES = [
@@ -98,11 +98,11 @@ const AUDIO_MIME_CANDIDATES = [
 ]
 ```
 
-- [ ] `start` 检查安全上下文、`getUserMedia` 和 MediaRecorder，再创建录音元数据并调用 `recorder.start(5000)`；不支持 MIME 时不传 `mimeType`。
-- [ ] 非空 `dataavailable` Blob 立即 `appendChunk`；写入失败时显示中文错误、停止后续录音、保留已有分片。
-- [ ] `pause`/`resume` 调用录音器，计时仅累计实际录音时间；`stop` 等待最终分片后写 `ready`；音轨 `ended` 写 `interrupted`；Wake Lock 失败静默降级并在停止/卸载释放。
-- [ ] 运行 `npm test -- audio-mime.test.ts recording-db.test.ts && npm run build`；预期成功。
-- [ ] 提交：`feat: 支持分片录音与格式降级`。
+- [x] `start` 检查安全上下文、`getUserMedia` 和 MediaRecorder，再创建录音元数据并调用 `recorder.start(5000)`；不支持 MIME 时不传 `mimeType`。
+- [x] 非空 `dataavailable` Blob 立即 `appendChunk`；写入失败时显示中文错误、停止后续录音、保留已有分片。
+- [x] `pause`/`resume` 调用录音器，计时仅累计实际录音时间；`stop` 等待最终分片后写 `ready`；音轨 `ended` 写 `interrupted`；Wake Lock 失败静默降级并在停止/卸载释放。
+- [x] 运行 `npm test -- audio-mime.test.ts recording-db.test.ts && npm run build`；预期成功。
+- [x] 提交：`feat: 支持分片录音与格式降级`。
 
 ## 任务 4：实现路由、视觉与首页录音
 
