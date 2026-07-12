@@ -18,7 +18,7 @@ import {
   type TextRetentionType,
   type UserNoteType
 } from '../lib/config-store'
-import { transcribeAudio } from '../lib/asr'
+import { testASRConnection, transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
 import { testSyncConnection } from '../lib/sync'
 
@@ -99,6 +99,12 @@ export function SettingsPage() {
     setAsrTesting(true)
     setAsrTestResult(null)
     try {
+      if (asrConfig.type === 'step') {
+        await testASRConnection(asrConfig)
+        setAsrTestResult('✅ StepAudio API Key 验证成功！')
+        return
+      }
+
       function base64ToBlob(base64: string, mimeType: string) {
         const byteCharacters = atob(base64)
         const byteNumbers = new Array(byteCharacters.length)

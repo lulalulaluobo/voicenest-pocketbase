@@ -6,6 +6,13 @@ export interface ASRConfig {
   timeoutMs?: number
 }
 
+export async function testASRConnection(config: ASRConfig): Promise<void> {
+  const response = await fetch(`${config.endpoint.replace(/\/+$/, '')}/models`, {
+    headers: { Authorization: `Bearer ${config.apiKey}` },
+  })
+  if (!response.ok) throw new Error(`ASR API 调用失败 (${response.status})`)
+}
+
 export async function transcribeAudio(blob: Blob, config: ASRConfig): Promise<string> {
   if (config.type === 'step' && !/(ogg|mpeg|mp3|wav|pcm)/.test(blob.type)) {
     throw new Error('StepAudio 当前仅支持 Ogg、MP3、WAV 或 PCM 录音，请重新录制后再转写。')

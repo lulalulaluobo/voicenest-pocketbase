@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { transcribeAudio } from './asr'
+import { testASRConnection, transcribeAudio } from './asr'
 import { formatNote } from './llm'
 import { assertSecureSyncEndpoint, normalizeObsidianDirectory, sanitizeNoteFilename, syncToObsidian } from './sync'
 
@@ -33,6 +33,24 @@ describe('API Clients Unit Tests', () => {
 
     expect(text).toBe('转写成功内容')
     expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('checks StepAudio credentials through the model list endpoint', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ object: 'list', data: [] }),
+    } as Response)
+
+    await expect(testASRConnection({
+      type: 'step',
+      endpoint: 'https://api.stepfun.com/v1',
+      apiKey: 'step-test',
+      model: 'stepaudio-2.5-asr',
+    })).resolves.toBeUndefined()
+
+    expect(globalThis.fetch).toHaveBeenCalledWith('https://api.stepfun.com/v1/models', {
+      headers: { Authorization: 'Bearer step-test' },
+    })
   })
 
   it('uses StepAudio multipart requirements for Ogg recordings', async () => {
