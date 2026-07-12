@@ -44,7 +44,7 @@ export async function syncToObsidian(
 
 export async function testSyncConnection(config: SyncConfig): Promise<void> {
   const baseUrl = config.api.replace(/\/+$/, '')
-  const url = `${baseUrl}/api/vault`
+  const url = `${baseUrl}/api/user/info`
   
   const response = await fetch(url, {
     method: 'GET',
@@ -56,5 +56,10 @@ export async function testSyncConnection(config: SyncConfig): Promise<void> {
   if (!response.ok) {
     const errText = await response.text().catch(() => '')
     throw new Error(`连接失败 (${response.status}): ${errText}`)
+  }
+
+  const data = await response.json().catch(() => null)
+  if (data && data.status === false) {
+    throw new Error(`鉴权失败: ${data.msg || data.message || '无效 Token'}`)
   }
 }
