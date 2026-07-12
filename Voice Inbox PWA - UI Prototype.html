@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f5f6f8">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111316">
+<title>Voice Inbox PWA Prototype v2</title>
+<style>
+  :root{
+    color-scheme:light dark;
+    --bg:#f5f6f8;--card:#fff;--card2:#f9fafb;--text:#17191c;--muted:#7a8089;
+    --line:#e7e9ed;--accent:#20242a;--accentText:#fff;--soft:#eef0f3;
+    --success:#1f8f55;--successBg:#e7f5ed;--warn:#9b6700;--warnBg:#fff4d9;
+    --danger:#c54444;--dangerBg:#fbeaea;--record:#d84444;
+    --shadow:0 10px 30px rgba(0,0,0,.06);--radius:22px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#111316;--card:#1a1d21;--card2:#171a1e;--text:#f3f4f6;--muted:#949aa3;
+      --line:#2a2e34;--accent:#f1f3f5;--accentText:#15171a;--soft:#24282e;
+      --success:#64d699;--successBg:#173427;--warn:#f2bd5c;--warnBg:#3b2c12;
+      --danger:#ff8d8d;--dangerBg:#3e2020;--record:#ed5b5b;
+      --shadow:0 12px 34px rgba(0,0,0,.28);
+    }
+  }
+  *{box-sizing:border-box} html{scroll-behavior:smooth}
+  body{margin:0;background:#dfe3e8;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh}
+  @media (prefers-color-scheme:dark){body{background:#08090b}}
+  button,input,textarea,select{font:inherit}
+  button{color:inherit}
+  .phone{width:100%;max-width:430px;min-height:100vh;background:var(--bg);position:relative;overflow-x:hidden}
+  .view{display:none;min-height:100vh;padding:18px 18px 112px}.view.active{display:block}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin:4px 2px 18px}
+  .eyebrow{font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+  h1{margin:0;font-size:26px;letter-spacing:-.03em} h2{margin:0;font-size:17px} h3{margin:0;font-size:16px}
+  .icon-btn{border:1px solid var(--line);width:40px;height:40px;border-radius:14px;background:var(--card);box-shadow:var(--shadow);font-size:18px;cursor:pointer}
+  .type-row{display:flex;gap:9px;overflow:auto;padding-bottom:4px;scrollbar-width:none}.type-row::-webkit-scrollbar{display:none}
+  .chip{border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;padding:10px 14px;white-space:nowrap;font-size:14px;cursor:pointer}
+  .chip.active{background:var(--accent);color:var(--accentText);border-color:var(--accent)}
+  .chip.more{padding-inline:13px}
+  .rec-card{margin-top:18px;background:linear-gradient(180deg,var(--card) 0%,var(--card2) 100%);border:1px solid var(--line);border-radius:30px;min-height:330px;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:var(--shadow);position:relative}
+  .prototype-badge{position:absolute;top:15px;right:15px;font-size:10px;color:var(--muted);background:var(--soft);padding:6px 8px;border-radius:999px}
+  .rec-status{color:var(--muted);font-size:14px;margin-bottom:10px}.timer{font-size:38px;font-variant-numeric:tabular-nums;letter-spacing:-.04em;margin-bottom:26px}
+  .record-btn{width:112px;height:112px;border-radius:50%;border:10px solid var(--soft);background:var(--accent);box-shadow:0 12px 35px rgba(0,0,0,.16);position:relative;cursor:pointer}
+  .record-btn::after{content:"";position:absolute;inset:33px;border-radius:50%;background:var(--accentText)}
+  .record-btn.recording{background:var(--record)}.record-btn.recording::after{inset:34px;border-radius:10px;background:#fff}
+  .rec-hint{margin-top:18px;font-size:13px;color:var(--muted)}
+  .pause-row{display:none;gap:10px;margin-top:16px}.pause-row.show{display:flex}
+  .ghost{border:1px solid var(--line);background:var(--card);padding:10px 16px;border-radius:14px;cursor:pointer}
+  .section-head{display:flex;align-items:center;justify-content:space-between;margin:24px 2px 12px}.section-head button{border:0;background:none;color:var(--muted);cursor:pointer}
+  .list{display:flex;flex-direction:column;gap:10px}.item{background:var(--card);border-radius:18px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,.035);border:1px solid var(--line);transition:.25s}
+  .item.flash{box-shadow:0 0 0 3px rgba(31,143,85,.28),var(--shadow);transform:translateY(-2px)}
+  .item-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.item-title{font-size:15px;font-weight:650;margin-bottom:5px}.meta{font-size:12px;color:var(--muted)}
+  .status{font-size:12px;padding:6px 9px;border-radius:999px;background:var(--soft);color:var(--muted);white-space:nowrap}.status.ok{background:var(--successBg);color:var(--success)}.status.wait{background:var(--warnBg);color:var(--warn)}.status.bad{background:var(--dangerBg);color:var(--danger)}
+  .actions{display:flex;gap:8px;margin-top:12px}.action{flex:1;border:0;background:var(--soft);color:var(--text);padding:10px 12px;border-radius:12px;cursor:pointer;font-size:13px}.action.primary{background:var(--accent);color:var(--accentText)}.action.more-btn{flex:0 0 42px}.action.danger{color:var(--danger)}
+  .settings-card,.detail-card{background:var(--card);border-radius:20px;padding:16px;margin-bottom:12px;border:1px solid var(--line)}
+  .settings-card h3,.detail-card h3{margin-bottom:14px}.row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 0;border-top:1px solid var(--line)}.row:first-of-type{border-top:0}.row-main{min-width:0}.row-title{font-size:14px;margin-bottom:3px}.row-sub{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:270px}
+  .switch{width:48px;height:28px;border-radius:999px;background:#5a6069;position:relative;cursor:pointer;flex:none}.switch::after{content:"";width:22px;height:22px;border-radius:50%;background:white;position:absolute;left:3px;top:3px;transition:.2s;box-shadow:0 2px 6px rgba(0,0,0,.18)}.switch.on{background:var(--accent)}.switch.on::after{left:23px}.switch.on::after{background:var(--accentText)}
+  .bottom-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:430px;padding:10px 18px calc(10px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(18px);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr);z-index:20}.nav-btn{border:0;background:transparent;padding:8px;color:var(--muted);font-size:12px;cursor:pointer}.nav-btn span{display:block;font-size:20px;margin-bottom:3px}.nav-btn.active{color:var(--text);font-weight:650}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:50;opacity:0;pointer-events:none;transition:.2s}.overlay.show{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;z-index:60;left:50%;bottom:0;transform:translate(-50%,105%);width:100%;max-width:430px;background:var(--card);border-radius:26px 26px 0 0;padding:12px 18px calc(24px + env(safe-area-inset-bottom));transition:.25s;box-shadow:0 -18px 50px rgba(0,0,0,.2)}.sheet.show{transform:translate(-50%,0)}
+  .grab{width:42px;height:5px;background:var(--line);border-radius:99px;margin:0 auto 18px}.sheet-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.type-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.type-option{border:1px solid var(--line);background:var(--card2);border-radius:16px;padding:15px;text-align:left;cursor:pointer}.type-option b{display:block;margin-bottom:4px}.type-option small{color:var(--muted)}
+  .menu{position:fixed;z-index:70;width:210px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:7px;box-shadow:var(--shadow);display:none}.menu.show{display:block}.menu button{width:100%;border:0;background:transparent;text-align:left;padding:11px 12px;border-radius:10px;cursor:pointer}.menu button:hover{background:var(--soft)}.menu .danger{color:var(--danger)}
+  .detail-title{font-size:21px;font-weight:700;line-height:1.35;margin-bottom:8px}.player{display:flex;align-items:center;gap:12px;padding:14px;background:var(--soft);border-radius:16px}.play-circle{width:42px;height:42px;border:0;border-radius:50%;background:var(--accent);color:var(--accentText);cursor:pointer}.progress{height:6px;background:var(--line);border-radius:99px;flex:1;overflow:hidden}.progress>i{display:block;width:38%;height:100%;background:var(--accent)}
+  textarea{width:100%;min-height:150px;resize:vertical;border:1px solid var(--line);border-radius:14px;background:var(--card2);color:var(--text);padding:13px;line-height:1.6}.btn-row{display:flex;gap:9px;flex-wrap:wrap}.wide-btn{border:0;background:var(--soft);padding:11px 14px;border-radius:12px;cursor:pointer}.wide-btn.primary{background:var(--accent);color:var(--accentText)}
+  .toast{position:fixed;z-index:90;left:50%;bottom:95px;transform:translate(-50%,20px);opacity:0;background:var(--accent);color:var(--accentText);padding:11px 15px;border-radius:999px;font-size:13px;transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:translate(-50%,0)}
+  @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="phone">
+  <section id="home" class="view active">
+    <div class="topbar"><div><div class="eyebrow">Voice Inbox</div><h1>记录一个想法</h1></div><button class="icon-btn" onclick="showView('settings')">⚙</button></div>
+    <div class="type-row" id="homeTypes">
+      <button class="chip active">随想</button><button class="chip">日记</button><button class="chip">会议</button><button class="chip">项目</button><button class="chip more" onclick="openSheet(event)">更多 ···</button>
+    </div>
+    <div class="rec-card">
+      <div class="prototype-badge">视觉原型</div><div class="rec-status" id="recStatus">准备录音</div><div class="timer" id="timer">00:00</div>
+      <button class="record-btn" id="recordBtn" aria-label="开始录音"></button>
+      <div class="pause-row" id="pauseRow"><button class="ghost" id="pauseBtn">暂停</button><button class="ghost" id="stopBtn">完成</button></div>
+      <div class="rec-hint" id="recHint">点击开始录音</div>
+    </div>
+    <div class="section-head" id="recentHead"><h2>最近录音</h2><button onclick="showView('list')">查看全部</button></div>
+    <div class="list" id="recentList">
+      <div class="item" onclick="cardClick(event)"><div class="item-top"><div><div class="item-title">2026-07-12 11:32 · 随想</div><div class="meta">01:48 · 尚未处理</div></div><div class="status wait">待处理</div></div><div class="actions"><button class="action" onclick="event.stopPropagation();toast('播放视觉示例')">播放</button><button class="action primary" onclick="event.stopPropagation();simulateProcess(this)">上传并整理</button><button class="action more-btn" onclick="openMenu(event)">···</button></div></div>
+      <div class="item" onclick="cardClick(event)"><div class="item-top"><div><div class="item-title">AI 时代应该学习判断，而不是记步骤</div><div class="meta">03:12 · 随想</div></div><div class="status ok">已同步</div></div><div class="actions"><button class="action" onclick="event.stopPropagation();showView('detail')">查看详情</button><button class="action" onclick="event.stopPropagation();toast('重新整理已加入队列')">重新整理</button><button class="action more-btn" onclick="openMenu(event)">···</button></div></div>
+    </div>
+  </section>
+
+  <section id="list" class="view">
+    <div class="topbar"><div><div class="eyebrow">Library</div><h1>音频列表</h1></div><button class="icon-btn">⌕</button></div>
+    <div class="type-row"><button class="chip active">全部</button><button class="chip">待处理</button><button class="chip">等待网络</button><button class="chip">处理中</button><button class="chip">已同步</button><button class="chip">失败</button></div>
+    <div class="list" style="margin-top:18px">
+      <div class="item" onclick="cardClick(event)"><div class="item-top"><div><div class="item-title">2026-07-12 11:32 · 随想</div><div class="meta">01:48 · 本地音频</div></div><div class="status wait">等待网络</div></div><div class="actions"><button class="action" onclick="event.stopPropagation();toast('播放视觉示例')">播放</button><button class="action primary" onclick="event.stopPropagation();simulateProcess(this)">立即处理</button><button class="action more-btn" onclick="openMenu(event)">···</button></div></div>
+      <div class="item" onclick="cardClick(event)"><div class="item-top"><div><div class="item-title">团队会议的三个决定</div><div class="meta">26:41 · 会议</div></div><div class="status">整理中 62%</div></div><div class="actions"><button class="action" onclick="event.stopPropagation();showView('detail')">查看详情</button><button class="action" onclick="event.stopPropagation();toast('已取消当前任务')">取消任务</button><button class="action more-btn" onclick="openMenu(event)">···</button></div></div>
+      <div class="item" onclick="cardClick(event)"><div class="item-top"><div><div class="item-title">为什么好想法经常没有被记录</div><div class="meta">04:05 · 随想</div></div><div class="status ok">已同步</div></div><div class="actions"><button class="action" onclick="event.stopPropagation();showView('detail')">详情</button><button class="action" onclick="event.stopPropagation();toast('已按当前类型重新整理')">重新整理</button><button class="action more-btn" onclick="openMenu(event)">···</button></div></div>
+    </div>
+  </section>
+
+  <section id="detail" class="view">
+    <div class="topbar"><div><div class="eyebrow">Recording Detail</div><h1>录音详情</h1></div><button class="icon-btn" onclick="showView('list')">×</button></div>
+    <div class="detail-card"><div class="detail-title">为什么好想法经常没有被记录</div><div class="meta">2026-07-12 11:32 · 随想 · 04:05</div><div class="player" style="margin-top:15px"><button class="play-circle" onclick="toast('播放 / 暂停')">▶</button><div class="progress"><i></i></div><span class="meta">01:32</span></div></div>
+    <div class="detail-card"><h3>同步信息</h3><div class="row"><div class="row-main"><div class="row-title">Obsidian 路径</div><div class="row-sub">00_Inbox/Voice Notes</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">文件名</div><div class="row-sub">为什么好想法经常没有被记录.md</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">当前状态</div><div class="row-sub">已同步 · 可重新整理或另存为</div></div><div class="status ok">成功</div></div></div>
+    <div class="detail-card"><h3>原始转写</h3><textarea>我发现有时候脑海里有一个想法，但是打开 Obsidian、新建笔记、调出输入法这一连串操作，会让我最后放弃记录……</textarea></div>
+    <div class="detail-card"><h3>整理后的 Markdown</h3><textarea># 为什么好想法经常没有被记录
+
+真正的问题不是缺少语音输入，而是记录链路中的启动摩擦过高。
+
+## 核心观察
+- 想法出现的时间窗口很短。
+- 每增加一步操作，放弃记录的概率都会增加。
+- 工具应该把录音直接转化为可用的笔记。</textarea></div>
+    <div class="detail-card"><div class="btn-row"><button class="wide-btn">修改类型</button><button class="wide-btn">重新整理</button><button class="wide-btn primary">重新同步</button><button class="wide-btn">另存为新笔记</button></div></div>
+  </section>
+
+  <section id="settings" class="view">
+    <div class="topbar"><div><div class="eyebrow">Preferences</div><h1>设置</h1></div><button class="icon-btn" onclick="showView('home')">×</button></div>
+    <div class="settings-card"><h3>录音与处理</h3><div class="row"><div class="row-main"><div class="row-title">录音结束后自动处理</div><div class="row-sub">自动转写、整理并同步到 Obsidian</div></div><div class="switch on" onclick="this.classList.toggle('on')"></div></div><div class="row"><div class="row-main"><div class="row-title">默认类型</div><div class="row-sub">随想 · 未指定时记住上次选择</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">网络策略</div><div class="row-sub">任何网络 · 无网等待 · 恢复后继续</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">音频保留</div><div class="row-sub">同步成功后保留 7 天</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">文本保留</div><div class="row-sub">原始转写与 Markdown 保留 30 天</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">附带原始转写</div><div class="row-sub">默认关闭，仅同步整理后的 Markdown</div></div><div class="switch" onclick="this.classList.toggle('on')"></div></div></div>
+    <div class="settings-card"><h3>模型服务</h3><div class="row"><div class="row-main"><div class="row-title">ASR 服务</div><div class="row-sub">StepAudio 2.5 ASR · 已连接 · 测试连接</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">默认 LLM</div><div class="row-sub">OpenAI 兼容接口 · 类型可覆盖</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">Fast Note Sync</div><div class="row-sub">已配置 · 测试连接</div></div><div>›</div></div></div>
+    <div class="settings-card"><h3>笔记类型</h3><div class="row"><div class="row-main"><div class="row-title">随想</div><div class="row-sub">00_Inbox/Voice Notes · 默认 · 常用</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">日记</div><div class="row-sub">02_Areas/Journal · 常用</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">会议</div><div class="row-sub">01_Projects/Meetings · 常用</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">新增类型</div><div class="row-sub">路径、提示词、文件名、模板、标签和模型</div></div><div>＋</div></div></div>
+    <div class="settings-card"><h3>数据</h3><div class="row"><div class="row-main"><div class="row-title">本地存储</div><div class="row-sub">音频 128 MB · 文本 2.4 MB</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">导出备份包</div><div class="row-sub">不包含任何 API Key</div></div><div>›</div></div><div class="row"><div class="row-main"><div class="row-title">导入备份包</div><div class="row-sub">恢复录音、文本、类型与设置</div></div><div>›</div></div></div>
+  </section>
+
+  <nav class="bottom-nav"><button class="nav-btn active" data-view="home"><span>●</span>录音</button><button class="nav-btn" data-view="list"><span>☷</span>列表</button><button class="nav-btn" data-view="settings"><span>⚙</span>设置</button></nav>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeLayers()"></div>
+<div class="sheet" id="typeSheet"><div class="grab"></div><div class="sheet-head"><h3>选择笔记类型</h3><button class="icon-btn" onclick="closeLayers()">×</button></div><div class="type-grid"><button class="type-option" onclick="chooseType('学习')"><b>学习</b><small>知识与复盘</small></button><button class="type-option" onclick="chooseType('内容选题')"><b>内容选题</b><small>文章与视频想法</small></button><button class="type-option" onclick="chooseType('任务')"><b>任务</b><small>行动项与待办</small></button><button class="type-option" onclick="chooseType('自定义类型')"><b>自定义类型</b><small>在设置中管理</small></button></div></div>
+<div class="menu" id="cardMenu"><button onclick="showView('detail');closeLayers()">查看详情</button><button onclick="toast('请在详情页修改类型');closeLayers()">修改类型</button><button onclick="toast('已创建另存任务');closeLayers()">另存为新笔记</button><button class="danger" onclick="toast('未同步录音需要二次确认');closeLayers()">删除本地录音</button></div>
+<div class="toast" id="toast"></div>
+
+<script>
+  const navBtns=[...document.querySelectorAll('.nav-btn')];
+  function showView(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(id).classList.add('active');navBtns.forEach(b=>b.classList.toggle('active',b.dataset.view===id));window.scrollTo({top:0,behavior:'smooth'});closeLayers()}
+  navBtns.forEach(btn=>btn.addEventListener('click',()=>showView(btn.dataset.view)));
+  document.querySelectorAll('.type-row').forEach(row=>row.addEventListener('click',e=>{const chip=e.target.closest('.chip');if(!chip||chip.classList.contains('more'))return;row.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));chip.classList.add('active')}));
+  function openSheet(e){e.stopPropagation();document.getElementById('overlay').classList.add('show');document.getElementById('typeSheet').classList.add('show')}
+  function chooseType(name){const chips=[...document.querySelectorAll('#homeTypes .chip:not(.more)')];chips.forEach(c=>c.classList.remove('active'));chips[3].textContent=name;chips[3].classList.add('active');closeLayers();toast(`已选择：${name}`)}
+  function openMenu(e){e.stopPropagation();const m=document.getElementById('cardMenu'),r=e.currentTarget.getBoundingClientRect();m.style.left=Math.min(window.innerWidth-225,r.right-210)+'px';m.style.top=Math.min(window.innerHeight-220,r.bottom+6)+'px';document.getElementById('overlay').classList.add('show');m.classList.add('show')}
+  function closeLayers(){document.getElementById('overlay').classList.remove('show');document.getElementById('typeSheet').classList.remove('show');document.getElementById('cardMenu').classList.remove('show')}
+  function cardClick(e){if(e.target.closest('button'))return;showView('detail')}
+  function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
+  function simulateProcess(btn){btn.textContent='处理中…';btn.disabled=true;setTimeout(()=>{btn.textContent='查看详情';btn.disabled=false;toast('已完成并写入 Obsidian')},1200)}
+
+  let recording=false,paused=false,seconds=0,timerId=null;
+  const recordBtn=document.getElementById('recordBtn'),timer=document.getElementById('timer'),recStatus=document.getElementById('recStatus'),recHint=document.getElementById('recHint'),pauseRow=document.getElementById('pauseRow'),pauseBtn=document.getElementById('pauseBtn'),stopBtn=document.getElementById('stopBtn');
+  function renderTime(){const m=String(Math.floor(seconds/60)).padStart(2,'0'),s=String(seconds%60).padStart(2,'0');timer.textContent=`${m}:${s}`}
+  function startRecording(){recording=true;paused=false;recordBtn.classList.add('recording');recStatus.textContent='正在录音';recHint.textContent='请保持页面前台';pauseRow.classList.add('show');timerId=setInterval(()=>{if(!paused){seconds++;renderTime()}},1000)}
+  function stopRecording(){clearInterval(timerId);recording=false;recordBtn.classList.remove('recording');pauseRow.classList.remove('show');const duration=timer.textContent;addRecent(duration);seconds=0;renderTime();recStatus.textContent='准备录音';recHint.textContent='点击开始录音';pauseBtn.textContent='暂停'}
+  function addRecent(duration){const type=document.querySelector('#homeTypes .chip.active')?.textContent||'随想';const item=document.createElement('div');item.className='item flash';item.onclick=cardClick;item.innerHTML=`<div class="item-top"><div><div class="item-title">刚刚 · ${type}</div><div class="meta">${duration} · 尚未处理</div></div><div class="status wait">待处理</div></div><div class="actions"><button class="action" onclick="event.stopPropagation();toast('播放视觉示例')">播放</button><button class="action primary" onclick="event.stopPropagation();simulateProcess(this)">上传并整理</button><button class="action more-btn" onclick="openMenu(event)">···</button></div>`;const list=document.getElementById('recentList');list.prepend(item);while(list.children.length>2)list.lastElementChild.remove();setTimeout(()=>{document.getElementById('recentHead').scrollIntoView({behavior:'smooth',block:'start'});},80);setTimeout(()=>item.classList.remove('flash'),2100)}
+  recordBtn.addEventListener('click',()=>{if(!recording)startRecording()});pauseBtn.addEventListener('click',()=>{paused=!paused;pauseBtn.textContent=paused?'继续':'暂停';recStatus.textContent=paused?'已暂停':'正在录音'});stopBtn.addEventListener('click',stopRecording);
+</script>
+</body>
+</html>
