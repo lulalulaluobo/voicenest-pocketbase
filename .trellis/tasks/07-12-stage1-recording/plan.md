@@ -63,8 +63,8 @@ export async function recoverIncompleteRecordings(): Promise<void>
 export async function deleteRecording(id: string): Promise<void>
 ```
 
-- [ ] 先写两个失败测试：未完成录音恢复后仍有分片；删除录音后元数据与全部所属分片均不存在。
-- [ ] Dexie schema 使用：
+- [x] 先写两个失败测试：未完成录音恢复后仍有分片；删除录音后元数据与全部所属分片均不存在。
+- [x] Dexie schema 使用：
 
 ```ts
 this.version(1).stores({
@@ -73,9 +73,9 @@ this.version(1).stores({
 })
 ```
 
-- [ ] `appendChunk` 写入分片后追加分片 ID；`deleteRecording` 在一个 `rw` 事务删除录音和同一 `recordingId` 的分片；恢复函数将 `recording` 改为 `recovered`。
-- [ ] 运行 `npm test -- recording-db.test.ts && npm run build`；预期均成功。
-- [ ] 提交：`feat: 持久化本地录音分片`。
+- [x] `appendChunk` 写入分片后追加分片 ID；`deleteRecording` 在一个 `rw` 事务删除录音和同一 `recordingId` 的分片；恢复函数将 `recording` 改为 `recovered`。
+- [x] 运行 `npm test -- recording-db.test.ts && npm run build`；预期均成功。
+- [x] 提交：`feat: 持久化本地录音分片`。
 
 ## 任务 3：实现 MIME 选择与录音 Hook
 
