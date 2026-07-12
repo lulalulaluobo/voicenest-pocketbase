@@ -9,3 +9,4 @@ references/
 *.db-wal
 *.log
 .vercel
+.env*
