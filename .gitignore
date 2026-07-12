@@ -3,6 +3,7 @@
 .obsidian/workspace.json
 node_modules/
 dist/
+.worktrees/
 references/
 *.db-shm
 *.db-wal
