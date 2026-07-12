@@ -5,6 +5,7 @@ import { StatusBadge } from '../components/StatusBadge'
 import { deleteRecording, getChunks, getRecording, recordingDb } from '../lib/recording-db'
 import { getNoteTypes, type UserNoteType } from '../lib/config-store'
 import { useProcessor } from '../hooks/use-processor'
+import { ThemeToggle } from '../components/ThemeToggle'
 
 function formatTime(secs: number) {
   if (isNaN(secs)) return '00:00'
@@ -155,9 +156,12 @@ export function RecordingDetailPage() {
           <span className="eyebrow">Recording Detail</span>
           <h1>录音详情</h1>
         </div>
-        <button className="icon-btn" onClick={() => navigate('/recordings')} aria-label="返回列表">
-          ×
-        </button>
+        <div className="topbar-actions">
+          <ThemeToggle />
+          <button className="icon-btn" onClick={() => navigate('/recordings')} aria-label="返回列表">
+            ×
+          </button>
+        </div>
       </header>
 
       {/* 错误提示栏 */}

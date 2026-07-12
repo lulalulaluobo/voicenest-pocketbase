@@ -3,6 +3,7 @@ import type { Recording, RecordingStatus } from '../domain/recording'
 import { RecordingCard } from '../components/RecordingCard'
 import { listRecordings } from '../lib/recording-db'
 import { getNoteTypes, type UserNoteType } from '../lib/config-store'
+import { ThemeToggle } from '../components/ThemeToggle'
 
 interface FilterOption {
   value: '' | RecordingStatus
@@ -52,14 +53,17 @@ export function RecordingsPage() {
           <span className="eyebrow">Library</span>
           <h1>音频列表</h1>
         </div>
-        <button 
-          className="icon-btn" 
-          onClick={() => setShowSearch(!showSearch)}
-          style={{ background: showSearch ? 'var(--soft)' : 'var(--card)' }}
-          aria-label="搜索"
-        >
-          ⌕
-        </button>
+        <div className="topbar-actions">
+          <ThemeToggle />
+          <button 
+            className="icon-btn" 
+            onClick={() => setShowSearch(!showSearch)}
+            style={{ background: showSearch ? 'var(--soft)' : 'var(--card)' }}
+            aria-label="搜索"
+          >
+            ⌕
+          </button>
+        </div>
       </header>
 
       {/* 搜索框 */}

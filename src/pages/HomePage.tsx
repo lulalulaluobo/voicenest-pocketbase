@@ -6,6 +6,7 @@ import { listRecordings, recordingDb } from '../lib/recording-db'
 import { RecordingCard } from '../components/RecordingCard'
 import { getNoteTypes, type UserNoteType } from '../lib/config-store'
 import { useProcessor } from '../hooks/use-processor'
+import { ThemeToggle } from '../components/ThemeToggle'
 
 function formatElapsed(elapsedMs: number) {
   const seconds = Math.floor(elapsedMs / 1000)
@@ -82,9 +83,12 @@ export function HomePage({ recorder }: { recorder: ReturnType<typeof useRecorder
           <span className="eyebrow">Voice Inbox</span>
           <h1>记录一个想法</h1>
         </div>
-        <button className="icon-btn" onClick={() => navigate('/settings')} aria-label="设置">
-          ⚙
-        </button>
+        <div className="topbar-actions">
+          <ThemeToggle />
+          <button className="icon-btn" onClick={() => navigate('/settings')} aria-label="设置">
+            ⚙
+          </button>
+        </div>
       </header>
 
       {/* 分类选项行 */}

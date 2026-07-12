@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ThemeToggle } from '../components/ThemeToggle'
 import {
   getASRConfig,
   saveASRConfig,
@@ -350,9 +351,12 @@ export function SettingsPage() {
           <span className="eyebrow">Preferences</span>
           <h1>设置</h1>
         </div>
-        <button className="icon-btn" onClick={() => navigate('/')} aria-label="关闭设置">
-          ×
-        </button>
+        <div className="topbar-actions">
+          <ThemeToggle />
+          <button className="icon-btn" onClick={() => navigate('/')} aria-label="关闭设置">
+            ×
+          </button>
+        </div>
       </header>
 
       {/* 1. 录音与处理卡片 */}
