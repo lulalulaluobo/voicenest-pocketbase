@@ -41,6 +41,19 @@ export function SettingsPage() {
     saveASRConfig(updated as any)
   }
 
+  const handleASRTypeChange = (newType: 'openai' | 'step' | 'custom') => {
+    const updated = { ...asrConfig, type: newType }
+    if (newType === 'openai') {
+      updated.endpoint = 'https://api.openai.com/v1'
+      updated.model = 'whisper-1'
+    } else if (newType === 'step') {
+      updated.endpoint = 'https://api.stepfun.com/v1'
+      updated.model = 'stepaudio-2.5-asr'
+    }
+    setAsrConfig(updated)
+    saveASRConfig(updated)
+  }
+
   const handleTestASR = async () => {
     setAsrTesting(true)
     setAsrTestResult(null)
@@ -190,7 +203,7 @@ export function SettingsPage() {
             <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>ASR 服务类型</label>
             <select
               value={asrConfig.type}
-              onChange={(e) => handleASRChange('type', e.target.value)}
+              onChange={(e) => handleASRTypeChange(e.target.value as any)}
               style={{ minHeight: '44px', padding: '0 8px', borderRadius: '8px', border: '1px solid #ded6cb' }}
             >
               <option value="openai">OpenAI Whisper</option>
