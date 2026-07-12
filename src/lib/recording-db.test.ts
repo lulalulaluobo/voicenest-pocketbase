@@ -5,6 +5,7 @@ import {
   deleteRecording,
   getChunks,
   getRecording,
+  listRecordings,
   recordingDb,
   recoverIncompleteRecordings,
 } from './recording-db'
@@ -54,5 +55,34 @@ describe('recording database', () => {
 
     expect(await getRecording(draft.id)).toBeUndefined()
     expect(await getChunks(draft.id)).toHaveLength(0)
+  })
+
+  it('lists recordings from newest to oldest', async () => {
+    await recordingDb.recordings.bulkAdd([
+      {
+        ...draft,
+        id: 'older',
+        createdAt: '2026-07-12T00:00:00.000Z',
+        updatedAt: '2026-07-12T00:00:00.000Z',
+        durationMs: 0,
+        chunkIds: [],
+        status: 'ready',
+        recovered: false,
+        interrupted: false,
+      },
+      {
+        ...draft,
+        id: 'newer',
+        createdAt: '2026-07-12T00:01:00.000Z',
+        updatedAt: '2026-07-12T00:01:00.000Z',
+        durationMs: 0,
+        chunkIds: [],
+        status: 'ready',
+        recovered: false,
+        interrupted: false,
+      },
+    ])
+
+    expect((await listRecordings()).map((recording) => recording.id)).toEqual(['newer', 'older'])
   })
 })

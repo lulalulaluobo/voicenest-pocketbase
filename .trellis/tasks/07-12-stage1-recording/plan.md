@@ -108,38 +108,39 @@ const AUDIO_MIME_CANDIDATES = [
 
 **文件：** 修改 `src/App.tsx`、`src/styles.css`；创建 `BottomNav`、`StatusBadge`、`TypePicker`、`HomePage`、`RecordingsPage`、`RecordingDetailPage`、`SettingsPage`。
 
-- [ ] App 启动仅调用一次 `recoverIncompleteRecordings()`，配置 `/`、`/recordings`、`/recordings/:recordingId`、`/settings` 四个路由。
-- [ ] `BottomNav` 只渲染录音、列表、设置三个 `NavLink`；`StatusBadge` 显示中文状态与颜色；`TypePicker` 只提供随想、日记、会议、项目四种示例类型。
-- [ ] CSS 以变量实现浅色与 `prefers-color-scheme: dark`；控件最小 44px；视觉对齐 HTML 原型但不复制其内联脚本。
-- [ ] 首页接通 `useRecorder`。按钮状态严格为开始、暂停、继续、完成；完成后刷新最近两条、滚动新卡片并高亮 2 秒；错误元素加 `role="alert"`。
-- [ ] 运行 `npm run build`；预期所有路由与页面可打包。
-- [ ] 提交：`feat: 搭建录音应用导航与界面`。
+- [x] App 启动仅调用一次 `recoverIncompleteRecordings()`，配置 `/`、`/recordings`、`/recordings/:recordingId`、`/settings` 四个路由。
+- [x] `BottomNav` 只渲染录音、列表、设置三个 `NavLink`；`StatusBadge` 显示中文状态与颜色；`TypePicker` 只提供随想、日记、会议、项目四种示例类型。
+- [x] CSS 以变量实现浅色与 `prefers-color-scheme: dark`；控件最小 44px；视觉对齐 HTML 原型但不复制其内联脚本。
+- [x] 首页接通 `useRecorder`。按钮状态严格为开始、暂停、继续、完成；完成后刷新最近两条、滚动新卡片并高亮 2 秒；错误元素加 `role="alert"`。
+- [x] 运行 `npm run build`；预期所有路由与页面可打包。
+- [x] 提交：`feat: 搭建录音应用导航与界面`。
 
 ## 任务 5：实现列表、详情、播放与删除
 
 **文件：** 修改数据库与列表/详情页面；创建 `src/components/RecordingCard.tsx`。
 
-- [ ] 导出 `listRecordings()`（按 `createdAt` 倒序）、`getRecording(id)` 与 `getChunks(recordingId)`（按 `index` 正序），并为两个排序行为添加 Vitest 断言。
-- [ ] 列表使用四个阶段 1 状态做前端筛选，卡片显示标题、时间、类型、时长、文字状态；空列表显示空状态。
-- [ ] 详情播放源使用：
+- [x] 导出 `listRecordings()`（按 `createdAt` 倒序）、`getRecording(id)` 与 `getChunks(recordingId)`（按 `index` 正序），并为两个排序行为添加 Vitest 断言。
+- [x] 列表使用四个阶段 1 状态做前端筛选，卡片显示标题、时间、类型、时长、文字状态；空列表显示空状态。
+- [x] 详情播放源使用：
 
 ```ts
 const blob = new Blob(chunks.map((chunk) => chunk.blob), { type: recording.mimeType })
 const url = URL.createObjectURL(blob)
 ```
 
-- [ ] 卸载时 `URL.revokeObjectURL(url)`。删除先调用 `window.confirm('删除本地录音及其音频分片？此操作无法撤销。')`，确认后 `deleteRecording` 并返回列表；缺失 ID 显示“录音不存在或已删除”。
-- [ ] 运行 `npm test && npm run build`；预期成功。手动检查录音时刷新后出现“已恢复”，删除后卡片和分片均消失。
-- [ ] 提交：`feat: 提供本地录音列表与详情`。
+- [x] 卸载时 `URL.revokeObjectURL(url)`。删除先调用 `window.confirm('删除本地录音及其音频分片？此操作无法撤销。')`，确认后 `deleteRecording` 并返回列表；缺失 ID 显示“录音不存在或已删除”。
+- [x] 运行 `npm test && npm run build`；预期成功。
+- [ ] 手动检查录音时刷新后出现“已恢复”，删除后卡片和分片均消失。
+- [x] 提交：`feat: 提供本地录音列表与详情`。
 
 ## 任务 6：完成设置、更新保护、部署与验收
 
 **文件：** 修改 `SettingsPage`、`App`、`vite.config.ts`；创建 `README.md`。
 
-- [ ] 设置页显示系统主题跟随；模型、同步、备份和类型管理明确标为后续阶段，不能存在可点击的假开关。
-- [ ] 使用 `virtual:pwa-register/react` 提示式更新；录音不是 idle 时不显示“立即更新”，不得调用 `skipWaiting` 或自动刷新。
-- [ ] README 写明 `npm install`、`npm run dev`、`npm run test`、`npm run build`，以及 Vercel 只托管静态产物、没有环境变量的边界。
-- [ ] 运行 `npm test && npm run build && git diff --check`；预期全部成功。
+- [x] 设置页显示系统主题跟随；模型、同步、备份和类型管理明确标为后续阶段，不能存在可点击的假开关。
+- [x] 使用 `virtual:pwa-register/react` 提示式更新；录音不是 idle 时不显示“立即更新”，不得调用 `skipWaiting` 或自动刷新。
+- [x] README 写明 `npm install`、`npm run dev`、`npm run test`、`npm run build`，以及 Vercel 只托管静态产物、没有环境变量的边界。
+- [x] 运行 `npm test && npm run build && git diff --check`；预期全部成功。
 - [ ] 用户授权且 Vercel 已登录后执行 `vercel` 获得 HTTPS 预览 URL；真机在 Android Chrome 与 iPhone Safari 分别验证授权、录音控制、播放、刷新恢复、删除、桌面安装与深色模式。
 - [ ] 真机通过且用户再次授权后执行 `vercel --prod`。
 - [ ] 提交：`feat: 完成阶段一录音 PWA`，随后执行 `codegraph sync`。

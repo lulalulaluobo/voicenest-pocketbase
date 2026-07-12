@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { NoteType } from '../domain/recording'
 import { appendChunk, createRecording, finishRecording } from '../lib/recording-db'
 import { selectAudioMime } from '../lib/audio-mime'
@@ -35,6 +35,16 @@ export function useRecorder() {
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
   const writeChainRef = useRef(Promise.resolve())
   const finalizingRef = useRef(false)
+
+  useEffect(() => {
+    if (state !== 'recording') return
+    const timer = window.setInterval(() => {
+      if (segmentStartedAtRef.current) {
+        setElapsedMs(elapsedBeforeRef.current + Date.now() - segmentStartedAtRef.current)
+      }
+    }, 250)
+    return () => window.clearInterval(timer)
+  }, [state])
 
   const releaseWakeLock = useCallback(async () => {
     await wakeLockRef.current?.release().catch(() => undefined)

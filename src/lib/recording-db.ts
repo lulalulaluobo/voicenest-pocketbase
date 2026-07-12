@@ -54,6 +54,10 @@ export async function getRecording(id: string): Promise<Recording | undefined> {
   return recordingDb.recordings.get(id)
 }
 
+export async function listRecordings(): Promise<Recording[]> {
+  return recordingDb.recordings.orderBy('createdAt').reverse().toArray()
+}
+
 export async function getChunks(recordingId: string): Promise<AudioChunk[]> {
   return recordingDb.audioChunks.where('recordingId').equals(recordingId).sortBy('index')
 }
