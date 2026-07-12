@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getChunks, getRecording, recordingDb } from '../lib/recording-db'
-import { getASRConfig, getLLMConfig, getSyncConfig, getNoteTypes } from '../lib/config-store'
+import { getASRConfig, getLLMConfig, getSyncConfig, getNoteTypes, getAudioRetention } from '../lib/config-store'
 import { transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
 import { syncToObsidian } from '../lib/sync'
+import { cleanSyncedAudioChunks } from '../lib/retention'
 import type { Recording } from '../domain/recording'
 
 // 全局排队锁，避免前台自动重试时产生并发请求
@@ -102,6 +103,11 @@ export function useProcessor() {
           status: 'synced',
           updatedAt: new Date().toISOString()
         })
+
+        // 触发立即删除音频分片策略
+        if (getAudioRetention() === 'immediate') {
+          await cleanSyncedAudioChunks(id)
+        }
       } else if (mode === 'sync_only') {
         // 仅重新同步已整理的内容
         await recordingDb.recordings.update(id, {
@@ -129,6 +135,11 @@ export function useProcessor() {
           status: 'synced',
           updatedAt: new Date().toISOString()
         })
+
+        // 触发立即删除音频分片策略
+        if (getAudioRetention() === 'immediate') {
+          await cleanSyncedAudioChunks(id)
+        }
       }
     } catch (err: any) {
       // 捕获异常，写回 errorMessage，状态置为 failed

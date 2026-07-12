@@ -8,6 +8,12 @@ import {
   saveSyncConfig,
   getNoteTypes,
   saveNoteTypes,
+  getAudioRetention,
+  saveAudioRetention,
+  getTextRetention,
+  saveTextRetention,
+  type AudioRetentionType,
+  type TextRetentionType,
   type UserNoteType
 } from '../lib/config-store'
 import { transcribeAudio } from '../lib/asr'
@@ -37,6 +43,118 @@ export function SettingsPage() {
 
   // Auto processing settings
   const [autoProcess, setAutoProcess] = useState(localStorage.getItem('vn_auto_process') === 'true')
+
+  // Retention State
+  const [audioRetention, setAudioRetention] = useState<AudioRetentionType>(getAudioRetention())
+  const [textRetention, setTextRetention] = useState<TextRetentionType>(getTextRetention())
+
+  const handleAudioRetentionChange = (val: AudioRetentionType) => {
+    setAudioRetention(val)
+    saveAudioRetention(val)
+  }
+
+  const handleTextRetentionChange = (val: TextRetentionType) => {
+    setTextRetention(val)
+    saveTextRetention(val)
+  }
+
+  // 导出备份：脱敏导出 JSON 配置文件
+  const handleExportBackup = () => {
+    try {
+      const backupData = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        autoProcess,
+        noteTypes,
+        asrConfig: { ...asrConfig, apiKey: '' },
+        llmConfig: { ...llmConfig, apiKey: '' },
+        syncConfig: { ...syncConfig, apiToken: '' },
+        audioRetention,
+        textRetention
+      }
+      
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const now = new Date()
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+      a.href = url
+      a.download = `voicenest_backup_${dateStr}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      alert(`导出备份失败: ${err.message}`)
+    }
+  }
+
+  // 导入备份：智能融合逻辑，如果备份里是空 key 而本地原本有有效密钥，则自动保留本地已有密钥
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const raw = event.target?.result as string
+        const parsed = JSON.parse(raw)
+
+        if (!parsed.noteTypes || !Array.isArray(parsed.noteTypes)) {
+          throw new Error('备份文件格式不正确，缺少有效的分类配置。')
+        }
+
+        if (parsed.asrConfig) {
+          const mergedAsr = { ...parsed.asrConfig }
+          if (!mergedAsr.apiKey && asrConfig.apiKey) {
+            mergedAsr.apiKey = asrConfig.apiKey
+          }
+          setAsrConfig(mergedAsr)
+          saveASRConfig(mergedAsr)
+        }
+
+        if (parsed.llmConfig) {
+          const mergedLlm = { ...parsed.llmConfig }
+          if (!mergedLlm.apiKey && llmConfig.apiKey) {
+            mergedLlm.apiKey = llmConfig.apiKey
+          }
+          setLlmConfig(mergedLlm)
+          saveLLMConfig(mergedLlm)
+        }
+
+        if (parsed.syncConfig) {
+          const mergedSync = { ...parsed.syncConfig }
+          if (!mergedSync.apiToken && syncConfig.apiToken) {
+            mergedSync.apiToken = syncConfig.apiToken
+          }
+          setSyncConfig(mergedSync)
+          saveSyncConfig(mergedSync)
+        }
+
+        setNoteTypes(parsed.noteTypes)
+        saveNoteTypes(parsed.noteTypes)
+
+        if (parsed.autoProcess !== undefined) {
+          setAutoProcess(parsed.autoProcess)
+          localStorage.setItem('vn_auto_process', parsed.autoProcess ? 'true' : 'false')
+        }
+        if (parsed.audioRetention !== undefined) {
+          setAudioRetention(parsed.audioRetention)
+          saveAudioRetention(parsed.audioRetention)
+        }
+        if (parsed.textRetention !== undefined) {
+          setTextRetention(parsed.textRetention)
+          saveTextRetention(parsed.textRetention)
+        }
+
+        alert('🎉 备份导入成功！已为您恢复所有分类、同步策略及选项。已自动为您保留本地已填写的 API 鉴权密钥，无需重填。')
+        window.location.reload()
+      } catch (err: any) {
+        alert(`导入备份失败: ${err.message}`)
+      }
+    }
+    reader.readAsText(file)
+  }
 
   // ASR Save & Test
   const handleASRChange = (field: string, value: string) => {
@@ -663,6 +781,102 @@ export function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* 存储容量与保留策略 */}
+      <section className="settings-card">
+        <h2>本地存储容量与保留策略</h2>
+        <div style={{ display: 'grid', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>已同步音频保留策略</label>
+            <select
+              value={audioRetention}
+              onChange={(e) => handleAudioRetentionChange(e.target.value as AudioRetentionType)}
+              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb', background: '#fff', fontSize: '13px' }}
+            >
+              <option value="forever">永久保留 (默认，可能会占满磁盘)</option>
+              <option value="immediate">同步成功后立即删除 (仅保留文本历史，最省空间)</option>
+              <option value="7d">保留 7 天后删除</option>
+              <option value="30d">保留 30 天后删除</option>
+            </select>
+            <div style={{ fontSize: '12px', opacity: 0.7, color: '#81766c', marginTop: '2px' }}>
+              💡 当录音同步到 Obsidian 成功后，自动根据设定的期限清空本地 IndexedDB 中的音频文件。
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '8px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>已同步文本及卡片保留策略</label>
+            <select
+              value={textRetention}
+              onChange={(e) => handleTextRetentionChange(e.target.value as TextRetentionType)}
+              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb', background: '#fff', fontSize: '13px' }}
+            >
+              <option value="forever">永久保留 (默认，保留卡片列表与转写)</option>
+              <option value="7d">保留 7 天后全部删除</option>
+              <option value="30d">保留 30 天后全部删除</option>
+            </select>
+            <div style={{ fontSize: '12px', opacity: 0.7, color: '#81766c', marginTop: '2px' }}>
+              💡 清理到期卡片记录时，会自动同时清理其文字记录与音频。
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 备份与恢复 */}
+      <section className="settings-card">
+        <h2>应用备份与恢复</h2>
+        <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
+          <div style={{ fontSize: '13px', color: '#81766c' }}>
+            您可以将当前配置的应用设置和自定义笔记分类备份导出到本地。在更换设备或清理浏览器缓存时一键还原。
+            <strong style={{ display: 'block', marginTop: '6px', color: '#bf3b3b' }}>
+              ⚠️ 安全提示：为了您的账号安全，导出的备份文件中绝对不包含您的 API Key 与 FNS Token。
+            </strong>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+            <button
+              type="button"
+              onClick={handleExportBackup}
+              style={{
+                flex: 1,
+                minHeight: '44px',
+                borderRadius: '8px',
+                background: '#5b5148',
+                color: '#fff',
+                border: 'none',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                fontSize: '13px'
+              }}
+            >
+              📤 导出当前配置备份
+            </button>
+            
+            <label
+              style={{
+                flex: 1,
+                minHeight: '44px',
+                borderRadius: '8px',
+                background: '#ded6cb',
+                color: '#27241f',
+                border: 'none',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '13px'
+              }}
+            >
+              📥 导入本地备份文件
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportBackup}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
+        </div>
+      </section>
     </section>
   )
 }

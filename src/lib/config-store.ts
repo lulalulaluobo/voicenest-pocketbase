@@ -84,3 +84,22 @@ export function getNoteTypes(): UserNoteType[] {
 export function saveNoteTypes(types: UserNoteType[]): void {
   localStorage.setItem('vn_note_types', JSON.stringify(types))
 }
+
+export type AudioRetentionType = 'immediate' | '7d' | '30d' | 'forever'
+export type TextRetentionType = '7d' | '30d' | 'forever'
+
+export function getAudioRetention(): AudioRetentionType {
+  return (localStorage.getItem('vn_audio_retention') as AudioRetentionType) || 'forever'
+}
+
+export function saveAudioRetention(val: AudioRetentionType): void {
+  localStorage.setItem('vn_audio_retention', val)
+}
+
+export function getTextRetention(): TextRetentionType {
+  return (localStorage.getItem('vn_text_retention') as TextRetentionType) || 'forever'
+}
+
+export function saveTextRetention(val: TextRetentionType): void {
+  localStorage.setItem('vn_text_retention', val)
+}

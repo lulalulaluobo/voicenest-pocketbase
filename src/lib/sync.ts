@@ -33,32 +33,54 @@ export async function syncToObsidian(
   const baseUrl = config.api.replace(/\/+$/, '')
   const url = `${baseUrl}/api/note`
   
-  // 拼接完整 Obsidian 文件相对路径，加 .md 后缀
   const cleanDir = obsidianDir.replace(/^\/+|\/+$/g, '')
-  const fullPath = cleanDir ? `${cleanDir}/${title}.md` : `${title}.md`
+  
+  let currentTitle = title
+  let attempts = 0
+  const maxAttempts = 3
 
-  const response = await fetchWithProxy(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'token': config.apiToken
-    },
-    body: JSON.stringify({
-      vault: config.vault,
-      path: fullPath,
-      content: markdown,
-      createOnly: false
+  while (attempts < maxAttempts) {
+    attempts++
+    const fullPath = cleanDir ? `${cleanDir}/${currentTitle}.md` : `${currentTitle}.md`
+
+    const response = await fetchWithProxy(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'token': config.apiToken
+      },
+      body: JSON.stringify({
+        vault: config.vault,
+        path: fullPath,
+        content: markdown,
+        createOnly: true // 开启重名检查
+      })
     })
-  })
 
-  if (!response.ok) {
-    const errText = await response.text().catch(() => '')
-    throw new Error(`Obsidian 同步失败 (${response.status}): ${errText}`)
-  }
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '')
+      throw new Error(`Obsidian 同步失败 (${response.status}): ${errText}`)
+    }
 
-  const data = await response.json().catch(() => null)
-  if (data && data.status === false) {
-    throw new Error(`Obsidian 同步失败: ${data.msg || data.message || '未知错误'}`)
+    const data = await response.json().catch(() => null)
+    if (data) {
+      const isDuplicate = data.status === false && (data.code === 431 || String(data.message || '').includes('already exists'))
+      if (isDuplicate && attempts < maxAttempts) {
+        const now = new Date()
+        const pad = (n: number) => String(n).padStart(2, '0')
+        const suffix = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+        currentTitle = `${title}_${suffix}`
+        console.warn(`检测到同名文件 [${fullPath}]，自动添加时间戳后缀 [${currentTitle}] 进行重试...`)
+        continue
+      }
+
+      if (data.status === false) {
+        throw new Error(`Obsidian 同步失败: ${data.msg || data.message || '未知错误'}`)
+      }
+    }
+    
+    // 成功同步，退出循环
+    break
   }
 }
 

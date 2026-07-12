@@ -83,4 +83,30 @@ describe('API Clients Unit Tests', () => {
       })
     ).resolves.not.toThrow()
   })
+
+  it('should auto append suffix and retry when note already exists', async () => {
+    // 第一次模拟返回 Note already exists (code 431)
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ status: false, code: 431, message: 'Note already exists' }),
+      status: 200
+    } as Response)
+
+    // 第二次重试成功
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ status: true, code: 1 }),
+      status: 200
+    } as Response)
+
+    await expect(
+      syncToObsidian('重名文件', '# 内容', 'Inbox/Ideas', {
+        api: 'http://localhost:8080',
+        apiToken: 'token-xyz',
+        vault: 'my-vault'
+      })
+    ).resolves.not.toThrow()
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2)
+  })
 })

@@ -115,7 +115,11 @@ export function RecordingDetailPage() {
           <dd>{recording.mimeType}</dd>
         </dl>
 
-        {audioUrl ? (
+        {recording.isAudioCleared ? (
+          <div style={{ padding: '12px', background: '#fcf8e3', border: '1px solid #fbeed5', borderRadius: '8px', color: '#c09853', fontSize: '13px' }}>
+            ℹ️ 本条录音的音频文件已触发本地自动保留策略被清理，已安全保留其文字记录。
+          </div>
+        ) : audioUrl ? (
           <audio controls preload="metadata" src={audioUrl} style={{ width: '100%' }}>
             当前浏览器无法播放这段音频。
           </audio>
@@ -131,7 +135,7 @@ export function RecordingDetailPage() {
           {recording.status !== 'synced' ? (
             <button
               className="btn"
-              disabled={isWorking}
+              disabled={isWorking || !!recording.isAudioCleared}
               onClick={() => handleAction('full')}
               style={{
                 minHeight: '44px',
@@ -140,7 +144,7 @@ export function RecordingDetailPage() {
                 border: 'none',
                 borderRadius: '8px',
                 fontWeight: 'bold',
-                opacity: isWorking ? 0.6 : 1
+                opacity: (isWorking || !!recording.isAudioCleared) ? 0.6 : 1
               }}
               type="button"
             >
@@ -149,7 +153,7 @@ export function RecordingDetailPage() {
           ) : (
             <button
               className="btn"
-              disabled={isWorking}
+              disabled={isWorking || !!recording.isAudioCleared}
               onClick={() => handleAction('full')}
               style={{
                 minHeight: '44px',
@@ -158,7 +162,7 @@ export function RecordingDetailPage() {
                 border: 'none',
                 borderRadius: '8px',
                 fontWeight: 'bold',
-                opacity: isWorking ? 0.6 : 1
+                opacity: (isWorking || !!recording.isAudioCleared) ? 0.6 : 1
               }}
               type="button"
             >

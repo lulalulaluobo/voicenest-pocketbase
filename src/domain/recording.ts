@@ -24,6 +24,7 @@ export interface Recording {
   transcript?: string
   summary?: string
   errorMessage?: string
+  isAudioCleared?: boolean
 }
 
 export interface AudioChunk {

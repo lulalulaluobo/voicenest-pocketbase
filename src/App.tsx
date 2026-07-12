@@ -10,6 +10,8 @@ import { RecordingsPage } from './pages/RecordingsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { useProcessor } from './hooks/use-processor'
 
+import { sweepExpiredStorage } from './lib/retention'
+
 export function App() {
   const recorder = useRecorder()
   const [restored, setRestored] = useState(false)
@@ -18,7 +20,9 @@ export function App() {
   const { processQueue } = useProcessor()
 
   useEffect(() => {
-    void recoverIncompleteRecordings().finally(() => setRestored(true))
+    void recoverIncompleteRecordings()
+      .then(() => void sweepExpiredStorage())
+      .finally(() => setRestored(true))
   }, [])
 
   // 当恢复录音库完毕且网络在线时，自动对积压的离线同步队列触发消费整理一次
