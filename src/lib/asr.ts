@@ -7,7 +7,7 @@ export interface ASRConfig {
 }
 
 export async function transcribeAudio(blob: Blob, config: ASRConfig): Promise<string> {
-  const ext = blob.type.includes('mp4') ? 'mp4' : 'webm'
+  const ext = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('wav') ? 'wav' : 'webm'
   const file = new File([blob], `audio.${ext}`, { type: blob.type })
   const formData = new FormData()
   formData.append('file', file)

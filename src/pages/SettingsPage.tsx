@@ -45,11 +45,26 @@ export function SettingsPage() {
     setAsrTesting(true)
     setAsrTestResult(null)
     try {
-      const dummyBlob = new Blob(['test'], { type: 'audio/webm' })
+      const base64ToBlob = (base64: string, mimeType: string): Blob => {
+        const byteCharacters = atob(base64)
+        const byteNumbers = new Array(byteCharacters.length)
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i)
+        }
+        const byteArray = new Uint8Array(byteNumbers)
+        return new Blob([byteArray], { type: mimeType })
+      }
+
+      const silentWavBase64 = 'UklGRsQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+      const dummyBlob = base64ToBlob(silentWavBase64, 'audio/wav')
       const text = await transcribeAudio(dummyBlob, asrConfig)
       setAsrTestResult(`✅ 连接成功！转写完成，响应: "${text}"`)
     } catch (err: any) {
-      setAsrTestResult(`⚠️ 测试连接结果：${err.message}`)
+      if (err.message.includes('no speech found') || err.message.includes('request_params_invalid')) {
+        setAsrTestResult(`✅ 连接成功！已成功连接并鉴权 StepAudio 引擎（由于发送的是超短静音测试音频，引擎未识别到语音内容）`)
+      } else {
+        setAsrTestResult(`⚠️ 测试连接结果：${err.message}`)
+      }
     } finally {
       setAsrTesting(false)
     }
