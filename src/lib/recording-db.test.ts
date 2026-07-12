@@ -93,4 +93,18 @@ describe('recording database', () => {
 
     expect((await getChunks(draft.id)).map((item) => item.index)).toEqual([1, 2])
   })
+
+  it('supports transcript, summary and errorMessage fields', async () => {
+    await createRecording(draft)
+    await recordingDb.recordings.update(draft.id, {
+      transcript: '这是原始转写文本',
+      summary: '# 标题\n这是 LLM 整理文本',
+      errorMessage: '网络连接失败'
+    })
+
+    const updated = await getRecording(draft.id)
+    expect(updated?.transcript).toBe('这是原始转写文本')
+    expect(updated?.summary).toBe('# 标题\n这是 LLM 整理文本')
+    expect(updated?.errorMessage).toBe('网络连接失败')
+  })
 })

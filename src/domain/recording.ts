@@ -1,4 +1,12 @@
-export type RecordingStatus = 'recording' | 'ready' | 'recovered' | 'interrupted'
+export type RecordingStatus =
+  | 'recording'
+  | 'ready'
+  | 'recovered'
+  | 'interrupted'
+  | 'waiting_network'
+  | 'processing'
+  | 'synced'
+  | 'failed'
 
 export interface Recording {
   id: string
@@ -13,6 +21,9 @@ export interface Recording {
   recovered: boolean
   interrupted: boolean
   localTitle: string
+  transcript?: string
+  summary?: string
+  errorMessage?: string
 }
 
 export interface AudioChunk {

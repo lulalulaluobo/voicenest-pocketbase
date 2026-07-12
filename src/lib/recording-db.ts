@@ -11,6 +11,10 @@ class RecordingDatabase extends Dexie {
       recordings: 'id, createdAt, status',
       audioChunks: 'id, recordingId, [recordingId+index]',
     })
+    this.version(2).stores({
+      recordings: 'id, createdAt, status, typeId',
+      audioChunks: 'id, recordingId, [recordingId+index]',
+    })
   }
 }
 
