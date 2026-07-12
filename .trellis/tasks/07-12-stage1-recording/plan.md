@@ -141,8 +141,8 @@ const url = URL.createObjectURL(blob)
 - [x] 使用 `virtual:pwa-register/react` 提示式更新；录音不是 idle 时不显示“立即更新”，不得调用 `skipWaiting` 或自动刷新。
 - [x] README 写明 `npm install`、`npm run dev`、`npm run test`、`npm run build`，以及 Vercel 只托管静态产物、没有环境变量的边界。
 - [x] 运行 `npm test && npm run build && git diff --check`；预期全部成功。
-- [ ] 用户授权且 Vercel 已登录后执行 `vercel` 获得 HTTPS 预览 URL；真机在 Android Chrome 与 iPhone Safari 分别验证授权、录音控制、播放、刷新恢复、删除、桌面安装与深色模式。
-- [ ] 真机通过且用户再次授权后执行 `vercel --prod`。
+- [x] 已在 Vercel 创建静态项目并部署 HTTPS 生产地址：`https://codex-stage1-recording.vercel.app`。
+- [ ] 真机在 Android Chrome 与 iPhone Safari 分别验证授权、录音控制、播放、刷新恢复、删除、桌面安装与深色模式。
 - [ ] 提交：`feat: 完成阶段一录音 PWA`，随后执行 `codegraph sync`。
 
 ## 计划自检

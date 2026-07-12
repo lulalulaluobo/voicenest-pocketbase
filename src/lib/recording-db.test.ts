@@ -85,4 +85,12 @@ describe('recording database', () => {
 
     expect((await listRecordings()).map((recording) => recording.id)).toEqual(['newer', 'older'])
   })
+
+  it('reads chunks in their recording order', async () => {
+    await createRecording(draft)
+    await appendChunk({ ...chunk, id: 'chunk-2', index: 2 })
+    await appendChunk({ ...chunk, id: 'chunk-1', index: 1 })
+
+    expect((await getChunks(draft.id)).map((item) => item.index)).toEqual([1, 2])
+  })
 })
