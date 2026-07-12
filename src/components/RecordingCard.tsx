@@ -18,6 +18,11 @@ export function RecordingCard({ recording, highlighted = false }: { recording: R
       <div>
         <strong>{recording.localTitle}</strong>
         <small>{new Date(recording.createdAt).toLocaleString('zh-CN')} · {recording.typeName} · {formatDuration(recording.durationMs)}</small>
+        {recording.errorMessage && (
+          <small style={{ color: '#a83330', marginTop: '4px' }}>
+            ⚠️ {recording.errorMessage}
+          </small>
+        )}
       </div>
       <StatusBadge status={recording.status} />
     </Link>
