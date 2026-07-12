@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { NoteType } from '../domain/recording'
+import type { UserNoteType } from '../lib/config-store'
 import { appendChunk, createRecording, finishRecording } from '../lib/recording-db'
 import { selectAudioMime } from '../lib/audio-mime'
 
@@ -79,7 +79,7 @@ export function useRecorder() {
     return recordingId
   }, [releaseWakeLock])
 
-  const start = useCallback(async (type: NoteType) => {
+  const start = useCallback(async (type: UserNoteType) => {
     setError(null)
     if (!window.isSecureContext) {
       setError('录音需要通过 HTTPS 页面打开。')

@@ -8,15 +8,25 @@ import { HomePage } from './pages/HomePage'
 import { RecordingDetailPage } from './pages/RecordingDetailPage'
 import { RecordingsPage } from './pages/RecordingsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { useProcessor } from './hooks/use-processor'
 
 export function App() {
   const recorder = useRecorder()
   const [restored, setRestored] = useState(false)
   const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW()
+  
+  const { processQueue } = useProcessor()
 
   useEffect(() => {
     void recoverIncompleteRecordings().finally(() => setRestored(true))
   }, [])
+
+  // 当恢复录音库完毕且网络在线时，自动对积压的离线同步队列触发消费整理一次
+  useEffect(() => {
+    if (restored) {
+      void processQueue()
+    }
+  }, [restored, processQueue])
 
   if (!restored) return <main className="app-shell"><p className="empty-state">正在恢复本地录音…</p></main>
 

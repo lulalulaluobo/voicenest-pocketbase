@@ -1,14 +1,15 @@
-import { SAMPLE_NOTE_TYPES, type NoteType } from '../domain/recording'
+import type { UserNoteType } from '../lib/config-store'
 
 interface TypePickerProps {
   selectedId: string
-  onChange(type: NoteType): void
+  types: UserNoteType[]
+  onChange(type: UserNoteType): void
 }
 
-export function TypePicker({ selectedId, onChange }: TypePickerProps) {
+export function TypePicker({ selectedId, types, onChange }: TypePickerProps) {
   return (
     <div className="type-picker" aria-label="选择笔记类型">
-      {SAMPLE_NOTE_TYPES.map((type) => (
+      {types.map((type) => (
         <button
           className={type.id === selectedId ? 'selected' : ''}
           key={type.id}
