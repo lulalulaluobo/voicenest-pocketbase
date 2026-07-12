@@ -86,4 +86,5 @@ React 页面与路由
 
 - [OK] 2026-07-12：`npm test` 通过（6 项）；`npm run build` 通过。
 - [OK] 2026-07-12：本地 Chromium 和 Vercel HTTPS 地址在 390px 视口下均可加载主页与列表，未发现 Vite 错误覆盖层或浏览器错误。
+- [OK] 2026-07-12：Vercel HTTPS 地址使用模拟麦克风录音超过 5 秒，完成后可生成本地卡片、进入详情并创建可播放音频源。
 - [P] Android Chrome 与 iPhone Safari 的真机录音、播放、刷新恢复、删除、桌面安装和深色模式尚待用户验收。
