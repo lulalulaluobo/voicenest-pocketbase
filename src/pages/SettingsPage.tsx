@@ -12,6 +12,7 @@ import {
 } from '../lib/config-store'
 import { transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
+import { testSyncConnection } from '../lib/sync'
 
 export function SettingsPage() {
   // ASR
@@ -26,6 +27,9 @@ export function SettingsPage() {
 
   // Sync
   const [syncConfig, setSyncConfig] = useState(getSyncConfig())
+  const [fnsJsonInput, setFnsJsonInput] = useState('')
+  const [syncTesting, setSyncTesting] = useState(false)
+  const [syncTestResult, setSyncTestResult] = useState<string | null>(null)
 
   // Note Types
   const [noteTypes, setNoteTypes] = useState<UserNoteType[]>(getNoteTypes())
@@ -109,10 +113,55 @@ export function SettingsPage() {
   }
 
   // Sync Save
-  const handleSyncChange = (value: string) => {
-    const updated = { endpoint: value }
+  const handleSyncFieldChange = (field: string, value: string) => {
+    const updated = { ...syncConfig, [field]: value }
     setSyncConfig(updated)
     saveSyncConfig(updated)
+  }
+
+  const handleParseFnsJson = (rawText: string) => {
+    try {
+      const parsed = JSON.parse(rawText.trim())
+      const missing = ["api", "apiToken", "vault"].filter((k) => !String(parsed[k] || "").trim())
+      if (missing.length) {
+        alert(`FNS 配置缺少必需字段: ${missing.join(", ")}`)
+        return
+      }
+      const updated = {
+        api: String(parsed.api).trim().replace(/\/+$/, ""),
+        apiToken: String(parsed.apiToken).trim(),
+        vault: String(parsed.vault).trim()
+      }
+      setSyncConfig(updated)
+      saveSyncConfig(updated)
+      setFnsJsonInput('')
+      alert("FNS 配置已成功解析并填充，已自动保存！")
+    } catch (err: any) {
+      alert("解析失败，请确保粘贴的是合法的 FNS 配置 JSON 字符串")
+    }
+  }
+
+  const handleClipboardImport = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      setFnsJsonInput(text)
+      handleParseFnsJson(text)
+    } catch (err) {
+      alert("无法读取系统剪贴板，请在输入框内手动粘贴后点击“解析并填充”")
+    }
+  }
+
+  const handleTestSync = async () => {
+    setSyncTesting(true)
+    setSyncTestResult(null)
+    try {
+      await testSyncConnection(syncConfig)
+      setSyncTestResult("✅ Obsidian 连接测试成功！已成功握手 Fast Note Sync 插件")
+    } catch (err: any) {
+      setSyncTestResult(`⚠️ 连接测试失败: ${err.message}`)
+    } finally {
+      setSyncTesting(false)
+    }
   }
 
   // Auto process toggling
@@ -341,15 +390,116 @@ export function SettingsPage() {
       {/* Fast Note Sync 同步配置 */}
       <section className="settings-card">
         <h2>Obsidian 同步端点 (Fast Note Sync)</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>Fast Note Sync Server URL</label>
-          <input
-            type="text"
-            value={syncConfig.endpoint}
-            onChange={(e) => handleSyncChange(e.target.value)}
-            placeholder="http://localhost:8080/sync"
-            style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
-          />
+        <div style={{ display: 'grid', gap: '12px' }}>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>一键粘贴 FNS 配置 JSON</label>
+            <textarea
+              value={fnsJsonInput}
+              onChange={(e) => setFnsJsonInput(e.target.value)}
+              placeholder='例: {"api":"http://localhost:8080","apiToken":"...","vault":"obsidian"}'
+              style={{ minHeight: '70px', padding: '8px 12px', borderRadius: '8px', border: '1px solid #ded6cb', fontFamily: 'monospace', fontSize: '12px' }}
+            />
+            <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+              <button
+                type="button"
+                onClick={handleClipboardImport}
+                style={{
+                  minHeight: '36px',
+                  padding: '0 12px',
+                  borderRadius: '6px',
+                  background: '#5b5148',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                📋 从剪贴板导入并解析
+              </button>
+              <button
+                type="button"
+                onClick={() => handleParseFnsJson(fnsJsonInput)}
+                disabled={!fnsJsonInput.trim()}
+                style={{
+                  minHeight: '36px',
+                  padding: '0 12px',
+                  borderRadius: '6px',
+                  background: '#ded6cb',
+                  color: '#27241f',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  opacity: fnsJsonInput.trim() ? 1 : 0.6
+                }}
+              >
+                ⚙️ 解析并填充
+              </button>
+            </div>
+          </div>
+
+          <hr style={{ border: '0', borderTop: '1px dashed #e5ddd4', margin: '8px 0' }} />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>FNS 基础地址 (API)</label>
+            <input
+              type="text"
+              value={syncConfig.api}
+              onChange={(e) => handleSyncFieldChange('api', e.target.value)}
+              placeholder="http://localhost:8080"
+              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>FNS Vault 名称</label>
+            <input
+              type="text"
+              value={syncConfig.vault}
+              onChange={(e) => handleSyncFieldChange('vault', e.target.value)}
+              placeholder="obsidian"
+              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#81766c' }}>FNS API Token</label>
+            <input
+              type="password"
+              value={syncConfig.apiToken}
+              onChange={(e) => handleSyncFieldChange('apiToken', e.target.value)}
+              placeholder="FNS 鉴权密钥"
+              style={{ minHeight: '44px', padding: '0 12px', borderRadius: '8px', border: '1px solid #ded6cb' }}
+            />
+          </div>
+
+          <div style={{ marginTop: '8px' }}>
+            <button
+              type="button"
+              onClick={handleTestSync}
+              disabled={syncTesting}
+              style={{
+                minHeight: '44px',
+                width: '100%',
+                background: '#bf3b3b',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 'bold',
+                opacity: syncTesting ? 0.6 : 1
+              }}
+            >
+              {syncTesting ? '正在测试...' : '测试 Obsidian FNS 连接'}
+            </button>
+            {syncTestResult && (
+              <div style={{ marginTop: '8px', fontSize: '13px', padding: '8px', borderRadius: '6px', background: '#f5f2ec', wordBreak: 'break-all' }}>
+                {syncTestResult}
+              </div>
+            )}
+          </div>
+
         </div>
       </section>
 

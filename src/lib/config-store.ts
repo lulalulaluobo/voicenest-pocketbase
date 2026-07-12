@@ -65,7 +65,7 @@ export function saveLLMConfig(cfg: LLMConfig): void {
 
 export function getSyncConfig(): SyncConfig {
   const data = localStorage.getItem('vn_sync')
-  return data ? JSON.parse(data) : { endpoint: 'http://localhost:8080/sync' }
+  return data ? JSON.parse(data) : { api: 'http://localhost:8080', apiToken: '', vault: '' }
 }
 
 export function saveSyncConfig(cfg: SyncConfig): void {

@@ -71,12 +71,15 @@ describe('API Clients Unit Tests', () => {
   it('should sync markdown file to Obsidian via Fast Note Sync', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
+      json: async () => ({ status: true }),
       status: 200
     } as Response)
 
     await expect(
-      syncToObsidian('测试文件', '# 内容', '/path/to/Obsidian', {
-        endpoint: 'http://localhost:8080/sync'
+      syncToObsidian('测试文件', '# 内容', 'Inbox/Ideas', {
+        api: 'http://localhost:8080',
+        apiToken: 'token-xyz',
+        vault: 'my-vault'
       })
     ).resolves.not.toThrow()
   })
