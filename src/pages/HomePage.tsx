@@ -80,7 +80,7 @@ export function HomePage({ recorder }: { recorder: ReturnType<typeof useRecorder
       {/* 顶部栏 */}
       <header className="topbar">
         <div>
-          <span className="eyebrow">Voice Inbox</span>
+          <span className="eyebrow">VoiceNest</span>
           <h1>记录一个想法</h1>
         </div>
         <div className="topbar-actions">

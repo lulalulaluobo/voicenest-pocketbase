@@ -8,13 +8,20 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       manifest: {
-        name: '语音收件箱',
-        short_name: '语音收件箱',
+        name: '声笺',
+        short_name: '声笺',
         description: '本地优先的语音收件箱',
         display: 'standalone',
         theme_color: '#f5f6f8',
         background_color: '#f5f6f8',
-        icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml' }],
+        icons: [
+          {
+            src: 'icon.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ],
       },
     }),
   ],
