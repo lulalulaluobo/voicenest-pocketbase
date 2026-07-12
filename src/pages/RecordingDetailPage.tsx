@@ -6,6 +6,7 @@ import { deleteRecording, getChunks, getRecording, recordingDb } from '../lib/re
 import { getNoteTypes, type UserNoteType } from '../lib/config-store'
 import { useProcessor } from '../hooks/use-processor'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { buildPlaybackBlob } from '../lib/audio-playback'
 
 function formatTime(secs: number) {
   if (isNaN(secs)) return '00:00'
@@ -50,9 +51,11 @@ export function RecordingDetailPage() {
     
     void (async () => {
       await refreshData()
+      const rec = await getRecording(recordingId)
+      if (!rec) return
       const chunks = await getChunks(recordingId)
       if (!chunks.length) return
-      currentUrl = URL.createObjectURL(new Blob(chunks.map((chunk) => chunk.blob), { type: 'audio/webm' }))
+      currentUrl = URL.createObjectURL(buildPlaybackBlob(chunks, rec.mimeType))
       setAudioUrl(currentUrl)
     })()
 

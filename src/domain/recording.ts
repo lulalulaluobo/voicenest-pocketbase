@@ -25,6 +25,7 @@ export interface Recording {
   summary?: string
   errorMessage?: string
   isAudioCleared?: boolean
+  retryCount?: number
 }
 
 export interface AudioChunk {

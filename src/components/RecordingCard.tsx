@@ -4,6 +4,7 @@ import type { Recording } from '../domain/recording'
 import { StatusBadge } from './StatusBadge'
 import { deleteRecording, getChunks } from '../lib/recording-db'
 import { useProcessor } from '../hooks/use-processor'
+import { buildPlaybackBlob } from '../lib/audio-playback'
 
 function formatDuration(durationMs: number) {
   const seconds = Math.floor(durationMs / 1000)
@@ -54,7 +55,7 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
         alert('没有可播放的音频分片')
         return
       }
-      const url = URL.createObjectURL(new Blob(chunks.map(c => c.blob), { type: 'audio/webm' }))
+      const url = URL.createObjectURL(buildPlaybackBlob(chunks, recording.mimeType))
       const audio = new Audio(url)
       audio.onended = () => setIsPlaying(false)
       audio.onerror = () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { transcribeAudio } from './asr'
 import { formatNote } from './llm'
-import { syncToObsidian } from './sync'
+import { assertSecureSyncEndpoint, normalizeObsidianDirectory, sanitizeNoteFilename, syncToObsidian } from './sync'
 
 describe('API Clients Unit Tests', () => {
   const originalFetch = globalThis.fetch
@@ -68,6 +68,18 @@ describe('API Clients Unit Tests', () => {
     expect(res.markdown).toContain('这是正文内容')
   })
 
+  it('does not expose provider response bodies in API errors', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      text: async () => 'invalid key sk-secret-value',
+    } as Response)
+
+    await expect(transcribeAudio(new Blob(['audio']), {
+      type: 'openai', endpoint: 'https://api.openai.com/v1', apiKey: 'sk-test', model: 'whisper-1',
+    })).rejects.toThrow('ASR API 调用失败 (401)')
+  })
+
   it('should sync markdown file to Obsidian via Fast Note Sync', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
@@ -77,7 +89,7 @@ describe('API Clients Unit Tests', () => {
 
     await expect(
       syncToObsidian('测试文件', '# 内容', 'Inbox/Ideas', {
-        api: 'http://localhost:8080',
+        api: 'https://fns.example.test',
         apiToken: 'token-xyz',
         vault: 'my-vault'
       })
@@ -101,12 +113,21 @@ describe('API Clients Unit Tests', () => {
 
     await expect(
       syncToObsidian('重名文件', '# 内容', 'Inbox/Ideas', {
-        api: 'http://localhost:8080',
+        api: 'https://fns.example.test',
         apiToken: 'token-xyz',
         vault: 'my-vault'
       })
     ).resolves.not.toThrow()
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects non-HTTPS Fast Note Sync endpoints', () => {
+    expect(() => assertSecureSyncEndpoint('http://localhost:8080')).toThrow('HTTPS')
+  })
+
+  it('rejects path traversal and strips unsafe filename characters', () => {
+    expect(() => normalizeObsidianDirectory('../Inbox')).toThrow('..')
+    expect(sanitizeNoteFilename('../会议:总结?')).toBe('会议 总结')
   })
 })

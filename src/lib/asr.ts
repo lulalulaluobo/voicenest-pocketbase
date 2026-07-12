@@ -29,8 +29,7 @@ export async function transcribeAudio(blob: Blob, config: ASRConfig): Promise<st
     clearTimeout(timeoutId)
 
     if (!response.ok) {
-      const errText = await response.text().catch(() => '')
-      throw new Error(`ASR API 调用失败 (${response.status}): ${errText}`)
+      throw new Error(`ASR API 调用失败 (${response.status})`)
     }
 
     const data = await response.json()
