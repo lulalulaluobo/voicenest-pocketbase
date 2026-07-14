@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { Recording } from '../domain/recording'
 import { StatusBadge } from './StatusBadge'
 import { deleteRecording, getChunks } from '../lib/recording-db'
+import { getAudioDownloadFilename } from '../lib/audio-mime'
 import { useProcessor } from '../hooks/use-processor'
 
 function formatDuration(durationMs: number) {
@@ -93,6 +94,28 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
     }
   }
 
+  const canDownload = Boolean(recording.summary) && !recording.isAudioCleared
+  const downloadLabel = recording.isAudioCleared ? '音频已清理' : recording.summary ? '⇩ 下载' : '整理后下载'
+
+  const handleDownloadClick = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const chunks = await getChunks(recording.id)
+    if (!chunks.length) {
+      alert('没有可下载的音频分片')
+      return
+    }
+
+    const url = URL.createObjectURL(new Blob(chunks.map((chunk) => chunk.blob), { type: recording.mimeType }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = getAudioDownloadFilename(recording.localTitle, recording.mimeType)
+    document.body.append(link)
+    link.click()
+    link.remove()
+    // ponytail: iOS Safari 可能改为打开分享页；跨平台保存目录需更复杂的原生文件 API。
+    window.setTimeout(() => URL.revokeObjectURL(url), 0)
+  }
+
   const isWorking = isProcessing || recording.status === 'processing'
 
   return (
@@ -137,6 +160,15 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
             </button>
           </>
         )}
+
+        <button
+          className="action"
+          onClick={handleDownloadClick}
+          disabled={!canDownload}
+          aria-label={canDownload ? '下载音频' : downloadLabel}
+        >
+          {downloadLabel}
+        </button>
 
         <button 
           className="action more-btn" 
