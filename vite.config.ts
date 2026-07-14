@@ -4,8 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   resolve: {
-    // ts-ebml 的 Browserify 别名；避免 Vite 选中没有 CommonJS 导出的 IIFE 入口。
-    alias: { ebml: 'ebml/lib/ebml.js' },
+    // 使用 ts-ebml 的浏览器构建，避免普通构建生成无效的 WebM 元数据。
+    alias: { 'ts-ebml': 'ts-ebml/dist/EBML.js' },
   },
   plugins: [
     react(),
