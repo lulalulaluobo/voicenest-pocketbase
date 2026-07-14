@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { selectAudioMime } from './audio-mime'
+import { getAudioDownloadFilename, selectAudioMime } from './audio-mime'
 
 describe('selectAudioMime', () => {
   it('prefers WebM Opus when supported', () => {
@@ -14,5 +14,10 @@ describe('selectAudioMime', () => {
 
   it('lets the browser choose its default when no candidate is supported', () => {
     expect(selectAudioMime(() => false)).toBeUndefined()
+  })
+
+  it('uses a safe LLM title and the matching audio extension', () => {
+    expect(getAudioDownloadFilename('会议/讨论:Q3?', 'audio/mp4;codecs=mp4a.40.2')).toBe('会议_讨论_Q3_.m4a')
+    expect(getAudioDownloadFilename('  ', 'audio/webm;codecs=opus')).toBe('未命名录音.webm')
   })
 })
