@@ -107,4 +107,18 @@ describe('recording database', () => {
     expect(updated?.summary).toBe('# 标题\n这是 LLM 整理文本')
     expect(updated?.errorMessage).toBe('网络连接失败')
   })
+
+  it('persists WeChat draft synchronization fields', async () => {
+    await createRecording(draft)
+    await recordingDb.recordings.update(draft.id, {
+      wechatStatus: 'drafted',
+      wechatDraftMediaId: 'draft-media-id',
+      wechatRequestId: 'request-id'
+    })
+
+    const updated = await getRecording(draft.id)
+    expect(updated?.wechatStatus).toBe('drafted')
+    expect(updated?.wechatDraftMediaId).toBe('draft-media-id')
+    expect(updated?.wechatRequestId).toBe('request-id')
+  })
 })

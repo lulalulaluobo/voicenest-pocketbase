@@ -2,6 +2,11 @@ import type { ASRConfig } from './asr'
 import type { LLMConfig } from './llm'
 import type { SyncConfig } from './sync'
 
+export interface WechatDraftConfig {
+  enabled: boolean
+  workerUrl: string
+}
+
 export interface UserNoteType {
   id: string
   name: string
@@ -70,6 +75,15 @@ export function getSyncConfig(): SyncConfig {
 
 export function saveSyncConfig(cfg: SyncConfig): void {
   localStorage.setItem('vn_sync', JSON.stringify(cfg))
+}
+
+export function getWechatDraftConfig(): WechatDraftConfig {
+  const data = localStorage.getItem('vn_wechat_draft')
+  return data ? JSON.parse(data) : { enabled: false, workerUrl: '' }
+}
+
+export function saveWechatDraftConfig(config: WechatDraftConfig): void {
+  localStorage.setItem('vn_wechat_draft', JSON.stringify(config))
 }
 
 export function getNoteTypes(): UserNoteType[] {
