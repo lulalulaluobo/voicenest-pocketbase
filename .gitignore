@@ -10,3 +10,4 @@ references/
 *.log
 .vercel
 .env*
+workers/wechat-draft/.dev.vars*

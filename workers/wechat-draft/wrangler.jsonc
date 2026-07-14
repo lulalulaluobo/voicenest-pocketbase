@@ -1,0 +1,14 @@
+{
+  "name": "voicenest-wechat-draft",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-15",
+  "kv_namespaces": [
+    {
+      "binding": "WECHAT_CACHE",
+      "id": ""
+    }
+  ],
+  "vars": {
+    "ALLOWED_ORIGIN": "https://obvoice.lucc.fun"
+  }
+}
