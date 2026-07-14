@@ -1,4 +1,5 @@
 import type { WechatDraftConfig } from './config-store'
+import type { WechatDraftStatus } from '../domain/recording'
 
 export interface WechatDraftRequest {
   recordingId: string
@@ -21,6 +22,17 @@ export class WechatDraftError extends Error {
     super(message)
     this.name = 'WechatDraftError'
   }
+}
+
+export function getWechatStatusLabel(status?: WechatDraftStatus): string | undefined {
+  const labels: Record<WechatDraftStatus, string> = {
+    idle: '公众号草稿：未同步',
+    syncing: '公众号草稿：同步中',
+    drafted: '公众号草稿：已保存至草稿箱',
+    failed: '公众号草稿：同步失败',
+    authorization_required: '公众号草稿：需要重新授权'
+  }
+  return status ? labels[status] : undefined
 }
 
 function workerBaseUrl(config: WechatDraftConfig): string {

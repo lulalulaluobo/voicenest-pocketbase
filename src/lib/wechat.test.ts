@@ -4,6 +4,7 @@ import {
   saveWechatDraftConfig,
 } from './config-store'
 import {
+  getWechatStatusLabel,
   publishWechatDraft,
   testWechatConnection,
 } from './wechat'
@@ -63,5 +64,10 @@ describe('WeChat draft client', () => {
 
     expect(getWechatDraftConfig()).toEqual(config)
     expect(values.get('vn_wechat_draft')).not.toContain('AppSecret')
+  })
+
+  it('formats draft status for the recording views', () => {
+    expect(getWechatStatusLabel('drafted')).toBe('公众号草稿：已保存至草稿箱')
+    expect(getWechatStatusLabel('authorization_required')).toBe('公众号草稿：需要重新授权')
   })
 })

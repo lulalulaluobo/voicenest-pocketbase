@@ -8,6 +8,8 @@ import {
   saveLLMConfig,
   getSyncConfig,
   saveSyncConfig,
+  getWechatDraftConfig,
+  saveWechatDraftConfig,
   getNoteTypes,
   saveNoteTypes,
   getAudioRetention,
@@ -21,6 +23,7 @@ import {
 import { transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
 import { testSyncConnection } from '../lib/sync'
+import { testWechatConnection } from '../lib/wechat'
 
 export function SettingsPage() {
   const navigate = useNavigate()
@@ -40,6 +43,9 @@ export function SettingsPage() {
   const [fnsJsonInput, setFnsJsonInput] = useState('')
   const [syncTesting, setSyncTesting] = useState(false)
   const [syncTestResult, setSyncTestResult] = useState<string | null>(null)
+  const [wechatConfig, setWechatConfig] = useState(getWechatDraftConfig())
+  const [wechatTesting, setWechatTesting] = useState(false)
+  const [wechatTestResult, setWechatTestResult] = useState<string | null>(null)
 
   // Note Types
   const [noteTypes, setNoteTypes] = useState<UserNoteType[]>(getNoteTypes())
@@ -52,7 +58,7 @@ export function SettingsPage() {
   const [audioRetention, setAudioRetention] = useState<AudioRetentionType>(getAudioRetention())
   const [textRetention, setTextRetention] = useState<TextRetentionType>(getTextRetention())
 
-  // 折叠状态管理：'' | 'asr' | 'llm' | 'sync' | 'audio_retention' | 'text_retention' | 'backup'
+  // 折叠状态管理：'' | 'asr' | 'llm' | 'sync' | 'wechat' | 'audio_retention' | 'text_retention' | 'backup'
   const [activeCollapse, setActiveCollapse] = useState<string | null>(null)
 
   const toggleCollapse = (name: string) => {
@@ -201,6 +207,34 @@ export function SettingsPage() {
     }
   }
 
+  const handleWechatConfigChange = (changes: Partial<typeof wechatConfig>) => {
+    const updated = { ...wechatConfig, ...changes }
+    setWechatConfig(updated)
+    saveWechatDraftConfig(updated)
+  }
+
+  const handleTestWechat = async () => {
+    setWechatTesting(true)
+    setWechatTestResult(null)
+    try {
+      await testWechatConnection(wechatConfig)
+      setWechatTestResult('✅ 公众号发布服务连接成功，IP 白名单与草稿权限均可用')
+    } catch (err: any) {
+      setWechatTestResult(`⚠️ 连接测试失败: ${err.message}`)
+    } finally {
+      setWechatTesting(false)
+    }
+  }
+
+  const handleOpenWechatAuthorization = () => {
+    const url = wechatConfig.workerUrl.trim()
+    if (!url) {
+      alert('请先填写公众号发布服务地址')
+      return
+    }
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
   // Auto process toggling
   const handleToggleAutoProcess = () => {
     const val = !autoProcess
@@ -257,6 +291,7 @@ export function SettingsPage() {
         asrConfig: { ...asrConfig, apiKey: '' },
         llmConfig: { ...llmConfig, apiKey: '' },
         syncConfig: { ...syncConfig, apiToken: '' },
+        wechatConfig,
         audioRetention,
         textRetention
       }
@@ -318,6 +353,15 @@ export function SettingsPage() {
           saveSyncConfig(mergedSync)
         }
 
+        if (parsed.wechatConfig) {
+          const importedWechat = {
+            enabled: Boolean(parsed.wechatConfig.enabled),
+            workerUrl: String(parsed.wechatConfig.workerUrl || '').trim()
+          }
+          setWechatConfig(importedWechat)
+          saveWechatDraftConfig(importedWechat)
+        }
+
         setNoteTypes(parsed.noteTypes)
         saveNoteTypes(parsed.noteTypes)
 
@@ -367,7 +411,7 @@ export function SettingsPage() {
         <div className="row" onClick={handleToggleAutoProcess}>
           <div className="row-main">
             <div className="row-title">录音结束后自动处理</div>
-            <div className="row-sub">自动转写、整理并同步到 Obsidian</div>
+            <div className="row-sub">自动转写、整理并同步到已启用的目标</div>
           </div>
           <div className={`switch ${autoProcess ? 'on' : ''}`} />
         </div>
@@ -626,6 +670,52 @@ export function SettingsPage() {
             )}
           </div>
         )}
+
+        <div className="row" onClick={() => toggleCollapse('wechat')}>
+          <div className="row-main">
+            <div className="row-title">公众号草稿箱</div>
+            <div className="row-sub">{wechatConfig.enabled ? '已启用 · 自动同步至草稿箱' : '未启用'}</div>
+          </div>
+          <div style={{ color: 'var(--muted)' }}>{activeCollapse === 'wechat' ? '▼' : '›'}</div>
+        </div>
+        {activeCollapse === 'wechat' && (
+          <div style={{ padding: '12px 0', borderTop: '1px dashed var(--line)', display: 'grid', gap: '8px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+              <input
+                type="checkbox"
+                checked={wechatConfig.enabled}
+                onChange={(e) => handleWechatConfigChange({ enabled: e.target.checked })}
+              />
+              整理完成后同步到公众号草稿箱
+            </label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>公众号发布服务地址</label>
+              <input
+                type="url"
+                value={wechatConfig.workerUrl}
+                placeholder="https://wechat.example.com"
+                onChange={(e) => handleWechatConfigChange({ workerUrl: e.target.value })}
+                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+              />
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+              服务地址受管理员访问保护；AppID、Secret 和封面 media_id 仅保存在 Worker 密钥中。
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button type="button" className="action primary" onClick={handleTestWechat} disabled={wechatTesting}>
+                {wechatTesting ? '正在测试...' : '测试公众号连接'}
+              </button>
+              <button type="button" className="action" onClick={handleOpenWechatAuthorization}>
+                重新授权
+              </button>
+            </div>
+            {wechatTestResult && (
+              <div style={{ fontSize: '12px', background: 'var(--soft)', padding: '8px', borderRadius: '6px' }}>
+                {wechatTestResult}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* 3. 笔记类型卡片 */}
@@ -664,7 +754,7 @@ export function SettingsPage() {
         {activeCollapse === 'backup' && (
           <div style={{ padding: '12px 0', borderTop: '1px dashed var(--line)', display: 'grid', gap: '10px' }}>
             <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-              ⚠️ 安全提示：为了您的密钥安全，备份文件中不包含任何 API 密码与 FNS Token。导入时会合并保留您已有的密钥。
+              ⚠️ 安全提示：为了您的密钥安全，备份文件中不包含任何 API 密码与 FNS Token；公众号仅导出开关和服务地址。
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button

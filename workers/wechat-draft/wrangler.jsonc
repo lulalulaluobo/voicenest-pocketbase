@@ -3,9 +3,10 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-07-15",
   "kv_namespaces": [
+    // 部署前运行 `npx wrangler kv namespace create WECHAT_CACHE`，并替换为返回的 id。
     {
       "binding": "WECHAT_CACHE",
-      "id": ""
+      "id": "00000000000000000000000000000000"
     }
   ],
   "vars": {

@@ -7,6 +7,7 @@ import { getRecordingAudioBlob } from '../lib/recording-audio'
 import { getNoteTypes, type UserNoteType } from '../lib/config-store'
 import { useProcessor } from '../hooks/use-processor'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { getWechatStatusLabel } from '../lib/wechat'
 
 function formatTime(secs: number) {
   if (isNaN(secs)) return '00:00'
@@ -281,6 +282,15 @@ export function RecordingDetailPage() {
           ) : (
             <div className="status wait">待处理</div>
           )}
+        </div>
+        <div className="row">
+          <div className="row-main">
+            <div className="row-title">公众号草稿</div>
+            <div className="row-sub">{getWechatStatusLabel(recording.wechatStatus) || '未启用或尚未同步'}</div>
+          </div>
+          <div className={`status ${recording.wechatStatus === 'drafted' ? 'ok' : recording.wechatStatus === 'failed' || recording.wechatStatus === 'authorization_required' ? 'wait' : ''}`}>
+            {recording.wechatStatus === 'drafted' ? '已入草稿' : recording.wechatStatus === 'failed' ? '失败' : recording.wechatStatus === 'authorization_required' ? '待授权' : '未同步'}
+          </div>
         </div>
       </div>
 
