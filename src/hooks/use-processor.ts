@@ -1,14 +1,83 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getChunks, getRecording, recordingDb } from '../lib/recording-db'
-import { getASRConfig, getLLMConfig, getSyncConfig, getNoteTypes, getAudioRetention } from '../lib/config-store'
+import { getASRConfig, getLLMConfig, getSyncConfig, getNoteTypes, getAudioRetention, getWechatDraftConfig } from '../lib/config-store'
 import { transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
-import { syncToObsidian } from '../lib/sync'
+import { syncProcessedNote } from '../lib/sync-targets'
 import { cleanSyncedAudioChunks } from '../lib/retention'
 import type { Recording } from '../domain/recording'
 
 // 全局排队锁，避免前台自动重试时产生并发请求
 let isQueueProcessing = false
+
+async function syncProcessedRecording(
+  recording: Recording,
+  title: string,
+  markdown: string,
+  obsidianDir: string
+): Promise<void> {
+  const wechatConfig = getWechatDraftConfig()
+  let wechatRequestId = recording.wechatRequestId
+
+  if (wechatConfig.enabled) {
+    wechatRequestId = recording.wechatDraftMediaId
+      ? crypto.randomUUID()
+      : wechatRequestId || crypto.randomUUID()
+    await recordingDb.recordings.update(recording.id, {
+      wechatStatus: 'syncing',
+      wechatErrorMessage: undefined,
+      wechatRequestId,
+      updatedAt: new Date().toISOString()
+    })
+  }
+
+  const results = await syncProcessedNote({
+    recordingId: recording.id,
+    title,
+    markdown,
+    obsidianDir,
+    obsidianConfig: getSyncConfig(),
+    wechatConfig,
+    wechatRequestId,
+    wechatDraftMediaId: recording.wechatDraftMediaId
+  })
+  const errors: string[] = []
+  const updates: Partial<Recording> = {
+    updatedAt: new Date().toISOString()
+  }
+
+  if (results.obsidian && !results.obsidian.ok) {
+    errors.push(`Obsidian：${results.obsidian.error}`)
+  }
+  if (results.wechat) {
+    if (results.wechat.ok) {
+      updates.wechatStatus = 'drafted'
+      updates.wechatDraftMediaId = results.wechat.mediaId
+      updates.wechatErrorMessage = undefined
+    } else {
+      updates.wechatStatus = results.wechat.authorizationRequired ? 'authorization_required' : 'failed'
+      updates.wechatErrorMessage = results.wechat.error
+      errors.push(`公众号：${results.wechat.error}`)
+    }
+  }
+  if (!results.obsidian && !results.wechat) {
+    errors.push('未配置同步目标')
+  }
+
+  if (errors.length) {
+    updates.status = 'failed'
+    updates.errorMessage = errors.join('；')
+    await recordingDb.recordings.update(recording.id, updates)
+    return
+  }
+
+  updates.status = 'synced'
+  updates.errorMessage = undefined
+  await recordingDb.recordings.update(recording.id, updates)
+  if (getAudioRetention() === 'immediate') {
+    await cleanSyncedAudioChunks(recording.id)
+  }
+}
 
 export function useProcessor() {
   const [isProcessing, setIsProcessing] = useState(false)
@@ -85,29 +154,8 @@ export function useProcessor() {
           updatedAt: new Date().toISOString()
         })
 
-        // 6. 执行 Fast Note Sync 同步
-        try {
-          await syncToObsidian(formatted.title, formatted.markdown, currentType.obsidianPath, getSyncConfig())
-        } catch (err: any) {
-          // ASR + LLM 已经完成了，只是同步失败，更新本地数据并抛出同步错误
-          await recordingDb.recordings.update(id, {
-            status: 'failed',
-            errorMessage: `已完成转写整理，但写入 Obsidian 失败: ${err.message}`,
-            updatedAt: new Date().toISOString()
-          })
-          return
-        }
-
-        // 7. 处理完成，成功同步
-        await recordingDb.recordings.update(id, {
-          status: 'synced',
-          updatedAt: new Date().toISOString()
-        })
-
-        // 触发立即删除音频分片策略
-        if (getAudioRetention() === 'immediate') {
-          await cleanSyncedAudioChunks(id)
-        }
+        // 6. 分别同步已启用的 Obsidian 与公众号草稿目标
+        await syncProcessedRecording(rec, formatted.title, formatted.markdown, currentType.obsidianPath)
       } else if (mode === 'sync_only') {
         // 仅重新同步已整理的内容
         await recordingDb.recordings.update(id, {
@@ -124,22 +172,7 @@ export function useProcessor() {
         const noteTypes = getNoteTypes()
         const currentType = noteTypes.find(t => t.id === latestRec.typeId) || noteTypes[0]
 
-        try {
-          await syncToObsidian(latestRec.localTitle, latestRec.summary, currentType.obsidianPath, getSyncConfig())
-        } catch (err: any) {
-          throw new Error(`写入 Obsidian 失败: ${err.message}`)
-        }
-
-        // 成功同步
-        await recordingDb.recordings.update(id, {
-          status: 'synced',
-          updatedAt: new Date().toISOString()
-        })
-
-        // 触发立即删除音频分片策略
-        if (getAudioRetention() === 'immediate') {
-          await cleanSyncedAudioChunks(id)
-        }
+        await syncProcessedRecording(latestRec, latestRec.localTitle, latestRec.summary, currentType.obsidianPath)
       }
     } catch (err: any) {
       // 捕获异常，写回 errorMessage，状态置为 failed
