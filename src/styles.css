@@ -478,6 +478,10 @@ h3 {
   font-weight: 700;
 }
 
+.action.download-btn {
+  flex: 0 0 42px;
+}
+
 .action.danger {
   color: var(--danger);
 }
@@ -930,4 +934,3 @@ textarea {
     animation: none !important;
   }
 }
-

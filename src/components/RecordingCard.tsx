@@ -4,6 +4,7 @@ import type { Recording } from '../domain/recording'
 import { StatusBadge } from './StatusBadge'
 import { deleteRecording, getChunks } from '../lib/recording-db'
 import { getAudioDownloadFilename } from '../lib/audio-mime'
+import { getRecordingAudioBlob } from '../lib/recording-audio'
 import { useProcessor } from '../hooks/use-processor'
 
 function formatDuration(durationMs: number) {
@@ -55,7 +56,7 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
         alert('没有可播放的音频分片')
         return
       }
-      const url = URL.createObjectURL(new Blob(chunks.map(c => c.blob), { type: 'audio/webm' }))
+      const url = URL.createObjectURL(await getRecordingAudioBlob(recording, chunks.map((chunk) => chunk.blob)))
       const audio = new Audio(url)
       audio.onended = () => setIsPlaying(false)
       audio.onerror = () => {
@@ -105,7 +106,7 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
       return
     }
 
-    const url = URL.createObjectURL(new Blob(chunks.map((chunk) => chunk.blob), { type: recording.mimeType }))
+    const url = URL.createObjectURL(await getRecordingAudioBlob(recording, chunks.map((chunk) => chunk.blob)))
     const link = document.createElement('a')
     link.href = url
     link.download = getAudioDownloadFilename(recording.localTitle, recording.mimeType)
@@ -143,9 +144,6 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
       <div className="actions">
         {recording.status === 'synced' ? (
           <>
-            <button className="action" onClick={(e) => { e.stopPropagation(); navigate(`/recordings/${recording.id}`) }}>
-              查看详情
-            </button>
             <button className="action" onClick={handleProcessClick} disabled={isWorking || !!recording.isAudioCleared}>
               重新整理
             </button>
@@ -162,12 +160,12 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
         )}
 
         <button
-          className="action"
+          className="action download-btn"
           onClick={handleDownloadClick}
           disabled={!canDownload}
           aria-label={canDownload ? '下载音频' : downloadLabel}
         >
-          {downloadLabel}
+          ⇩
         </button>
 
         <button 

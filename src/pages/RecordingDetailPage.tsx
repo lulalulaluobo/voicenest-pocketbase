@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import type { Recording } from '../domain/recording'
 import { StatusBadge } from '../components/StatusBadge'
 import { deleteRecording, getChunks, getRecording, recordingDb } from '../lib/recording-db'
+import { getRecordingAudioBlob } from '../lib/recording-audio'
 import { getNoteTypes, type UserNoteType } from '../lib/config-store'
 import { useProcessor } from '../hooks/use-processor'
 import { ThemeToggle } from '../components/ThemeToggle'
@@ -35,7 +36,7 @@ export function RecordingDetailPage() {
   const { isProcessing, processRecording } = useProcessor()
 
   const refreshData = useCallback(async () => {
-    if (!recordingId) return
+    if (!recordingId) return null
     const rec = await getRecording(recordingId)
     setRecording(rec ?? null)
     const types = getNoteTypes()
@@ -45,6 +46,7 @@ export function RecordingDetailPage() {
       setSummary(rec.summary || '')
       setSelectedTypeId(rec.typeId)
     }
+    return rec ?? null
   }, [recordingId])
 
   const handleTypeChange = async (val: string) => {
@@ -67,10 +69,11 @@ export function RecordingDetailPage() {
     let currentUrl: string | null = null
     
     void (async () => {
-      await refreshData()
+      const rec = await refreshData()
+      if (!rec) return
       const chunks = await getChunks(recordingId)
       if (!chunks.length) return
-      currentUrl = URL.createObjectURL(new Blob(chunks.map((chunk) => chunk.blob), { type: 'audio/webm' }))
+      currentUrl = URL.createObjectURL(await getRecordingAudioBlob(rec, chunks.map((chunk) => chunk.blob)))
       setAudioUrl(currentUrl)
     })()
 

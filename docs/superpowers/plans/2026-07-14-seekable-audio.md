@@ -36,13 +36,13 @@
 - Consumes: `Recording` 和已排序的 `Blob[]` 分片。
 - Produces: `getRecordingAudioBlob(recording: Recording, parts: Blob[]): Promise<Blob>`。
 
-- [ ] **Step 1: 安装生产依赖**
+- [x] **Step 1: 安装生产依赖**
 
 Run: `npm install ts-ebml@3.0.2`
 
 Expected: `package.json` 与 `package-lock.json` 记录 `ts-ebml` 及其依赖；不新增其他包。
 
-- [ ] **Step 2: 编写失败测试**
+- [x] **Step 2: 编写失败测试**
 
 创建 `src/lib/recording-audio.test.ts`：
 
@@ -85,12 +85,12 @@ it('prepends seekable WebM metadata', async () => {
 })
 ```
 
-- [ ] **Step 3: 运行测试确认失败**
+- [x] **Step 3: 运行测试确认失败**
 
 Run: `npm test -- src/lib/recording-audio.test.ts`  
 Expected: FAIL，模块不存在。
 
-- [ ] **Step 4: 实现最小入口**
+- [x] **Step 4: 实现最小入口**
 
 创建 `src/lib/recording-audio.ts`：
 
@@ -119,12 +119,12 @@ export async function getRecordingAudioBlob(recording: Recording, parts: Blob[])
 
 保持该函数为纯 Blob 转换，不读取数据库。每个调用方先执行 `getChunks(recording.id)`，再将 `chunks.map((chunk) => chunk.blob)` 传入入口，使其可用纯 Blob 单测。
 
-- [ ] **Step 5: 运行测试与构建**
+- [x] **Step 5: 运行测试与构建**
 
 Run: `npm test -- src/lib/recording-audio.test.ts && npm run build`  
 Expected: 两项测试通过，TypeScript 能解析 `ts-ebml`。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add package.json package-lock.json src/lib/recording-audio.ts src/lib/recording-audio.test.ts
@@ -143,7 +143,7 @@ codegraph sync .
 - Consumes: `getRecordingAudioBlob(recording, chunks.map(chunk => chunk.blob))`。
 - Produces: 列表播放、详情播放、下载均使用 seekable Blob；同步卡片显示“重新整理”、下载图标和更多菜单。
 
-- [ ] **Step 1: 替换三处 Blob 拼接**
+- [x] **Step 1: 替换三处 Blob 拼接**
 
 在 `RecordingCard.tsx` 中，播放和下载分别改为：
 
@@ -154,7 +154,7 @@ const audioBlob = await getRecordingAudioBlob(recording, chunks.map((chunk) => c
 
 用 `audioBlob` 创建 Object URL；删除两处直接 `new Blob(chunks.map(...))`。在 `RecordingDetailPage.tsx` 同样替换 URL 创建处，并使用 `recording.mimeType`，不再硬编码 `audio/webm`。
 
-- [ ] **Step 2: 调整同步卡片操作区**
+- [x] **Step 2: 调整同步卡片操作区**
 
 同步状态分支删除“查看详情”按钮。下载按钮改为：
 
@@ -166,7 +166,7 @@ const audioBlob = await getRecordingAudioBlob(recording, chunks.map((chunk) => c
 
 在 `styles.css` 不作全局重构；为 `.action.download-btn` 添加 `flex: 0 0 42px;`，使“重新整理 / ⇩ / …”单行显示。详情入口继续由卡片点击和更多菜单提供。
 
-- [ ] **Step 3: 运行完整验证**
+- [x] **Step 3: 运行完整验证**
 
 Run: `npm test && npm run build`  
 Expected: 所有用例通过，生产构建成功。
@@ -178,7 +178,7 @@ Expected: 所有用例通过，生产构建成功。
 2. 列表按钮单行显示。
 3. 导出的 WebM 在手机播放器中显示时长且可跳转播放。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/components/RecordingCard.tsx src/pages/RecordingDetailPage.tsx src/styles.css
