@@ -20,6 +20,7 @@ export function RecordingDetailPage() {
   const [recording, setRecording] = useState<Recording | null | undefined>(undefined)
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [noteTypes, setNoteTypes] = useState<UserNoteType[]>([])
+  const [selectedTypeId, setSelectedTypeId] = useState('')
   
   // 编辑文本 State
   const [transcript, setTranscript] = useState('')
@@ -37,12 +38,29 @@ export function RecordingDetailPage() {
     if (!recordingId) return
     const rec = await getRecording(recordingId)
     setRecording(rec ?? null)
-    setNoteTypes(getNoteTypes())
+    const types = getNoteTypes()
+    setNoteTypes(types)
     if (rec) {
       setTranscript(rec.transcript || '')
       setSummary(rec.summary || '')
+      setSelectedTypeId(rec.typeId)
     }
   }, [recordingId])
+
+  const handleTypeChange = async (val: string) => {
+    setSelectedTypeId(val)
+    if (recordingId && recording) {
+      const targetType = noteTypes.find(t => t.id === val)
+      if (targetType) {
+        await recordingDb.recordings.update(recordingId, {
+          typeId: val,
+          typeName: targetType.name,
+          updatedAt: new Date().toISOString()
+        })
+        await refreshData()
+      }
+    }
+  }
 
   useEffect(() => {
     if (!recordingId) return
@@ -128,13 +146,25 @@ export function RecordingDetailPage() {
     setCurrentTime(0)
   }
 
+  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = parseFloat(e.target.value)
+    setCurrentTime(newTime)
+    if (audioRef.current) {
+      audioRef.current.currentTime = newTime
+    }
+  }
+
   if (recording === undefined) return <section className="view"><p className="empty-state">正在加载录音…</p></section>
   if (!recording) return <section className="view"><p className="empty-state">录音不存在或已删除。</p></section>
 
   const isWorking = isProcessing || recording.status === 'processing'
   const currentType = noteTypes.find(t => t.id === recording.typeId) || noteTypes[0]
 
-  const progressPercent = audioDuration ? (currentTime / audioDuration) * 100 : 0
+  const duration = (audioDuration && isFinite(audioDuration))
+    ? audioDuration
+    : (recording.durationMs ? recording.durationMs / 1000 : 0)
+
+  const progressPercent = duration ? (currentTime / duration) * 100 : 0
 
   return (
     <section className="view" style={{ paddingBottom: '112px' }}>
@@ -198,11 +228,20 @@ export function RecordingDetailPage() {
             <button className="play-circle" onClick={handlePlayPause}>
               {isPlaying ? '⏸' : '▶'}
             </button>
-            <div className="progress">
-              <i style={{ width: `${progressPercent}%` }} />
-            </div>
+            <input
+              type="range"
+              min={0}
+              max={duration || 100}
+              step={0.1}
+              value={currentTime}
+              onChange={handleProgressChange}
+              className="progress-slider"
+              style={{
+                '--progress': `${progressPercent}%`
+              } as React.CSSProperties}
+            />
             <span className="meta" style={{ fontVariantNumeric: 'tabular-nums' }}>
-              {formatTime(currentTime)} / {formatTime(audioDuration || recording.durationMs / 1000)}
+              {formatTime(currentTime)} / {formatTime(duration)}
             </span>
           </div>
         ) : (
@@ -263,6 +302,38 @@ export function RecordingDetailPage() {
           placeholder="等待 LLM 整理或手动编辑..."
           style={{ fontFamily: 'monospace', fontSize: '13px', minHeight: '220px' }}
         />
+      </div>
+
+      {/* 整理选项设置 */}
+      <div className="detail-card" style={{ display: 'grid', gap: '16px' }}>
+        <div className="row" style={{ borderTop: 0, padding: '4px 0', cursor: 'default' }}>
+          <div className="row-main">
+            <div className="row-title">重新整理分类</div>
+            <div className="row-sub">切换分类以使用不同的提示词模版整理</div>
+          </div>
+          <select
+            value={selectedTypeId}
+            onChange={(e) => void handleTypeChange(e.target.value)}
+            disabled={isWorking}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '12px',
+              border: '1px solid var(--line)',
+              background: 'var(--card)',
+              color: 'var(--text)',
+              fontSize: '13px',
+              fontWeight: '600',
+              outline: 'none',
+              cursor: isWorking ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {noteTypes.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* 动作按钮行 */}

@@ -793,6 +793,60 @@ h3 {
   transition: width 0.1s linear;
 }
 
+/* 自定义可拖拽播放进度条 */
+.progress-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 6px;
+  background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--progress, 0%), var(--line) var(--progress, 0%), var(--line) 100%);
+  border-radius: 99px;
+  outline: none;
+  cursor: pointer;
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+  border: none;
+}
+
+.progress-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.25);
+}
+
+.progress-slider::-webkit-slider-thumb:active {
+  transform: scale(1.4);
+}
+
+.progress-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.progress-slider::-moz-range-thumb:hover {
+  transform: scale(1.25);
+}
+
+.progress-slider::-moz-range-thumb:active {
+  transform: scale(1.4);
+}
+
+
 textarea {
   width: 100%;
   min-height: 150px;
