@@ -71,6 +71,16 @@ describe('WeChat draft client', () => {
     expect(body.draftMediaId).toBe('draft-existing')
   })
 
+  it('forwards a generated cover when publishing a draft', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(JSON.stringify({ mediaId: 'draft-1', reused: false })))
+    await publishWechatDraft(config, {
+      ...request,
+      coverImage: { mimeType: 'image/png', dataUrl: 'data:image/png;base64,iVBORw==' }
+    })
+    const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1]?.body as string)
+    expect(body.coverImage.mimeType).toBe('image/png')
+  })
+
   it('posts article markdown to the preview endpoint', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(JSON.stringify({
       title: '标题',

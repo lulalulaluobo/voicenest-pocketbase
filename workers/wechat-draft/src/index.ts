@@ -37,13 +37,30 @@ function validateDraft(input: unknown, env: Env): DraftRequest | Response {
   if ([...request.title].length > 64) {
     return json({ code: 'INVALID_REQUEST', message: '公众号标题不能超过 64 个字符' }, 400, env.ALLOWED_ORIGIN)
   }
+  if (request.coverImage !== undefined) {
+    const cover = request.coverImage
+    if (!cover || typeof cover !== 'object') {
+      return json({ code: 'INVALID_REQUEST', message: '封面图片格式无效' }, 400, env.ALLOWED_ORIGIN)
+    }
+    if ((cover.mimeType !== 'image/png' && cover.mimeType !== 'image/jpeg' && cover.mimeType !== 'image/webp') || typeof cover.dataUrl !== 'string') {
+      return json({ code: 'INVALID_REQUEST', message: '封面图片格式无效' }, 400, env.ALLOWED_ORIGIN)
+    }
+    try {
+      if (parseImageDataUrl(cover.dataUrl).mimeType !== cover.mimeType) {
+        return json({ code: 'INVALID_REQUEST', message: '封面图片格式无效' }, 400, env.ALLOWED_ORIGIN)
+      }
+    } catch (error) {
+      return json({ code: 'INVALID_REQUEST', message: error instanceof Error ? error.message : '封面图片格式无效' }, 400, env.ALLOWED_ORIGIN)
+    }
+  }
 
   return {
     recordingId: request.recordingId,
     requestId: request.requestId,
     title: request.title.trim(),
     markdown: request.markdown,
-    draftMediaId: request.draftMediaId
+    draftMediaId: request.draftMediaId,
+    coverImage: request.coverImage
   }
 }
 
@@ -133,8 +150,8 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
   if (isResponse(article)) return article
 
   const mediaId = input.draftMediaId
-    ? await updateDraft(env, input.draftMediaId, article)
-    : await createDraft(env, article)
+    ? await updateDraft(env, input.draftMediaId, article, fetch, input.coverImage)
+    : await createDraft(env, article, fetch, input.coverImage)
   await env.WECHAT_CACHE.put(`draft-request:${input.requestId}`, JSON.stringify({ mediaId }), {
     expirationTtl: REQUEST_TTL_SECONDS
   })

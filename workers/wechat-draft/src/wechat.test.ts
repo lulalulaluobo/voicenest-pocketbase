@@ -58,4 +58,26 @@ describe('WeChat API', () => {
       only_fans_can_comment: 0
     })
   })
+
+  it('uploads a generated cover before creating the draft', async () => {
+    const fetchFn = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token', expires_in: 7200 }))
+      .mockResolvedValueOnce(jsonResponse({ media_id: 'cover-new' }))
+      .mockResolvedValueOnce(jsonResponse({ media_id: 'draft-1' }))
+
+    await createDraft({ ...env, WECHAT_CACHE: createKv() }, {
+      title: '今日感想',
+      content: '<p>内容</p>',
+      thumb_media_id: '',
+      need_open_comment: 0,
+      only_fans_can_comment: 0
+    }, fetchFn, {
+      mimeType: 'image/png',
+      dataUrl: 'data:image/png;base64,iVBORw=='
+    })
+
+    expect(fetchFn.mock.calls[1][0]).toContain('/cgi-bin/material/add_material?access_token=token&type=image')
+    expect(fetchFn.mock.calls[1][1].body).toBeInstanceOf(FormData)
+    expect(JSON.parse(fetchFn.mock.calls[2][1].body).articles[0].thumb_media_id).toBe('cover-new')
+  })
 })

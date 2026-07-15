@@ -7,6 +7,7 @@ export interface WechatDraftRequest {
   title: string
   markdown: string
   draftMediaId?: string
+  coverImage?: WechatCoverImage
 }
 
 export interface WechatDraftResult {

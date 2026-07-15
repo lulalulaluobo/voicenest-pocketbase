@@ -148,7 +148,10 @@ export function WechatEditorPage() {
         requestId,
         title: title.trim(),
         markdown: markdown.trim(),
-        draftMediaId: recording.wechatDraftMediaId
+        draftMediaId: recording.wechatDraftMediaId,
+        coverImage: recording.wechatCoverBlob && recording.wechatCoverMimeType
+          ? { dataUrl: await blobToDataUrl(recording.wechatCoverBlob), mimeType: recording.wechatCoverMimeType }
+          : undefined
       })
       saveArticleField({
         wechatStatus: 'drafted',

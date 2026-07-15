@@ -1,4 +1,5 @@
-import type { DraftArticle, Env } from './types'
+import { parseImageDataUrl } from './images'
+import type { DraftArticle, Env, WechatCoverImage } from './types'
 
 const TOKEN_CACHE_KEY = 'wechat:token'
 const TOKEN_SAFETY_MARGIN_MS = 300_000
@@ -55,25 +56,47 @@ export async function getAccessToken(env: Env, fetchFn: typeof fetch = fetch): P
   return token
 }
 
-function withDefaultCover(env: Env, article: DraftArticle): DraftArticle {
+function withCover(env: Env, article: DraftArticle, coverMediaId?: string): DraftArticle {
   return {
     ...article,
-    thumb_media_id: env.WECHAT_COVER_MEDIA_ID,
+    thumb_media_id: coverMediaId || env.WECHAT_COVER_MEDIA_ID,
     need_open_comment: 0,
     only_fans_can_comment: 0
   }
 }
 
+async function uploadPermanentCover(
+  token: string,
+  cover: WechatCoverImage,
+  fetchFn: typeof fetch
+): Promise<string> {
+  const image = parseImageDataUrl(cover.dataUrl)
+  const extension = image.mimeType === 'image/png' ? 'png' : image.mimeType === 'image/webp' ? 'webp' : 'jpg'
+  const form = new FormData()
+  form.set('media', new Blob([new Uint8Array(image.bytes)], { type: image.mimeType }), `voicenest-cover.${extension}`)
+  const response = await fetchFn(`https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=${encodeURIComponent(token)}&type=image`, {
+    method: 'POST',
+    body: form
+  })
+  const data = await readWechatJson(response)
+  if (typeof data.media_id !== 'string') {
+    throw new WechatApiError(-1, '微信接口未返回封面素材 ID')
+  }
+  return data.media_id
+}
+
 export async function createDraft(
   env: Env,
   article: DraftArticle,
-  fetchFn: typeof fetch = fetch
+  fetchFn: typeof fetch = fetch,
+  cover?: WechatCoverImage
 ): Promise<string> {
   const token = await getAccessToken(env, fetchFn)
+  const coverMediaId = cover ? await uploadPermanentCover(token, cover, fetchFn) : undefined
   const response = await fetchFn(`https://api.weixin.qq.com/cgi-bin/draft/add?access_token=${encodeURIComponent(token)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
-    body: JSON.stringify({ articles: [withDefaultCover(env, article)] })
+    body: JSON.stringify({ articles: [withCover(env, article, coverMediaId)] })
   })
   const data = await readWechatJson(response)
 
@@ -87,16 +110,18 @@ export async function updateDraft(
   env: Env,
   mediaId: string,
   article: DraftArticle,
-  fetchFn: typeof fetch = fetch
+  fetchFn: typeof fetch = fetch,
+  cover?: WechatCoverImage
 ): Promise<string> {
   const token = await getAccessToken(env, fetchFn)
+  const coverMediaId = cover ? await uploadPermanentCover(token, cover, fetchFn) : undefined
   const response = await fetchFn(`https://api.weixin.qq.com/cgi-bin/draft/update?access_token=${encodeURIComponent(token)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json; charset=utf-8' },
     body: JSON.stringify({
       media_id: mediaId,
       index: 0,
-      articles: withDefaultCover(env, article)
+      articles: withCover(env, article, coverMediaId)
     })
   })
   await readWechatJson(response)
