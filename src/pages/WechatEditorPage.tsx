@@ -9,8 +9,9 @@ import {
 } from '../lib/config-store'
 import { getRecording, recordingDb } from '../lib/recording-db'
 import { rewriteWechatArticle } from '../lib/llm'
-import { previewWechatDraft, publishWechatDraft, WechatDraftError } from '../lib/wechat'
+import { blobToDataUrl, dataUrlToBlob, generateWechatCover, previewWechatDraft, publishWechatDraft, WechatDraftError } from '../lib/wechat'
 import { ThemeToggle } from '../components/ThemeToggle'
+import { listImagePromptTemplates, type ImagePromptTemplate } from '../lib/image-prompt-store'
 
 export function WechatEditorPage() {
   const { recordingId } = useParams<{ recordingId: string }>()
@@ -18,12 +19,16 @@ export function WechatEditorPage() {
   const [recording, setRecording] = useState<Recording | null | undefined>(undefined)
   const [templates, setTemplates] = useState<WechatPromptTemplate[]>([])
   const [templateId, setTemplateId] = useState('')
+  const [imageTemplates, setImageTemplates] = useState<ImagePromptTemplate[]>([])
+  const [imageTemplateId, setImageTemplateId] = useState('')
   const [title, setTitle] = useState('')
   const [markdown, setMarkdown] = useState('')
   const [isRewriting, setIsRewriting] = useState(false)
   const [isPreviewing, setIsPreviewing] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
+  const [isGeneratingCover, setIsGeneratingCover] = useState(false)
   const [previewHtml, setPreviewHtml] = useState('')
+  const [coverUrl, setCoverUrl] = useState('')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -31,13 +36,26 @@ export function WechatEditorPage() {
     void (async () => {
       const rec = await getRecording(recordingId)
       const savedTemplates = getWechatPromptTemplates()
+      const savedImageTemplates = await listImagePromptTemplates()
       setRecording(rec ?? null)
       setTemplates(savedTemplates)
       setTemplateId(savedTemplates[0]?.id || '')
+      setImageTemplates(savedImageTemplates)
+      setImageTemplateId(savedImageTemplates[0]?.id || '')
       setTitle(rec?.wechatTitle || '')
       setMarkdown(rec?.wechatMarkdown || '')
     })()
   }, [recordingId])
+
+  useEffect(() => {
+    if (!recording?.wechatCoverBlob) {
+      setCoverUrl('')
+      return
+    }
+    const nextUrl = URL.createObjectURL(recording.wechatCoverBlob)
+    setCoverUrl(nextUrl)
+    return () => URL.revokeObjectURL(nextUrl)
+  }, [recording?.wechatCoverBlob])
 
   const saveArticleField = (changes: Partial<Recording>) => {
     if (!recording) return
@@ -82,6 +100,40 @@ export function WechatEditorPage() {
     }
   }
 
+  const handleGenerateCover = async () => {
+    const config = getWechatDraftConfig()
+    const selectedTemplate = imageTemplates.find((template) => template.id === imageTemplateId)
+    if (!recording || !selectedTemplate || !title.trim() || !markdown.trim() || !config.enabled || !config.workerUrl.trim()) return
+
+    setIsGeneratingCover(true)
+    setMessage('')
+    try {
+      const referenceImageDataUrl = selectedTemplate.referenceImage
+        ? await blobToDataUrl(selectedTemplate.referenceImage)
+        : undefined
+      const cover = await generateWechatCover(config, {
+        title: title.trim(),
+        markdown: markdown.trim(),
+        prompt: selectedTemplate.prompt,
+        referenceImageDataUrl
+      })
+      saveArticleField({
+        wechatCoverBlob: dataUrlToBlob(cover.dataUrl, cover.mimeType),
+        wechatCoverMimeType: cover.mimeType
+      })
+      setMessage('封面已生成并保存在本机。')
+    } catch (error) {
+      setMessage(`封面生成失败：${error instanceof Error ? error.message : '未知错误'}`)
+    } finally {
+      setIsGeneratingCover(false)
+    }
+  }
+
+  const handleClearCover = () => {
+    saveArticleField({ wechatCoverBlob: undefined, wechatCoverMimeType: undefined })
+    setMessage('已清除生成封面，发布时将使用默认封面。')
+  }
+
   const handlePublish = async () => {
     const config = getWechatDraftConfig()
     if (!recording || !title.trim() || !markdown.trim() || !config.enabled || !config.workerUrl.trim()) return
@@ -119,6 +171,7 @@ export function WechatEditorPage() {
   }
 
   const config = getWechatDraftConfig()
+  const isBusy = isRewriting || isPreviewing || isPublishing || isGeneratingCover
   const unavailableReason = !config.enabled
     ? '请先在设置中启用公众号草稿编辑。'
     : !config.workerUrl.trim()
@@ -154,22 +207,33 @@ export function WechatEditorPage() {
 
           <div className="detail-card" style={{ display: 'grid', gap: '12px' }}>
             <h3>公众号提示词</h3>
-            <select value={templateId} onChange={(event) => setTemplateId(event.target.value)} disabled={isRewriting || isPreviewing || isPublishing}>
+            <select value={templateId} onChange={(event) => setTemplateId(event.target.value)} disabled={isBusy}>
               {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
             </select>
-            <button className="wide-btn" onClick={() => void handleRewrite()} disabled={isRewriting || isPreviewing || isPublishing || !templates.some((template) => template.id === templateId && template.prompt.trim())}>
+            <button className="wide-btn" onClick={() => void handleRewrite()} disabled={isBusy || !templates.some((template) => template.id === templateId && template.prompt.trim())}>
               {isRewriting ? '正在改写…' : '生成公众号版本'}
             </button>
           </div>
 
           <div className="detail-card" style={{ display: 'grid', gap: '12px' }}>
             <h3>公众号文章</h3>
-            <input value={title} onChange={(event) => { setTitle(event.target.value); saveArticleField({ wechatTitle: event.target.value }) }} placeholder="公众号文章标题" disabled={isRewriting || isPreviewing || isPublishing} />
-            <textarea value={markdown} onChange={(event) => { setMarkdown(event.target.value); saveArticleField({ wechatMarkdown: event.target.value }) }} placeholder="生成后可继续手动修改 Markdown 正文" disabled={isRewriting || isPreviewing || isPublishing} style={{ minHeight: '260px', fontFamily: 'monospace', fontSize: '13px' }} />
-            <button className="wide-btn" onClick={() => void handlePreview()} disabled={isRewriting || isPreviewing || isPublishing || !title.trim() || !markdown.trim()}>
+            <input value={title} onChange={(event) => { setTitle(event.target.value); saveArticleField({ wechatTitle: event.target.value }) }} placeholder="公众号文章标题" disabled={isBusy} />
+            <textarea value={markdown} onChange={(event) => { setMarkdown(event.target.value); saveArticleField({ wechatMarkdown: event.target.value }) }} placeholder="生成后可继续手动修改 Markdown 正文" disabled={isBusy} style={{ minHeight: '260px', fontFamily: 'monospace', fontSize: '13px' }} />
+            <div style={{ display: 'grid', gap: '8px', borderTop: '1px solid var(--line)', paddingTop: '12px' }}>
+              <h3>公众号封面</h3>
+              <select value={imageTemplateId} onChange={(event) => setImageTemplateId(event.target.value)} disabled={isBusy || !imageTemplates.length}>
+                {imageTemplates.length ? imageTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}{template.referenceImage ? ' · 含参考图' : ''}</option>) : <option value="">请先在设置中新增生图提示词</option>}
+              </select>
+              {coverUrl ? <img src={coverUrl} alt="已生成的公众号封面" style={{ width: '100%', aspectRatio: '2.35 / 1', objectFit: 'cover', borderRadius: '10px' }} /> : <div className="row-sub">尚未生成封面，发布时将使用默认公众号封面。</div>}
+              <button className="wide-btn" onClick={() => void handleGenerateCover()} disabled={isBusy || !imageTemplates.length || !title.trim() || !markdown.trim()}>
+                {isGeneratingCover ? '正在生成封面…' : coverUrl ? '重新生成封面' : '生成封面'}
+              </button>
+              {coverUrl && <button className="wide-btn" onClick={handleClearCover} disabled={isBusy}>清除封面</button>}
+            </div>
+            <button className="wide-btn" onClick={() => void handlePreview()} disabled={isBusy || !title.trim() || !markdown.trim()}>
               {isPreviewing ? '正在生成预览…' : '预览排版'}
             </button>
-            <button className="wide-btn primary" onClick={() => void handlePublish()} disabled={isRewriting || isPreviewing || isPublishing || !title.trim() || !markdown.trim()}>
+            <button className="wide-btn primary" onClick={() => void handlePublish()} disabled={isBusy || !title.trim() || !markdown.trim()}>
               {isPublishing ? '正在保存…' : '发布到草稿箱'}
             </button>
             {(message || recording.wechatErrorMessage) && <div className="row-sub">{message || recording.wechatErrorMessage}</div>}

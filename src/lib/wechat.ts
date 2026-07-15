@@ -1,5 +1,5 @@
 import type { WechatDraftConfig } from './config-store'
-import type { WechatDraftStatus } from '../domain/recording'
+import type { ImageMimeType, WechatDraftStatus } from '../domain/recording'
 
 export interface WechatDraftRequest {
   recordingId: string
@@ -17,6 +17,11 @@ export interface WechatDraftResult {
 export interface WechatPreviewResult {
   title: string
   html: string
+}
+
+export interface WechatCoverImage {
+  dataUrl: string
+  mimeType: ImageMimeType
 }
 
 export class WechatDraftError extends Error {
@@ -89,6 +94,49 @@ export async function previewWechatDraft(
     throw new WechatDraftError('公众号预览服务返回的数据无效', 'api')
   }
   return { title: data.title, html: data.html }
+}
+
+export async function generateWechatCover(
+  config: WechatDraftConfig,
+  input: { title: string; markdown: string; prompt: string; referenceImageDataUrl?: string }
+): Promise<WechatCoverImage> {
+  const response = await fetch(`${workerBaseUrl(config)}/cover/generate`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input)
+  })
+  if (!response.ok) throw await readError(response)
+
+  const data = await response.json() as Partial<WechatCoverImage>
+  if (!isImageMimeType(data.mimeType) || !isImageDataUrl(data.dataUrl, data.mimeType)) {
+    throw new WechatDraftError('封面生成服务返回的数据无效', 'api')
+  }
+  return { mimeType: data.mimeType, dataUrl: data.dataUrl }
+}
+
+function isImageMimeType(value: unknown): value is ImageMimeType {
+  return value === 'image/png' || value === 'image/jpeg' || value === 'image/webp'
+}
+
+function isImageDataUrl(value: unknown, mimeType: ImageMimeType): value is string {
+  return typeof value === 'string' && value.startsWith(`data:${mimeType};base64,`)
+}
+
+export function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('封面图片读取失败'))
+    reader.onerror = () => reject(new Error('封面图片读取失败'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+export function dataUrlToBlob(dataUrl: string, mimeType: ImageMimeType): Blob {
+  const base64 = dataUrl.slice(`data:${mimeType};base64,`.length)
+  const binary = atob(base64)
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+  return new Blob([bytes], { type: mimeType })
 }
 
 export async function publishWechatDraft(

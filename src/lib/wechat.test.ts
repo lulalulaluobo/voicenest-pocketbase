@@ -7,6 +7,7 @@ import {
 } from './config-store'
 import {
   getWechatStatusLabel,
+  generateWechatCover,
   previewWechatDraft,
   publishWechatDraft,
   testWechatConnection,
@@ -79,6 +80,22 @@ describe('WeChat draft client', () => {
     await expect(previewWechatDraft(config, { title: '标题', markdown: '正文' })).resolves.toEqual({ title: '标题', html: '<p>正文</p>' })
     expect(globalThis.fetch).toHaveBeenCalledWith(
       'https://wechat-api.lucc.fun/preview',
+      expect.objectContaining({ method: 'POST', credentials: 'include' })
+    )
+  })
+
+  it('posts article context and an optional reference image to the cover endpoint', async () => {
+    const dataUrl = 'data:image/png;base64,iVBORw=='
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      mimeType: 'image/png',
+      dataUrl
+    })))
+
+    await expect(generateWechatCover(config, {
+      title: '标题', markdown: '正文', prompt: '极简横版封面', referenceImageDataUrl: dataUrl
+    })).resolves.toEqual({ mimeType: 'image/png', dataUrl })
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://wechat-api.lucc.fun/cover/generate',
       expect.objectContaining({ method: 'POST', credentials: 'include' })
     )
   })
