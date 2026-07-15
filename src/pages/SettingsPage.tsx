@@ -10,6 +10,8 @@ import {
   saveSyncConfig,
   getWechatDraftConfig,
   saveWechatDraftConfig,
+  getWechatPromptTemplates,
+  saveWechatPromptTemplates,
   getNoteTypes,
   saveNoteTypes,
   getAudioRetention,
@@ -292,6 +294,7 @@ export function SettingsPage() {
         llmConfig: { ...llmConfig, apiKey: '' },
         syncConfig: { ...syncConfig, apiToken: '' },
         wechatConfig,
+        wechatPromptTemplates: getWechatPromptTemplates(),
         audioRetention,
         textRetention
       }
@@ -362,6 +365,10 @@ export function SettingsPage() {
           saveWechatDraftConfig(importedWechat)
         }
 
+        if (Array.isArray(parsed.wechatPromptTemplates)) {
+          saveWechatPromptTemplates(parsed.wechatPromptTemplates)
+        }
+
         setNoteTypes(parsed.noteTypes)
         saveNoteTypes(parsed.noteTypes)
 
@@ -411,7 +418,7 @@ export function SettingsPage() {
         <div className="row" onClick={handleToggleAutoProcess}>
           <div className="row-main">
             <div className="row-title">录音结束后自动处理</div>
-            <div className="row-sub">自动转写、整理并同步到已启用的目标</div>
+            <div className="row-sub">自动转写、整理并同步到 Obsidian</div>
           </div>
           <div className={`switch ${autoProcess ? 'on' : ''}`} />
         </div>
@@ -674,7 +681,7 @@ export function SettingsPage() {
         <div className="row" onClick={() => toggleCollapse('wechat')}>
           <div className="row-main">
             <div className="row-title">公众号草稿箱</div>
-            <div className="row-sub">{wechatConfig.enabled ? '已启用 · 自动同步至草稿箱' : '未启用'}</div>
+            <div className="row-sub">{wechatConfig.enabled ? '已启用 · 手动改写后发布到草稿箱' : '未启用'}</div>
           </div>
           <div style={{ color: 'var(--muted)' }}>{activeCollapse === 'wechat' ? '▼' : '›'}</div>
         </div>
@@ -686,7 +693,7 @@ export function SettingsPage() {
                 checked={wechatConfig.enabled}
                 onChange={(e) => handleWechatConfigChange({ enabled: e.target.checked })}
               />
-              整理完成后同步到公众号草稿箱
+              启用公众号草稿编辑
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>公众号发布服务地址</label>

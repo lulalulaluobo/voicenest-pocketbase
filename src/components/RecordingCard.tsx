@@ -7,6 +7,7 @@ import { getAudioDownloadFilename } from '../lib/audio-mime'
 import { getRecordingAudioBlob } from '../lib/recording-audio'
 import { useProcessor } from '../hooks/use-processor'
 import { getWechatStatusLabel } from '../lib/wechat'
+import { getWechatDraftConfig } from '../lib/config-store'
 
 function formatDuration(durationMs: number) {
   const seconds = Math.floor(durationMs / 1000)
@@ -72,6 +73,7 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
 
   const handleProcessClick = async (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (recording.status === 'synced' && !window.confirm('重新整理会再次调用转写和 AI，并覆盖当前个人笔记。确定继续吗？')) return
     await processRecording(recording.id, 'full')
     if (onRefresh) onRefresh()
   }
@@ -98,6 +100,9 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
 
   const canDownload = Boolean(recording.summary) && !recording.isAudioCleared
   const downloadLabel = recording.isAudioCleared ? '音频已清理' : recording.summary ? '⇩ 下载' : '整理后下载'
+  const wechatConfig = getWechatDraftConfig()
+  const canEditWechat = Boolean(recording.summary) && wechatConfig.enabled && Boolean(wechatConfig.workerUrl.trim())
+  const wechatLabel = canEditWechat ? '改写公众号文章' : '请先在设置启用公众号编辑并填写服务地址'
 
   const handleDownloadClick = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -173,6 +178,18 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
         >
           ⇩
         </button>
+
+        {recording.summary && (
+          <button
+            className="action wechat-btn"
+            onClick={(e) => { e.stopPropagation(); navigate(`/recordings/${recording.id}/wechat`) }}
+            disabled={!canEditWechat}
+            aria-label={wechatLabel}
+            title={wechatLabel}
+          >
+            💬
+          </button>
+        )}
 
         <button 
           className="action more-btn" 

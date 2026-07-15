@@ -107,6 +107,7 @@ export function RecordingDetailPage() {
 
   const handleAction = async (mode: 'full' | 'sync_only') => {
     if (!recordingId) return
+    if (mode === 'full' && !window.confirm('重新整理会再次调用转写和 AI，并覆盖当前个人笔记。确定继续吗？')) return
     await processRecording(recordingId, mode)
     await refreshData()
   }
@@ -286,7 +287,7 @@ export function RecordingDetailPage() {
         <div className="row">
           <div className="row-main">
             <div className="row-title">公众号草稿</div>
-            <div className="row-sub">{getWechatStatusLabel(recording.wechatStatus) || '未启用或尚未同步'}</div>
+            <div className="row-sub">{getWechatStatusLabel(recording.wechatStatus) || '尚未创建草稿'}</div>
           </div>
           <div className={`status ${recording.wechatStatus === 'drafted' ? 'ok' : recording.wechatStatus === 'failed' || recording.wechatStatus === 'authorization_required' ? 'wait' : ''}`}>
             {recording.wechatStatus === 'drafted' ? '已入草稿' : recording.wechatStatus === 'failed' ? '失败' : recording.wechatStatus === 'authorization_required' ? '待授权' : '未同步'}

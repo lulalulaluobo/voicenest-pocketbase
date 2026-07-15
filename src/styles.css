@@ -482,6 +482,10 @@ h3 {
   flex: 0 0 42px;
 }
 
+.action.wechat-btn {
+  flex: 0 0 42px;
+}
+
 .action.danger {
   color: var(--danger);
 }
