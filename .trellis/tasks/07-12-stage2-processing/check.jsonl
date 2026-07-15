@@ -1,1 +1,1 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file":".trellis/tasks/07-12-stage2-processing/wechat-manual-editor-plan.md","reason":"2026-07-15：前端 npm test（23 项）与 npm run build 通过；Worker npm test（7 项）与 tsc --noEmit 通过。Vercel 生产部署 dpl_3cJog1B6x3a8CKemKoWubpJtvhkK 已 Ready，obvoice.lucc.fun 已指向该部署。真实草稿创建/更新待管理员在已登录 Access 的 PWA 上验收。"}
