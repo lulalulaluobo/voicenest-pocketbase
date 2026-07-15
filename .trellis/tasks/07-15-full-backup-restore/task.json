@@ -3,7 +3,7 @@
   "name": "full-backup-restore",
   "title": "全量数据备份与恢复",
   "description": "将配置、凭据、录音、音频分片、转写与整理文章打包为 ZIP，并支持清库后完整恢复。",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,
