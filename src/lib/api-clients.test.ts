@@ -87,6 +87,8 @@ describe('API Clients Unit Tests', () => {
     const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1]?.body as string)
     expect(body.messages[1].content).toContain(source)
     expect(body.messages[1].content).toContain('改写成观点随笔')
+    expect(body.messages[0].content).toContain('每个列表项都必须有文字内容')
+    expect(body.messages[0].content).toContain('禁止输出空的列表标记')
   })
 
   it('should sync markdown file to Obsidian via Fast Note Sync', async () => {

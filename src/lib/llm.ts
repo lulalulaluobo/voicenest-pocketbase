@@ -81,7 +81,8 @@ export async function rewriteWechatArticle(
   prompt: string,
   llmConfig: LLMConfig
 ): Promise<{ title: string; markdown: string }> {
-  const systemPrompt = `你是一个公众号文章编辑。请基于用户提供的个人 Markdown 笔记改写文章，不得杜撰事实。
+  const systemPrompt = `你是一个公众号文章编辑。请基于用户提供的 ASR 原文改写文章，不得杜撰事实。
+正文必须使用标准 Markdown。列表项必须连续输出，每个列表项都必须有文字内容；禁止输出空的列表标记（如单独的 -、*、1.），不要用空列表项制造间距。
 你必须严格返回一个 JSON 对象，不要包含 json 之外的解释，格式如下：
 {
   "title": "公众号文章标题",
@@ -89,7 +90,7 @@ export async function rewriteWechatArticle(
 }`
   const userContent = `【公众号改写提示词】：${prompt}
 
-【个人笔记 Markdown】：
+【ASR 原文】：
 """
 ${sourceMarkdown}
 """`

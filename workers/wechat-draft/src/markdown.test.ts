@@ -26,4 +26,18 @@ describe('renderWechatHtml', () => {
     expect(html).not.toContain('<script>')
     expect(html).toContain('&lt;script&gt;')
   })
+
+  it('removes empty list markers before rendering article lists', () => {
+    const html = renderWechatHtml('- 有内容的项目\n-\n- 第二个项目\n\n1. 第一个编号\n2.\n3. 第二个编号')
+
+    expect(html).not.toMatch(/<li[^>]*>\s*<\/li>/)
+    expect((html.match(/<li style=/g) || [])).toHaveLength(4)
+  })
+
+  it('uses compact paragraph and list spacing for WeChat reading', () => {
+    const html = renderWechatHtml('正文\n\n- 列表')
+
+    expect(html).toContain('margin:0 0 14px;font-size:16px;line-height:1.75')
+    expect(html).toContain('margin:0 0 14px;padding-left:1.5em;')
+  })
 })

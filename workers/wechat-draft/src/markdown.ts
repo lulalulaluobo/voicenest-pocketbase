@@ -6,10 +6,10 @@ const blockStyles: Record<string, string> = {
   h1: 'margin:0 0 28px;font-size:24px;line-height:1.45;font-weight:700;color:#1f2329;',
   h2: 'margin:34px 0 16px;padding-left:10px;border-left:4px solid #07c160;font-size:20px;line-height:1.5;font-weight:700;color:#1f2329;',
   h3: 'margin:26px 0 12px;font-size:17px;line-height:1.6;font-weight:700;color:#1f2329;',
-  p: 'margin:0 0 18px;font-size:16px;line-height:1.9;color:#2c2c2c;letter-spacing:0.02em;',
-  ul: 'margin:0 0 18px;padding-left:1.5em;',
-  ol: 'margin:0 0 18px;padding-left:1.6em;',
-  li: 'margin:0 0 8px;font-size:16px;line-height:1.85;color:#2c2c2c;',
+  p: 'margin:0 0 14px;font-size:16px;line-height:1.75;color:#2c2c2c;letter-spacing:0.02em;',
+  ul: 'margin:0 0 14px;padding-left:1.5em;',
+  ol: 'margin:0 0 14px;padding-left:1.6em;',
+  li: 'margin:0 0 6px;font-size:16px;line-height:1.75;color:#2c2c2c;',
   blockquote: 'margin:20px 0;padding:12px 16px;border-left:4px solid #07c160;background:#f6fbf7;color:#57606a;',
   hr: 'margin:30px 0;border:0;border-top:1px solid #e7e7e7;',
   pre: 'margin:20px 0;padding:14px;overflow:auto;border-radius:6px;background:#f6f8fa;'
@@ -39,6 +39,10 @@ markdown.renderer.rules.fence = (tokens, index) => {
   return `<pre style="${blockStyles.pre}"><code>${content}</code></pre>\n`
 }
 
+function normalizeWechatMarkdown(source: string): string {
+  return source.replace(/^[\t ]*(?:[-+*]|\d+[.)])[\t ]*(?:\r?\n|$)/gm, '')
+}
+
 export function renderWechatHtml(source: string): string {
-  return markdown.render(source.trim())
+  return markdown.render(normalizeWechatMarkdown(source).trim())
 }
