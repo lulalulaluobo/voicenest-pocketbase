@@ -46,6 +46,7 @@ export function SettingsPage() {
   const [syncTesting, setSyncTesting] = useState(false)
   const [syncTestResult, setSyncTestResult] = useState<string | null>(null)
   const [wechatConfig, setWechatConfig] = useState(getWechatDraftConfig())
+  const [wechatPromptTemplates, setWechatPromptTemplates] = useState(getWechatPromptTemplates())
   const [wechatTesting, setWechatTesting] = useState(false)
   const [wechatTestResult, setWechatTestResult] = useState<string | null>(null)
 
@@ -707,6 +708,25 @@ export function SettingsPage() {
             </div>
             <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
               服务地址受管理员访问保护；AppID、Secret 和封面 media_id 仅保存在 Worker 密钥中。
+            </div>
+            <div style={{ display: 'grid', gap: '10px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>公众号提示词模板</div>
+              {wechatPromptTemplates.map((template) => (
+                <div key={template.id} style={{ display: 'grid', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 'bold' }}>{template.name}</label>
+                  <textarea
+                    value={template.prompt}
+                    onChange={(event) => {
+                      const next = wechatPromptTemplates.map((item) => (
+                        item.id === template.id ? { ...item, prompt: event.target.value } : item
+                      ))
+                      setWechatPromptTemplates(next)
+                      saveWechatPromptTemplates(next)
+                    }}
+                    style={{ minHeight: '88px' }}
+                  />
+                </div>
+              ))}
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button type="button" className="action primary" onClick={handleTestWechat} disabled={wechatTesting}>
