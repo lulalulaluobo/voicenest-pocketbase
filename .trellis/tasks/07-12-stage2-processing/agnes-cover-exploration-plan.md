@@ -125,7 +125,7 @@ it('rejects an Agnes result that is not PNG, JPEG, WebP or exceeds 5 MiB', async
 
 - [ ] **Step 2: 运行失败测试，确认实现尚不存在。**
 
-Run: `npm test -- --run workers/wechat-draft/src/agnes.test.ts workers/wechat-draft/src/images.test.ts`
+Run: `npm --prefix workers/wechat-draft test -- --run src/agnes.test.ts src/images.test.ts`
 
 Expected: FAIL，提示 `generateAgnesCover` 或图片校验函数尚未导出。
 
