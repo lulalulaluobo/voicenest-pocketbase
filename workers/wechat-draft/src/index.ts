@@ -4,6 +4,11 @@ import { createDraft, getAccessToken, updateDraft, WechatApiError } from './wech
 
 const REQUEST_TTL_SECONDS = 60 * 60 * 24 * 7
 
+interface PreviewRequest {
+  title: string
+  markdown: string
+}
+
 function json(data: unknown, status = 200, origin?: string): Response {
   const headers = new Headers({ 'Content-Type': 'application/json; charset=utf-8' })
   if (origin) {
@@ -40,11 +45,32 @@ function validateDraft(input: unknown, env: Env): DraftRequest | Response {
   }
 }
 
-function makeArticle(request: DraftRequest, env: Env): DraftArticle | Response {
-  const content = renderWechatHtml(request.markdown)
+function validatePreview(input: unknown, env: Env): PreviewRequest | Response {
+  if (!input || typeof input !== 'object') {
+    return json({ code: 'INVALID_REQUEST', message: '请求格式无效' }, 400, env.ALLOWED_ORIGIN)
+  }
+
+  const request = input as Partial<PreviewRequest>
+  if (!request.title?.trim() || !request.markdown?.trim()) {
+    return json({ code: 'INVALID_REQUEST', message: '标题和正文不能为空' }, 400, env.ALLOWED_ORIGIN)
+  }
+  if ([...request.title].length > 64) {
+    return json({ code: 'INVALID_REQUEST', message: '公众号标题不能超过 64 个字符' }, 400, env.ALLOWED_ORIGIN)
+  }
+
+  return { title: request.title.trim(), markdown: request.markdown }
+}
+
+function validateContent(content: string, env: Env): Response | undefined {
   if (content.length >= 20_000 || new TextEncoder().encode(content).byteLength >= 1_000_000) {
     return json({ code: 'INVALID_REQUEST', message: '整理后的文章过长，无法写入公众号草稿' }, 400, env.ALLOWED_ORIGIN)
   }
+}
+
+function makeArticle(request: DraftRequest, env: Env): DraftArticle | Response {
+  const content = renderWechatHtml(request.markdown)
+  const invalid = validateContent(content, env)
+  if (invalid) return invalid
 
   return {
     title: request.title,
@@ -84,6 +110,17 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
 
   const response: DraftResponse = { mediaId, reused: false }
   return json(response, 200, env.ALLOWED_ORIGIN)
+}
+
+async function handlePreview(request: Request, env: Env): Promise<Response> {
+  const input = validatePreview(await request.json().catch(() => null), env)
+  if (isResponse(input)) return input
+
+  const html = renderWechatHtml(input.markdown)
+  const invalid = validateContent(html, env)
+  if (invalid) return invalid
+
+  return json({ title: input.title, html }, 200, env.ALLOWED_ORIGIN)
 }
 
 function handleError(error: unknown, env: Env): Response {
@@ -131,6 +168,9 @@ export default {
       if (request.method === 'POST' && url.pathname === '/connection-test') {
         await getAccessToken(env)
         return json({ ok: true }, 200, env.ALLOWED_ORIGIN)
+      }
+      if (request.method === 'POST' && url.pathname === '/preview') {
+        return await handlePreview(request, env)
       }
       if (request.method === 'POST' && url.pathname === '/drafts') {
         return await handleDraft(request, env)
