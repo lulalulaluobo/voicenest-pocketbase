@@ -7,6 +7,30 @@ export interface WechatDraftConfig {
   workerUrl: string
 }
 
+export interface WechatPromptTemplate {
+  id: string
+  name: string
+  prompt: string
+}
+
+const DEFAULT_WECHAT_PROMPT_TEMPLATES: WechatPromptTemplate[] = [
+  {
+    id: 'insight',
+    name: '观点随笔',
+    prompt: '将这篇个人笔记改写为第一人称的公众号观点随笔。保留真实感受和核心观点，自然分段，并用简洁的结尾收束全文。'
+  },
+  {
+    id: 'knowledge',
+    name: '知识分享',
+    prompt: '将这篇个人笔记改写为清晰克制的公众号知识分享。围绕问题、观点、解释和可行动建议组织内容，不要杜撰事实。'
+  },
+  {
+    id: 'daily',
+    name: '日常记录',
+    prompt: '将这篇个人笔记改写为自然温暖的公众号日常记录。保留具体场景和情绪，语言真诚，不要拔高或杜撰。'
+  }
+]
+
 export interface UserNoteType {
   id: string
   name: string
@@ -84,6 +108,19 @@ export function getWechatDraftConfig(): WechatDraftConfig {
 
 export function saveWechatDraftConfig(config: WechatDraftConfig): void {
   localStorage.setItem('vn_wechat_draft', JSON.stringify(config))
+}
+
+export function getWechatPromptTemplates(): WechatPromptTemplate[] {
+  const data = localStorage.getItem('vn_wechat_prompt_templates')
+  if (!data) {
+    localStorage.setItem('vn_wechat_prompt_templates', JSON.stringify(DEFAULT_WECHAT_PROMPT_TEMPLATES))
+    return DEFAULT_WECHAT_PROMPT_TEMPLATES
+  }
+  return JSON.parse(data)
+}
+
+export function saveWechatPromptTemplates(templates: WechatPromptTemplate[]): void {
+  localStorage.setItem('vn_wechat_prompt_templates', JSON.stringify(templates))
 }
 
 export function getNoteTypes(): UserNoteType[] {

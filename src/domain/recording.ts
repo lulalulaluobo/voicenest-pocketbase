@@ -36,6 +36,8 @@ export interface Recording {
   wechatDraftMediaId?: string
   wechatErrorMessage?: string
   wechatRequestId?: string
+  wechatTitle?: string
+  wechatMarkdown?: string
 }
 
 export interface AudioChunk {

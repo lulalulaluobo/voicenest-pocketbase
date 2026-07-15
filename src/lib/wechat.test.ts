@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getWechatDraftConfig,
+  getWechatPromptTemplates,
   saveWechatDraftConfig,
+  saveWechatPromptTemplates,
 } from './config-store'
 import {
   getWechatStatusLabel,
@@ -64,6 +66,22 @@ describe('WeChat draft client', () => {
 
     expect(getWechatDraftConfig()).toEqual(config)
     expect(values.get('vn_wechat_draft')).not.toContain('AppSecret')
+  })
+
+  it('uses three editable WeChat prompt templates', () => {
+    expect(getWechatPromptTemplates().map((template) => template.id)).toEqual([
+      'insight',
+      'knowledge',
+      'daily'
+    ])
+
+    const templates = getWechatPromptTemplates()
+    saveWechatPromptTemplates([
+      { ...templates[0], prompt: '改成个人观点文章' },
+      ...templates.slice(1)
+    ])
+
+    expect(getWechatPromptTemplates()[0].prompt).toBe('改成个人观点文章')
   })
 
   it('formats draft status for the recording views', () => {

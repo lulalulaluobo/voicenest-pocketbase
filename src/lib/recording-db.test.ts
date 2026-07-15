@@ -113,12 +113,16 @@ describe('recording database', () => {
     await recordingDb.recordings.update(draft.id, {
       wechatStatus: 'drafted',
       wechatDraftMediaId: 'draft-media-id',
-      wechatRequestId: 'request-id'
+      wechatRequestId: 'request-id',
+      wechatTitle: '公众号标题',
+      wechatMarkdown: '# 公众号标题\n\n正文'
     })
 
     const updated = await getRecording(draft.id)
     expect(updated?.wechatStatus).toBe('drafted')
     expect(updated?.wechatDraftMediaId).toBe('draft-media-id')
     expect(updated?.wechatRequestId).toBe('request-id')
+    expect(updated?.wechatTitle).toBe('公众号标题')
+    expect(updated?.wechatMarkdown).toBe('# 公众号标题\n\n正文')
   })
 })
