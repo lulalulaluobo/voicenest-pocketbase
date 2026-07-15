@@ -1,7 +1,5 @@
 import { renderWechatHtml } from './markdown'
-import { CoverError, generateAgnesCover } from './agnes'
-import { ImageDataError, parseImageDataUrl } from './images'
-import type { CoverGenerateRequest, DraftArticle, DraftRequest, DraftResponse, Env } from './types'
+import type { DraftArticle, DraftRequest, DraftResponse, Env } from './types'
 import { createDraft, getAccessToken, updateDraft, WechatApiError } from './wechat'
 
 const REQUEST_TTL_SECONDS = 60 * 60 * 24 * 7
@@ -37,30 +35,12 @@ function validateDraft(input: unknown, env: Env): DraftRequest | Response {
   if ([...request.title].length > 64) {
     return json({ code: 'INVALID_REQUEST', message: '公众号标题不能超过 64 个字符' }, 400, env.ALLOWED_ORIGIN)
   }
-  if (request.coverImage !== undefined) {
-    const cover = request.coverImage
-    if (!cover || typeof cover !== 'object') {
-      return json({ code: 'INVALID_REQUEST', message: '封面图片格式无效' }, 400, env.ALLOWED_ORIGIN)
-    }
-    if ((cover.mimeType !== 'image/png' && cover.mimeType !== 'image/jpeg' && cover.mimeType !== 'image/webp') || typeof cover.dataUrl !== 'string') {
-      return json({ code: 'INVALID_REQUEST', message: '封面图片格式无效' }, 400, env.ALLOWED_ORIGIN)
-    }
-    try {
-      if (parseImageDataUrl(cover.dataUrl).mimeType !== cover.mimeType) {
-        return json({ code: 'INVALID_REQUEST', message: '封面图片格式无效' }, 400, env.ALLOWED_ORIGIN)
-      }
-    } catch (error) {
-      return json({ code: 'INVALID_REQUEST', message: error instanceof Error ? error.message : '封面图片格式无效' }, 400, env.ALLOWED_ORIGIN)
-    }
-  }
-
   return {
     recordingId: request.recordingId,
     requestId: request.requestId,
     title: request.title.trim(),
     markdown: request.markdown,
-    draftMediaId: request.draftMediaId,
-    coverImage: request.coverImage
+    draftMediaId: request.draftMediaId
   }
 }
 
@@ -78,35 +58,6 @@ function validatePreview(input: unknown, env: Env): PreviewRequest | Response {
   }
 
   return { title: request.title.trim(), markdown: request.markdown }
-}
-
-function validateCoverGenerate(input: unknown, env: Env): CoverGenerateRequest | Response {
-  if (!input || typeof input !== 'object') {
-    return json({ code: 'INVALID_REQUEST', message: '请求格式无效' }, 400, env.ALLOWED_ORIGIN)
-  }
-  const request = input as Partial<CoverGenerateRequest>
-  if (!request.title?.trim() || !request.markdown?.trim() || !request.prompt?.trim()) {
-    return json({ code: 'INVALID_REQUEST', message: '标题、正文和生图提示词不能为空' }, 400, env.ALLOWED_ORIGIN)
-  }
-  if ([...request.title].length > 64 || request.markdown.length >= 20_000 || new TextEncoder().encode(request.markdown).byteLength >= 1_000_000) {
-    return json({ code: 'INVALID_REQUEST', message: '文章内容过长，无法生成封面' }, 400, env.ALLOWED_ORIGIN)
-  }
-  if (request.referenceImageDataUrl !== undefined) {
-    if (typeof request.referenceImageDataUrl !== 'string') {
-      return json({ code: 'INVALID_REQUEST', message: '参考图格式无效' }, 400, env.ALLOWED_ORIGIN)
-    }
-    try {
-      parseImageDataUrl(request.referenceImageDataUrl)
-    } catch (error) {
-      return json({ code: 'INVALID_REQUEST', message: error instanceof Error ? error.message : '参考图格式无效' }, 400, env.ALLOWED_ORIGIN)
-    }
-  }
-  return {
-    title: request.title.trim(),
-    markdown: request.markdown,
-    prompt: request.prompt.trim(),
-    referenceImageDataUrl: request.referenceImageDataUrl
-  }
 }
 
 function validateContent(content: string, env: Env): Response | undefined {
@@ -150,8 +101,8 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
   if (isResponse(article)) return article
 
   const mediaId = input.draftMediaId
-    ? await updateDraft(env, input.draftMediaId, article, fetch, input.coverImage)
-    : await createDraft(env, article, fetch, input.coverImage)
+    ? await updateDraft(env, input.draftMediaId, article)
+    : await createDraft(env, article)
   await env.WECHAT_CACHE.put(`draft-request:${input.requestId}`, JSON.stringify({ mediaId }), {
     expirationTtl: REQUEST_TTL_SECONDS
   })
@@ -171,22 +122,7 @@ async function handlePreview(request: Request, env: Env): Promise<Response> {
   return json({ title: input.title, html }, 200, env.ALLOWED_ORIGIN)
 }
 
-async function handleCoverGenerate(request: Request, env: Env): Promise<Response> {
-  const input = validateCoverGenerate(await request.json().catch(() => null), env)
-  if (isResponse(input)) return input
-
-  const cover = await generateAgnesCover(env, input)
-  return json(cover, 200, env.ALLOWED_ORIGIN)
-}
-
 function handleError(error: unknown, env: Env): Response {
-  if (error instanceof CoverError) {
-    const status = error.code === 'AGNES_NOT_CONFIGURED' ? 503 : error.code === 'AGNES_IMAGE_INVALID' ? 422 : 502
-    return json({ code: error.code, message: error.message }, status, env.ALLOWED_ORIGIN)
-  }
-  if (error instanceof ImageDataError) {
-    return json({ code: 'INVALID_REQUEST', message: error.message }, 400, env.ALLOWED_ORIGIN)
-  }
   if (error instanceof WechatApiError && error.code === 40164) {
     return json({
       code: 'WECHAT_IP_NOT_ALLOWED',
@@ -234,9 +170,6 @@ export default {
       }
       if (request.method === 'POST' && url.pathname === '/preview') {
         return await handlePreview(request, env)
-      }
-      if (request.method === 'POST' && url.pathname === '/cover/generate') {
-        return await handleCoverGenerate(request, env)
       }
       if (request.method === 'POST' && url.pathname === '/drafts') {
         return await handleDraft(request, env)

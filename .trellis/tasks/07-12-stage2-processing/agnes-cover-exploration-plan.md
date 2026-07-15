@@ -1,4 +1,6 @@
-# Agnes 公众号封面探索实施计划
+# Agnes 公众号封面探索实施计划（已终止）
+
+> 2026-07-15：用户确认删除生图模块，后续不执行本计划；公众号草稿恢复使用 Worker 中的默认封面。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

@@ -15,8 +15,6 @@ export type WechatDraftStatus =
   | 'failed'
   | 'authorization_required'
 
-export type ImageMimeType = 'image/png' | 'image/jpeg' | 'image/webp'
-
 export interface Recording {
   id: string
   createdAt: string
@@ -40,8 +38,6 @@ export interface Recording {
   wechatRequestId?: string
   wechatTitle?: string
   wechatMarkdown?: string
-  wechatCoverBlob?: Blob
-  wechatCoverMimeType?: ImageMimeType
 }
 
 export interface AudioChunk {

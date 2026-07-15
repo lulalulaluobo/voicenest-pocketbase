@@ -55,22 +55,6 @@ function previewRequest(): Request {
   })
 }
 
-function coverRequest(referenceImageDataUrl?: string): Request {
-  return new Request('https://wechat-api.lucc.fun/cover/generate', {
-    method: 'POST',
-    headers: {
-      Origin: 'https://obvoice.lucc.fun',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      title: '预览标题',
-      markdown: '## 小节\n\n正文',
-      prompt: '克制的公众号横版封面',
-      referenceImageDataUrl
-    })
-  })
-}
-
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Worker routes', () => {
@@ -125,21 +109,4 @@ describe('Worker routes', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('returns a validated Agnes cover without calling WeChat', async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ data: [{ url: 'https://agnes.test/cover.png' }] }))
-      .mockResolvedValueOnce(new Response(new Uint8Array([137, 80, 78, 71]), {
-        headers: { 'Content-Type': 'image/png' }
-      }))
-    vi.stubGlobal('fetch', fetchMock)
-
-    const response = await worker.fetch(coverRequest(), { ...createEnv(), AGNES_API_KEY: 'test-key' })
-
-    expect(response.status).toBe(200)
-    await expect(response.json()).resolves.toMatchObject({
-      mimeType: 'image/png',
-      dataUrl: expect.stringMatching(/^data:image\/png;base64,/)
-    })
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-  })
 })

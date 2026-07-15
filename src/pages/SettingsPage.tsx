@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ThemeToggle } from '../components/ThemeToggle'
 import {
@@ -27,12 +27,6 @@ import { transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
 import { testSyncConnection } from '../lib/sync'
 import { testWechatConnection } from '../lib/wechat'
-import {
-  deleteImagePromptTemplate,
-  listImagePromptTemplates,
-  saveImagePromptTemplate,
-  type ImagePromptTemplate
-} from '../lib/image-prompt-store'
 
 export function SettingsPage() {
   const navigate = useNavigate()
@@ -55,8 +49,6 @@ export function SettingsPage() {
   const [wechatConfig, setWechatConfig] = useState(getWechatDraftConfig())
   const [wechatPromptTemplates, setWechatPromptTemplates] = useState(getWechatPromptTemplates())
   const [editingWechatPrompt, setEditingWechatPrompt] = useState<WechatPromptTemplate | null>(null)
-  const [imagePromptTemplates, setImagePromptTemplates] = useState<ImagePromptTemplate[]>([])
-  const [editingImagePrompt, setEditingImagePrompt] = useState<ImagePromptTemplate | null>(null)
   const [wechatTesting, setWechatTesting] = useState(false)
   const [wechatTestResult, setWechatTestResult] = useState<string | null>(null)
 
@@ -73,10 +65,6 @@ export function SettingsPage() {
 
   // 折叠状态管理：'' | 'asr' | 'llm' | 'sync' | 'wechat' | 'audio_retention' | 'text_retention' | 'backup'
   const [activeCollapse, setActiveCollapse] = useState<string | null>(null)
-
-  useEffect(() => {
-    void listImagePromptTemplates().then(setImagePromptTemplates)
-  }, [])
 
   const toggleCollapse = (name: string) => {
     setActiveCollapse(activeCollapse === name ? null : name)
@@ -323,43 +311,6 @@ export function SettingsPage() {
     setWechatPromptTemplates(list)
     saveWechatPromptTemplates(list)
     setEditingWechatPrompt(null)
-  }
-
-  const handleAddImagePrompt = () => {
-    const template: ImagePromptTemplate = { id: crypto.randomUUID(), name: '新封面提示词', prompt: '克制、自然、适合公众号阅读的横版封面。' }
-    void saveImagePromptTemplate(template).then(() => {
-      setImagePromptTemplates((items) => [...items, template])
-      setEditingImagePrompt(template)
-    })
-  }
-
-  const handleSaveImagePrompt = (template: ImagePromptTemplate) => {
-    const normalized = { ...template, name: template.name.trim(), prompt: template.prompt.trim() }
-    if (!normalized.name || !normalized.prompt) {
-      alert('名称和提示词不能为空')
-      return
-    }
-    void saveImagePromptTemplate(normalized).then(() => {
-      setImagePromptTemplates((items) => items.map((item) => item.id === normalized.id ? normalized : item))
-      setEditingImagePrompt(null)
-    })
-  }
-
-  const handleDeleteImagePrompt = (id: string) => {
-    if (!window.confirm('确认删除该生图提示词吗？')) return
-    void deleteImagePromptTemplate(id).then(() => {
-      setImagePromptTemplates((items) => items.filter((item) => item.id !== id))
-      setEditingImagePrompt(null)
-    })
-  }
-
-  const handleReferenceImageChange = (file?: File) => {
-    if (!file || !editingImagePrompt) return
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
-      alert('参考图仅支持不超过 5 MiB 的 PNG、JPEG 或 WebP 图片')
-      return
-    }
-    setEditingImagePrompt({ ...editingImagePrompt, referenceImage: file, referenceImageMimeType: file.type as ImagePromptTemplate['referenceImageMimeType'] })
   }
 
   // 导出备份
@@ -822,23 +773,6 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <section className="settings-card">
-        <h3>生图提示词管理</h3>
-        {imagePromptTemplates.map((template) => (
-          <div key={template.id} className="row" onClick={() => setEditingImagePrompt(template)}>
-            <div className="row-main">
-              <div className="row-title">{template.name}</div>
-              <div className="row-sub">{template.referenceImage ? '含参考图 · ' : ''}{template.prompt.slice(0, 28)}{template.prompt.length > 28 ? '…' : ''}</div>
-            </div>
-            <div style={{ color: 'var(--muted)' }}>›</div>
-          </div>
-        ))}
-        <div className="row" onClick={handleAddImagePrompt} style={{ color: 'var(--success)' }}>
-          <div className="row-main"><div className="row-title" style={{ fontWeight: 'bold' }}>＋ 新增生图提示词</div></div>
-          <div>＋</div>
-        </div>
-      </section>
-
       {/* 3. 笔记类型卡片 */}
       <section className="settings-card">
         <h3>笔记分类管理</h3>
@@ -930,40 +864,6 @@ export function SettingsPage() {
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="button" className="action primary" onClick={() => handleSaveWechatPrompt(editingWechatPrompt)}>保存配置</button>
                 <button type="button" className="action danger" onClick={() => handleDeleteWechatPrompt(editingWechatPrompt.id)}>删除</button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {editingImagePrompt && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.42)' }} onClick={() => setEditingImagePrompt(null)} />
-          <div className="sheet show" style={{ zIndex: 85, maxHeight: '85vh', overflowY: 'auto' }}>
-            <div className="grab" />
-            <div className="sheet-head">
-              <h3>编辑生图提示词</h3>
-              <button className="icon-btn" onClick={() => setEditingImagePrompt(null)}>×</button>
-            </div>
-            <div style={{ display: 'grid', gap: '12px', paddingBottom: '16px' }}>
-              <label style={{ display: 'grid', gap: '4px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>名称</span>
-                <input value={editingImagePrompt.name} onChange={(event) => setEditingImagePrompt({ ...editingImagePrompt, name: event.target.value })} />
-              </label>
-              <label style={{ display: 'grid', gap: '4px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>生图提示词</span>
-                <textarea value={editingImagePrompt.prompt} onChange={(event) => setEditingImagePrompt({ ...editingImagePrompt, prompt: event.target.value })} style={{ minHeight: '150px' }} />
-              </label>
-              <label style={{ display: 'grid', gap: '4px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>参考图（可选，PNG/JPEG/WebP，最大 5 MiB）</span>
-                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => handleReferenceImageChange(event.target.files?.[0])} />
-              </label>
-              {editingImagePrompt.referenceImage && (
-                <button type="button" className="action" onClick={() => setEditingImagePrompt({ ...editingImagePrompt, referenceImage: undefined, referenceImageMimeType: undefined })}>移除参考图</button>
-              )}
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button type="button" className="action primary" onClick={() => handleSaveImagePrompt(editingImagePrompt)}>保存配置</button>
-                <button type="button" className="action danger" onClick={() => handleDeleteImagePrompt(editingImagePrompt.id)}>删除</button>
               </div>
             </div>
           </div>
