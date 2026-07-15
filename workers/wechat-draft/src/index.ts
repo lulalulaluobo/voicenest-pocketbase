@@ -101,8 +101,17 @@ function handleError(error: unknown, env: Env): Response {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (!isAllowedOrigin(request, env)) {
+    const url = new URL(request.url)
+    const isAuthorizationPage = request.method === 'GET' && url.pathname === '/'
+
+    if (!isAllowedOrigin(request, env) && !isAuthorizationPage) {
       return json({ code: 'FORBIDDEN', message: '不允许的来源' }, 403)
+    }
+
+    if (isAuthorizationPage) {
+      return new Response('VoiceNest 公众号草稿服务已授权，可以返回应用继续操作。', {
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+      })
     }
 
     if (request.method === 'OPTIONS') {
@@ -119,7 +128,6 @@ export default {
     }
 
     try {
-      const url = new URL(request.url)
       if (request.method === 'POST' && url.pathname === '/connection-test') {
         await getAccessToken(env)
         return json({ ok: true }, 200, env.ALLOWED_ORIGIN)

@@ -47,6 +47,13 @@ function draftRequest(requestId = 'request-1'): Request {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Worker routes', () => {
+  it('shows a success page after interactive Access authorization', async () => {
+    const response = await worker.fetch(new Request('https://wechat-api.lucc.fun/'), createEnv())
+
+    expect(response.status).toBe(200)
+    await expect(response.text()).resolves.toContain('已授权')
+  })
+
   it('returns the same draft for a repeated request id', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ access_token: 'token', expires_in: 7200 }))
