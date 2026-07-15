@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { useRegisterSW } from 'virtual:pwa-register/react'
+import { Capacitor } from '@capacitor/core'
 import { BottomNav } from './components/BottomNav'
 import { useRecorder } from './hooks/use-recorder'
 import { recoverIncompleteRecordings } from './lib/recording-db'
@@ -13,11 +14,17 @@ import { useProcessor } from './hooks/use-processor'
 
 import { sweepExpiredStorage } from './lib/retention'
 
+function ServiceWorkerUpdate({ canUpdate }: { canUpdate: boolean }) {
+  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW()
+
+  if (!needRefresh || !canUpdate) return null
+
+  return <button className="update-button" onClick={() => void updateServiceWorker()} type="button">发现新版本，点击更新</button>
+}
+
 export function App() {
   const recorder = useRecorder()
   const [restored, setRestored] = useState(false)
-  const { needRefresh: [needRefresh], updateServiceWorker } = useRegisterSW()
-  
   const { processQueue } = useProcessor()
 
   useEffect(() => {
@@ -46,9 +53,7 @@ export function App() {
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
         <BottomNav recordingActive={recorder.state !== 'idle'} />
-        {needRefresh && recorder.state === 'idle' && (
-          <button className="update-button" onClick={() => void updateServiceWorker()} type="button">发现新版本，点击更新</button>
-        )}
+        {!Capacitor.isNativePlatform() && <ServiceWorkerUpdate canUpdate={recorder.state === 'idle'} />}
       </div>
     </BrowserRouter>
   )
