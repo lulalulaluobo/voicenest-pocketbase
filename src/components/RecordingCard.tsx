@@ -6,6 +6,7 @@ import { deleteRecording, getChunks } from '../lib/recording-db'
 import { getAudioDownloadFilename } from '../lib/audio-mime'
 import { getRecordingAudioBlob } from '../lib/recording-audio'
 import { useProcessor } from '../hooks/use-processor'
+import { getWechatStatusLabel } from '../lib/wechat'
 
 function formatDuration(durationMs: number) {
   const seconds = Math.floor(durationMs / 1000)
@@ -135,6 +136,11 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
           {recording.errorMessage && (
             <div style={{ color: 'var(--danger)', fontSize: '11px', marginTop: '4px', fontWeight: 'bold' }}>
               ⚠️ {recording.errorMessage}
+            </div>
+          )}
+          {getWechatStatusLabel(recording.wechatStatus) && (
+            <div style={{ color: recording.wechatStatus === 'failed' || recording.wechatStatus === 'authorization_required' ? 'var(--danger)' : 'var(--muted)', fontSize: '11px', marginTop: '4px' }}>
+              {getWechatStatusLabel(recording.wechatStatus)}
             </div>
           )}
         </div>

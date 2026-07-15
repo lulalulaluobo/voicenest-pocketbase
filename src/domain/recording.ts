@@ -8,6 +8,13 @@ export type RecordingStatus =
   | 'synced'
   | 'failed'
 
+export type WechatDraftStatus =
+  | 'idle'
+  | 'syncing'
+  | 'drafted'
+  | 'failed'
+  | 'authorization_required'
+
 export interface Recording {
   id: string
   createdAt: string
@@ -25,6 +32,10 @@ export interface Recording {
   summary?: string
   errorMessage?: string
   isAudioCleared?: boolean
+  wechatStatus?: WechatDraftStatus
+  wechatDraftMediaId?: string
+  wechatErrorMessage?: string
+  wechatRequestId?: string
 }
 
 export interface AudioChunk {

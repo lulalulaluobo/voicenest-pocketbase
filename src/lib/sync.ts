@@ -4,6 +4,10 @@ export interface SyncConfig {
   vault: string
 }
 
+export function isObsidianConfigured(config: SyncConfig): boolean {
+  return Boolean(config.apiToken.trim() && config.vault.trim())
+}
+
 async function fetchWithProxy(url: string, options: RequestInit): Promise<Response> {
   try {
     return await fetch(url, options)
