@@ -8,7 +8,7 @@ export interface Env {
   WECHAT_APP_ID: string
   WECHAT_APP_SECRET: string
   WECHAT_COVER_MEDIA_ID: string
-  ALLOWED_ORIGIN: string
+  ALLOWED_ORIGINS: string
 }
 
 export interface DraftRequest {

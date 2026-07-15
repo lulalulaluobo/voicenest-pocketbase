@@ -24,15 +24,15 @@ function createEnv(): Env {
     WECHAT_APP_ID: 'app-id',
     WECHAT_APP_SECRET: 'app-secret',
     WECHAT_COVER_MEDIA_ID: 'cover-media-id',
-    ALLOWED_ORIGIN: 'https://obvoice.lucc.fun'
+    ALLOWED_ORIGINS: 'https://obvoice.lucc.fun,https://localhost'
   }
 }
 
-function draftRequest(requestId = 'request-1', draftMediaId?: string): Request {
+function draftRequest(requestId = 'request-1', draftMediaId?: string, origin = 'https://obvoice.lucc.fun'): Request {
   return new Request('https://wechat-api.lucc.fun/drafts', {
     method: 'POST',
     headers: {
-      Origin: 'https://obvoice.lucc.fun',
+      Origin: origin,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
@@ -45,11 +45,11 @@ function draftRequest(requestId = 'request-1', draftMediaId?: string): Request {
   })
 }
 
-function previewRequest(): Request {
+function previewRequest(origin = 'https://obvoice.lucc.fun'): Request {
   return new Request('https://wechat-api.lucc.fun/preview', {
     method: 'POST',
     headers: {
-      Origin: 'https://obvoice.lucc.fun',
+      Origin: origin,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ title: '预览标题', markdown: '## 小节\n\n正文' })
@@ -59,6 +59,22 @@ function previewRequest(): Request {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Worker routes', () => {
+  it('allows Android WebView preflight requests', async () => {
+    const response = await worker.fetch(new Request('https://wechat-api.lucc.fun/preview', {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://localhost' }
+    }), createEnv())
+
+    expect(response.status).toBe(204)
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://localhost')
+  })
+
+  it('rejects origins outside the allowlist', async () => {
+    const response = await worker.fetch(previewRequest('https://untrusted.example'), createEnv())
+
+    expect(response.status).toBe(403)
+  })
+
   it('shows a success page after interactive Access authorization', async () => {
     const response = await worker.fetch(new Request('https://wechat-api.lucc.fun/'), createEnv())
 

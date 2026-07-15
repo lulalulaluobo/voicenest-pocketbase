@@ -19,21 +19,22 @@ function json(data: unknown, status = 200, origin?: string): Response {
   return new Response(JSON.stringify(data), { status, headers })
 }
 
-function isAllowedOrigin(request: Request, env: Env): boolean {
-  return request.headers.get('Origin') === env.ALLOWED_ORIGIN
+function allowedOrigin(request: Request, env: Env): string | undefined {
+  const origin = request.headers.get('Origin')
+  return origin && env.ALLOWED_ORIGINS.split(',').includes(origin) ? origin : undefined
 }
 
-function validateDraft(input: unknown, env: Env): DraftRequest | Response {
+function validateDraft(input: unknown, origin: string): DraftRequest | Response {
   if (!input || typeof input !== 'object') {
-    return json({ code: 'INVALID_REQUEST', message: '请求格式无效' }, 400, env.ALLOWED_ORIGIN)
+    return json({ code: 'INVALID_REQUEST', message: '请求格式无效' }, 400, origin)
   }
 
   const request = input as Partial<DraftRequest>
   if (!request.recordingId || !request.requestId || !request.title?.trim() || !request.markdown?.trim()) {
-    return json({ code: 'INVALID_REQUEST', message: '录音、请求、标题和正文不能为空' }, 400, env.ALLOWED_ORIGIN)
+    return json({ code: 'INVALID_REQUEST', message: '录音、请求、标题和正文不能为空' }, 400, origin)
   }
   if ([...request.title].length > 64) {
-    return json({ code: 'INVALID_REQUEST', message: '公众号标题不能超过 64 个字符' }, 400, env.ALLOWED_ORIGIN)
+    return json({ code: 'INVALID_REQUEST', message: '公众号标题不能超过 64 个字符' }, 400, origin)
   }
   return {
     recordingId: request.recordingId,
@@ -44,31 +45,31 @@ function validateDraft(input: unknown, env: Env): DraftRequest | Response {
   }
 }
 
-function validatePreview(input: unknown, env: Env): PreviewRequest | Response {
+function validatePreview(input: unknown, origin: string): PreviewRequest | Response {
   if (!input || typeof input !== 'object') {
-    return json({ code: 'INVALID_REQUEST', message: '请求格式无效' }, 400, env.ALLOWED_ORIGIN)
+    return json({ code: 'INVALID_REQUEST', message: '请求格式无效' }, 400, origin)
   }
 
   const request = input as Partial<PreviewRequest>
   if (!request.title?.trim() || !request.markdown?.trim()) {
-    return json({ code: 'INVALID_REQUEST', message: '标题和正文不能为空' }, 400, env.ALLOWED_ORIGIN)
+    return json({ code: 'INVALID_REQUEST', message: '标题和正文不能为空' }, 400, origin)
   }
   if ([...request.title].length > 64) {
-    return json({ code: 'INVALID_REQUEST', message: '公众号标题不能超过 64 个字符' }, 400, env.ALLOWED_ORIGIN)
+    return json({ code: 'INVALID_REQUEST', message: '公众号标题不能超过 64 个字符' }, 400, origin)
   }
 
   return { title: request.title.trim(), markdown: request.markdown }
 }
 
-function validateContent(content: string, env: Env): Response | undefined {
+function validateContent(content: string, origin: string): Response | undefined {
   if (content.length >= 20_000 || new TextEncoder().encode(content).byteLength >= 1_000_000) {
-    return json({ code: 'INVALID_REQUEST', message: '整理后的文章过长，无法写入公众号草稿' }, 400, env.ALLOWED_ORIGIN)
+    return json({ code: 'INVALID_REQUEST', message: '整理后的文章过长，无法写入公众号草稿' }, 400, origin)
   }
 }
 
-function makeArticle(request: DraftRequest, env: Env): DraftArticle | Response {
+function makeArticle(request: DraftRequest, env: Env, origin: string): DraftArticle | Response {
   const content = renderWechatHtml(request.markdown)
-  const invalid = validateContent(content, env)
+  const invalid = validateContent(content, origin)
   if (invalid) return invalid
 
   return {
@@ -89,8 +90,8 @@ function isInvalidDraftMedia(error: unknown): boolean {
     && (error.code === 40007 || error.message.includes('invalid media_id'))
 }
 
-async function handleDraft(request: Request, env: Env): Promise<Response> {
-  const input = validateDraft(await request.json().catch(() => null), env)
+async function handleDraft(request: Request, env: Env, origin: string): Promise<Response> {
+  const input = validateDraft(await request.json().catch(() => null), origin)
   if (isResponse(input)) return input
 
   const cached = await env.WECHAT_CACHE.get(`draft-request:${input.requestId}`)
@@ -98,11 +99,11 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
     const value = JSON.parse(cached) as { mediaId?: string }
     if (value.mediaId) {
       const response: DraftResponse = { mediaId: value.mediaId, reused: true }
-      return json(response, 200, env.ALLOWED_ORIGIN)
+      return json(response, 200, origin)
     }
   }
 
-  const article = makeArticle(input, env)
+  const article = makeArticle(input, env, origin)
   if (isResponse(article)) return article
 
   let mediaId: string
@@ -121,31 +122,31 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
   })
 
   const response: DraftResponse = { mediaId, reused: false }
-  return json(response, 200, env.ALLOWED_ORIGIN)
+  return json(response, 200, origin)
 }
 
-async function handlePreview(request: Request, env: Env): Promise<Response> {
-  const input = validatePreview(await request.json().catch(() => null), env)
+async function handlePreview(request: Request, origin: string): Promise<Response> {
+  const input = validatePreview(await request.json().catch(() => null), origin)
   if (isResponse(input)) return input
 
   const html = renderWechatHtml(input.markdown)
-  const invalid = validateContent(html, env)
+  const invalid = validateContent(html, origin)
   if (invalid) return invalid
 
-  return json({ title: input.title, html }, 200, env.ALLOWED_ORIGIN)
+  return json({ title: input.title, html }, 200, origin)
 }
 
-function handleError(error: unknown, env: Env): Response {
+function handleError(error: unknown, origin: string): Response {
   if (error instanceof WechatApiError && error.code === 40164) {
     return json({
       code: 'WECHAT_IP_NOT_ALLOWED',
       message: `公众号 IP 白名单未配置：${error.message}`
-    }, 422, env.ALLOWED_ORIGIN)
+    }, 422, origin)
   }
   if (error instanceof WechatApiError) {
-    return json({ code: 'WECHAT_API_ERROR', message: `微信公众号接口失败：${error.message}` }, 502, env.ALLOWED_ORIGIN)
+    return json({ code: 'WECHAT_API_ERROR', message: `微信公众号接口失败：${error.message}` }, 502, origin)
   }
-  return json({ code: 'INTERNAL_ERROR', message: '发布服务暂时不可用' }, 500, env.ALLOWED_ORIGIN)
+  return json({ code: 'INTERNAL_ERROR', message: '发布服务暂时不可用' }, 500, origin)
 }
 
 export default {
@@ -153,7 +154,8 @@ export default {
     const url = new URL(request.url)
     const isAuthorizationPage = request.method === 'GET' && url.pathname === '/'
 
-    if (!isAllowedOrigin(request, env) && !isAuthorizationPage) {
+    const origin = allowedOrigin(request, env)
+    if (!origin && !isAuthorizationPage) {
       return json({ code: 'FORBIDDEN', message: '不允许的来源' }, 403)
     }
 
@@ -163,11 +165,13 @@ export default {
       })
     }
 
+    if (!origin) return json({ code: 'FORBIDDEN', message: '不允许的来源' }, 403)
+
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
         headers: {
-          'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN,
+          'Access-Control-Allow-Origin': origin!,
           'Access-Control-Allow-Credentials': 'true',
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -179,17 +183,17 @@ export default {
     try {
       if (request.method === 'POST' && url.pathname === '/connection-test') {
         await getAccessToken(env)
-        return json({ ok: true }, 200, env.ALLOWED_ORIGIN)
+        return json({ ok: true }, 200, origin)
       }
       if (request.method === 'POST' && url.pathname === '/preview') {
-        return await handlePreview(request, env)
+        return await handlePreview(request, origin)
       }
       if (request.method === 'POST' && url.pathname === '/drafts') {
-        return await handleDraft(request, env)
+        return await handleDraft(request, env, origin)
       }
-      return json({ code: 'NOT_FOUND', message: '接口不存在' }, 404, env.ALLOWED_ORIGIN)
+      return json({ code: 'NOT_FOUND', message: '接口不存在' }, 404, origin)
     } catch (error) {
-      return handleError(error, env)
+      return handleError(error, origin)
     }
   }
 }

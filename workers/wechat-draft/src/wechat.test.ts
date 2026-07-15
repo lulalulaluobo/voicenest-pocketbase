@@ -23,7 +23,7 @@ const env: Env = {
   WECHAT_APP_ID: 'app-id',
   WECHAT_APP_SECRET: 'app-secret',
   WECHAT_COVER_MEDIA_ID: 'cover-media-id',
-  ALLOWED_ORIGIN: 'https://obvoice.lucc.fun'
+  ALLOWED_ORIGINS: 'https://obvoice.lucc.fun,https://localhost'
 }
 
 describe('WeChat API', () => {

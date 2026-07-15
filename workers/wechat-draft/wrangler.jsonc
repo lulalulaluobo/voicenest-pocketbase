@@ -14,6 +14,6 @@
     }
   ],
   "vars": {
-    "ALLOWED_ORIGIN": "https://obvoice.lucc.fun"
+    "ALLOWED_ORIGINS": "https://obvoice.lucc.fun,https://localhost"
   }
 }
