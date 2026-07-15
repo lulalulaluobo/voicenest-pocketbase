@@ -3,7 +3,7 @@
   "name": "android-apk",
   "title": "原生 Android APK 封装",
   "description": "使用 Capacitor 8 将已验证的 PWA 封装为可侧载 Android 调试 APK，验证录音、完整备份导入与关键同步链路。",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

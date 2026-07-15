@@ -16,6 +16,9 @@ export default defineConfig({
         short_name: '声笺',
         description: '本地优先的语音收件箱',
         display: 'standalone',
+        id: '/',
+        start_url: '/',
+        scope: '/',
         theme_color: '#f5f6f8',
         background_color: '#f5f6f8',
         icons: [
