@@ -37,6 +37,12 @@
 - 该服务拒绝顶层 `response_format` 参数；Worker 已移除它，并仅在图生图的 `extra_body` 中保留 `response_format: "url"`。
 - 本机 PNG data URL 参考图请求两次均未报参数格式错误，均进入上游生成队列后因 `image queue is full` 返回临时失败。因此 data URL 协议尚未获得图片级成功验证，但不构成“不支持”的证据；客户端必须显示可重试错误并保持默认封面回退。
 
+## 2026-07-15 部署状态
+
+- Cloudflare Worker `voicenest-wechat-draft` 已部署到 `wechat-api.lucc.fun`，版本 `7ec6cf8c-a082-4204-a99b-1f40fc9bf283`；生产 `AGNES_API_KEY` 已通过 Wrangler Secret 导入。
+- PWA 已部署为 Vercel production `dpl_7VxJ5tDwJNGW3QtJNcwotn7pHMKW`，`obvoice.lucc.fun` 已切换至该版本。
+- 已完成单元、类型和构建验证。Worker 线上接口受 Cloudflare Access 保护，最终“生成封面 → 发布草稿 → 后台确认封面”需在已登录 Access 的 PWA 浏览器会话中验证，不能用无会话的命令行绕过。
+
 ## 数据与接口
 
 ### 本地配置
