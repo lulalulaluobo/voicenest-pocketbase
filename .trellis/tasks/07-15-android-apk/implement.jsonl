@@ -4,3 +4,4 @@
 {"file":".trellis/spec/frontend/android-apk.md","reason":"记录 Android APK 与 PWA Service Worker 缓存隔离，以及递增 versionCode 的更新契约"}
 {"file":".trellis/spec/frontend/android-apk.md","reason":"记录 Cloudflare Access 的 Worker 域名与团队登录域名必须共同留在 Android WebView 白名单"}
 {"file":".trellis/spec/frontend/android-apk.md","reason":"记录 Android WebView blob 下载改由 ACTION_CREATE_DOCUMENT 原生保存的契约与内存边界"}
+{"file":".trellis/spec/frontend/android-apk.md","reason":"记录音频列表仅保留标签筛选且固定顶部的移动端交互约束"}

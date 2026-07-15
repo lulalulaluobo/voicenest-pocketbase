@@ -24,6 +24,7 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 - `MainActivity` 必须允许 WebView 接收 Cookie 与第三方 Cookie；设置页“重新授权”必须使用当前窗口跳转，授权完成后由用户返回应用，使 Access Cookie 留在同一 WebView。
 - Android 构建每次交付新前端时必须递增 `android/app/build.gradle` 的 `versionCode`；Android 内不注册 PWA Service Worker，`MainActivity` 首次加载 `https://localhost` 时只注销遗留 Service Worker 并重载，不能清空 WebView 数据、Dexie 或 Cookie。
 - Android WebView 不支持把 `blob:` 的 `<a download>` 写入文件；`FileDownload` 原生插件必须用 `ACTION_CREATE_DOCUMENT` 让用户选择保存位置，再写入浏览器传来的 Base64。网页端继续使用 `<a download>` 回退。该桥接会占用完整文件内存，不适合超长录音。
+- 音频列表不提供按处理状态筛选；列表页的标题、搜索和标签筛选必须使用 `position: sticky` 固定在顶部，只有录音卡片列表随页面滚动。
 - 录音仍使用 Web 的 `navigator.mediaDevices`、`MediaRecorder` 和 Dexie；完整 ZIP 仍由 `src/lib/backup.ts` 导入。
 - 密钥只能由设置页输入或 ZIP 恢复，禁止写入 Capacitor 配置、Manifest、Gradle 或 Git。
 
@@ -56,6 +57,7 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 4. 覆盖安装版本号更高的 APK 后，验证授权不会打开系统浏览器，且本地数据仍存在。
 5. 确认 `https://wechat-api.lucc.fun/` 的 302 目标 `https://luluen.cloudflareaccess.com/...` 也留在 App 内。
 6. Android 点击下载音频与完整备份，选择位置后检查文件可被系统文件管理器读取。
+7. Android 滚动音频列表，确认状态筛选不存在，标题与标签筛选保持可见。
 
 ## 7. Wrong vs Correct
 
