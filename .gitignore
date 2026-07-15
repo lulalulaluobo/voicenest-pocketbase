@@ -9,5 +9,6 @@ references/
 *.db-wal
 *.log
 .vercel
+.wrangler/
 .env*
 workers/wechat-draft/.dev.vars*
