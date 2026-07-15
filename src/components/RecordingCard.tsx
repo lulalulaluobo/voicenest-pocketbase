@@ -5,6 +5,7 @@ import { StatusBadge } from './StatusBadge'
 import { deleteRecording, getChunks } from '../lib/recording-db'
 import { getAudioDownloadFilename } from '../lib/audio-mime'
 import { getRecordingAudioBlob } from '../lib/recording-audio'
+import { downloadBlob } from '../lib/file-download'
 import { useProcessor } from '../hooks/use-processor'
 import { getWechatStatusLabel } from '../lib/wechat'
 import { getWechatDraftConfig } from '../lib/config-store'
@@ -112,15 +113,11 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
       return
     }
 
-    const url = URL.createObjectURL(await getRecordingAudioBlob(recording, chunks.map((chunk) => chunk.blob)))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = getAudioDownloadFilename(recording.localTitle, recording.mimeType)
-    document.body.append(link)
-    link.click()
-    link.remove()
-    // ponytail: iOS Safari 可能改为打开分享页；跨平台保存目录需更复杂的原生文件 API。
-    window.setTimeout(() => URL.revokeObjectURL(url), 0)
+    await downloadBlob(
+      await getRecordingAudioBlob(recording, chunks.map((chunk) => chunk.blob)),
+      getAudioDownloadFilename(recording.localTitle, recording.mimeType),
+    )
+    alert('音频已保存')
   }
 
   const isWorking = isProcessing || recording.status === 'processing'

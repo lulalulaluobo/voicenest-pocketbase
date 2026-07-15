@@ -23,6 +23,7 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 - `android/app/src/main/AndroidManifest.xml` 必须声明 `INTERNET`、`MODIFY_AUDIO_SETTINGS` 与 `RECORD_AUDIO`；Capacitor 对音频捕获会同时请求后两项。
 - `MainActivity` 必须允许 WebView 接收 Cookie 与第三方 Cookie；设置页“重新授权”必须使用当前窗口跳转，授权完成后由用户返回应用，使 Access Cookie 留在同一 WebView。
 - Android 构建每次交付新前端时必须递增 `android/app/build.gradle` 的 `versionCode`；Android 内不注册 PWA Service Worker，`MainActivity` 首次加载 `https://localhost` 时只注销遗留 Service Worker 并重载，不能清空 WebView 数据、Dexie 或 Cookie。
+- Android WebView 不支持把 `blob:` 的 `<a download>` 写入文件；`FileDownload` 原生插件必须用 `ACTION_CREATE_DOCUMENT` 让用户选择保存位置，再写入浏览器传来的 Base64。网页端继续使用 `<a download>` 回退。该桥接会占用完整文件内存，不适合超长录音。
 - 录音仍使用 Web 的 `navigator.mediaDevices`、`MediaRecorder` 和 Dexie；完整 ZIP 仍由 `src/lib/backup.ts` 导入。
 - 密钥只能由设置页输入或 ZIP 恢复，禁止写入 Capacitor 配置、Manifest、Gradle 或 Git。
 
@@ -36,12 +37,14 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 | 在外部浏览器完成 Access 授权 | Access Cookie 不会回到应用 WebView，预览和发布会显示 `Failed to fetch`。 |
 | 仅允许 Worker 域名而遗漏 Access 团队域名 | Worker 的 302 会在登录页跳到系统浏览器，Access 显示 `Invalid login session`。 |
 | APK 版本未递增且遗留 Service Worker 接管页面 | 旧页面仍会执行 `window.open`，导致授权跳到系统浏览器并出现 Access `Invalid login session`。 |
+| Android 对 `blob:` 链接调用 `<a download>` | WebView 不会开始文件下载；必须调用 `FileDownload.save`。 |
 | 未连接 Android 设备 | APK 构建可通过，但真机录音、备份导入和 Access 登录必须标记为待用户验收。 |
 
 ## 5. Good / Base / Bad Cases
 
 - Good：PWA 构建后同步、Gradle 成功生成 APK；首次录音由系统弹出麦克风授权。
 - Good：覆盖安装新版 APK 后，遗留 Service Worker 仅注销一次；本地录音、文章、设置与 Access Cookie 保留，公众号授权留在 App 内。
+- Good：点击音频或完整备份下载后打开系统保存窗口，用户选定位置才显示成功提示。
 - Base：应用从 PWA ZIP 恢复配置、录音与文章，所有数据仍位于 Android WebView 本地存储。
 - Bad：为解决构建问题而降级项目 TypeScript 或把密钥写进 APK；这两种做法都不允许。
 
@@ -52,6 +55,7 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 3. 真机安装后验证麦克风授权、十秒录音播放/跳转、重启持久化和完整 ZIP 导入。
 4. 覆盖安装版本号更高的 APK 后，验证授权不会打开系统浏览器，且本地数据仍存在。
 5. 确认 `https://wechat-api.lucc.fun/` 的 302 目标 `https://luluen.cloudflareaccess.com/...` 也留在 App 内。
+6. Android 点击下载音频与完整备份，选择位置后检查文件可被系统文件管理器读取。
 
 ## 7. Wrong vs Correct
 
@@ -88,4 +92,18 @@ useRegisterSW()
 ```tsx
 // 仅网页端渲染负责注册 Service Worker 的组件。
 {!Capacitor.isNativePlatform() && <ServiceWorkerUpdate canUpdate={recorder.state === 'idle'} />}
+```
+
+### Wrong
+
+```ts
+link.href = URL.createObjectURL(blob)
+link.download = filename
+link.click()
+```
+
+### Correct
+
+```ts
+await downloadBlob(blob, filename) // Android 调用 ACTION_CREATE_DOCUMENT，网页端回退为 <a download>
 ```

@@ -12,6 +12,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(FileDownloadPlugin.class);
         super.onCreate(savedInstanceState);
 
         CookieManager cookieManager = CookieManager.getInstance();

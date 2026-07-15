@@ -28,6 +28,7 @@ import { formatNote } from '../lib/llm'
 import { testSyncConnection } from '../lib/sync'
 import { testWechatConnection } from '../lib/wechat'
 import { createFullBackup, readFullBackup, replaceLocalData } from '../lib/backup'
+import { downloadBlob } from '../lib/file-download'
 
 export function SettingsPage() {
   const navigate = useNavigate()
@@ -319,16 +320,9 @@ export function SettingsPage() {
     setBackupBusy(true)
     try {
       const blob = await createFullBackup()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
       const date = new Date().toISOString().slice(0, 10).replaceAll('-', '')
-      link.href = url
-      link.download = `voicenest-backup-${date}.zip`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-      alert('全量备份已开始下载。文件含 API Key 与 Token，请仅保存到可信位置。')
+      await downloadBlob(blob, `voicenest-backup-${date}.zip`)
+      alert('全量备份已保存。文件含 API Key 与 Token，请仅保存到可信位置。')
     } catch (error) {
       alert(`导出备份失败：${error instanceof Error ? error.message : '未知错误'}`)
     } finally {
