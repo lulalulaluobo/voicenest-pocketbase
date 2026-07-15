@@ -21,6 +21,7 @@ This directory contains guidelines for frontend development. Fill in each file w
 | [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
 | [Type Safety](./type-safety.md) | Type patterns, validation | To fill |
 | [Backup Recovery](./backup-recovery.md) | ZIP backup format and restore contract | Active |
+| [Android APK](./android-apk.md) | Capacitor Android build and migration contract | Active |
 
 ---
 

@@ -18,6 +18,10 @@ Questions to answer:
 
 (To be filled by the team)
 
+## Active Contracts
+
+- [微信公众号 Worker 与 Access CORS 契约](./wechat-access-cors.md)
+
 ---
 
 ## Forbidden Patterns

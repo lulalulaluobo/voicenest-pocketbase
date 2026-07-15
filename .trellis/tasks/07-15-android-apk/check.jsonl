@@ -1,1 +1,6 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"check":"前端单元测试","result":"passed","evidence":"npm test：6 个文件、29 项测试通过"}
+{"check":"Worker 测试与类型","result":"passed","evidence":"npm test --prefix workers/wechat-draft：3 个文件、12 项测试通过；tsc --noEmit 通过"}
+{"check":"PWA 构建与 Android 同步","result":"passed","evidence":"npm run build 与 npx cap sync android 通过"}
+{"check":"Android 调试 APK","result":"passed","evidence":"Gradle assembleDebug 通过；android/app/build/outputs/apk/debug/app-debug.apk 已生成；aapt 验证包名 fun.lucc.voicenest、应用名 声笺、INTERNET 与 RECORD_AUDIO 权限"}
+{"check":"Access 与 Worker CORS","result":"passed","evidence":"Access 与 Worker 均只允许 https://obvoice.lucc.fun、https://localhost；外部 OPTIONS 验证未知 Origin 无许可头"}
+{"check":"Android 真机验收","result":"pending_user","evidence":"未检测到 adb 设备；待验证麦克风授权、录音、重启持久化、ZIP 导入和 Access 登录后草稿发布"}
