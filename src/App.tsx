@@ -8,6 +8,7 @@ import { HomePage } from './pages/HomePage'
 import { RecordingDetailPage } from './pages/RecordingDetailPage'
 import { RecordingsPage } from './pages/RecordingsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { WechatEditorPage } from './pages/WechatEditorPage'
 import { useProcessor } from './hooks/use-processor'
 
 import { sweepExpiredStorage } from './lib/retention'
@@ -41,6 +42,7 @@ export function App() {
           <Route path="/" element={<HomePage recorder={recorder} />} />
           <Route path="/recordings" element={<RecordingsPage />} />
           <Route path="/recordings/:recordingId" element={<RecordingDetailPage />} />
+          <Route path="/recordings/:recordingId/wechat" element={<WechatEditorPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
         <BottomNav recordingActive={recorder.state !== 'idle'} />

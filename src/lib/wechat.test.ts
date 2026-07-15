@@ -53,6 +53,20 @@ describe('WeChat draft client', () => {
       'https://wechat-api.lucc.fun/drafts',
       expect.objectContaining({ method: 'POST', credentials: 'include' })
     )
+    const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1]?.body as string)
+    expect(body.recordingId).toBe('recording-1')
+  })
+
+  it('keeps an existing draft ID when updating a draft', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      mediaId: 'draft-1',
+      reused: false
+    })))
+
+    await publishWechatDraft(config, { ...request, draftMediaId: 'draft-existing' })
+
+    const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1]?.body as string)
+    expect(body.draftMediaId).toBe('draft-existing')
   })
 
   it('turns an expired Access session into an authorization error', async () => {
