@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { transcribeAudio } from './asr'
-import { formatNote } from './llm'
+import { formatNote, rewriteWechatArticle } from './llm'
 import { syncToObsidian } from './sync'
 
 describe('API Clients Unit Tests', () => {
@@ -66,6 +66,27 @@ describe('API Clients Unit Tests', () => {
 
     expect(res.title).toBe('整理后标题')
     expect(res.markdown).toContain('这是正文内容')
+  })
+
+  it('should rewrite a personal note into a WeChat article without changing the source', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: JSON.stringify({ title: '改写后标题', markdown: '# 改写后标题\n\n公众号正文' }) } }]
+      })
+    } as Response)
+
+    const source = '# 个人笔记\n\n今天的感想'
+    const result = await rewriteWechatArticle(source, '改写成观点随笔', {
+      endpoint: 'https://api.openai.com/v1',
+      apiKey: 'sk-test',
+      model: 'gpt-4o'
+    })
+
+    expect(result).toEqual({ title: '改写后标题', markdown: '# 改写后标题\n\n公众号正文' })
+    const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1]?.body as string)
+    expect(body.messages[1].content).toContain(source)
+    expect(body.messages[1].content).toContain('改写成观点随笔')
   })
 
   it('should sync markdown file to Obsidian via Fast Note Sync', async () => {
