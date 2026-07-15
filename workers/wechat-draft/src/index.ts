@@ -90,7 +90,7 @@ function handleError(error: unknown, env: Env): Response {
   if (error instanceof WechatApiError && error.code === 40164) {
     return json({
       code: 'WECHAT_IP_NOT_ALLOWED',
-      message: '公众号 IP 白名单未配置，请根据微信返回的出口 IP 更新白名单后重试'
+      message: `公众号 IP 白名单未配置：${error.message}`
     }, 422, env.ALLOWED_ORIGIN)
   }
   if (error instanceof WechatApiError) {

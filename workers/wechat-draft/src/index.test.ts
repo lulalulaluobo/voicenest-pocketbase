@@ -71,6 +71,9 @@ describe('Worker routes', () => {
     const response = await worker.fetch(draftRequest(), createEnv())
 
     expect(response.status).toBe(422)
-    await expect(response.json()).resolves.toMatchObject({ code: 'WECHAT_IP_NOT_ALLOWED' })
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'WECHAT_IP_NOT_ALLOWED',
+      message: '公众号 IP 白名单未配置：invalid ip 172.64.1.2 not in whitelist'
+    })
   })
 })

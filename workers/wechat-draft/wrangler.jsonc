@@ -1,12 +1,16 @@
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "voicenest-wechat-draft",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-15",
+  "workers_dev": false,
+  "routes": [
+    { "pattern": "wechat-api.lucc.fun", "custom_domain": true }
+  ],
   "kv_namespaces": [
-    // 部署前运行 `npx wrangler kv namespace create WECHAT_CACHE`，并替换为返回的 id。
     {
       "binding": "WECHAT_CACHE",
-      "id": "00000000000000000000000000000000"
+      "id": "185d1e57b556475a8efebb3f29829938"
     }
   ],
   "vars": {
