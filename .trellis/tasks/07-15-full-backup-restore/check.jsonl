@@ -1,1 +1,1 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file":".trellis/spec/frontend/backup-recovery.md","reason":"2026-07-15：全量备份恢复的 ZIP 格式、校验边界、清库恢复顺序与测试断言已固化；npm test（29 项）和 npm run build 均通过。"}

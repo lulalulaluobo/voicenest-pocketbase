@@ -27,6 +27,7 @@ import { transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
 import { testSyncConnection } from '../lib/sync'
 import { testWechatConnection } from '../lib/wechat'
+import { createFullBackup, readFullBackup, replaceLocalData } from '../lib/backup'
 
 export function SettingsPage() {
   const navigate = useNavigate()
@@ -62,6 +63,7 @@ export function SettingsPage() {
   // Retention State
   const [audioRetention, setAudioRetention] = useState<AudioRetentionType>(getAudioRetention())
   const [textRetention, setTextRetention] = useState<TextRetentionType>(getTextRetention())
+  const [backupBusy, setBackupBusy] = useState(false)
 
   // 折叠状态管理：'' | 'asr' | 'llm' | 'sync' | 'wechat' | 'audio_retention' | 'text_retention' | 'backup'
   const [activeCollapse, setActiveCollapse] = useState<string | null>(null)
@@ -313,116 +315,44 @@ export function SettingsPage() {
     setEditingWechatPrompt(null)
   }
 
-  // 导出备份
-  const handleExportBackup = () => {
+  const handleExportBackup = async () => {
+    setBackupBusy(true)
     try {
-      const backupData = {
-        version: '1.0',
-        exportDate: new Date().toISOString(),
-        autoProcess,
-        noteTypes,
-        asrConfig: { ...asrConfig, apiKey: '' },
-        llmConfig: { ...llmConfig, apiKey: '' },
-        syncConfig: { ...syncConfig, apiToken: '' },
-        wechatConfig,
-        wechatPromptTemplates: getWechatPromptTemplates(),
-        audioRetention,
-        textRetention
-      }
-      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' })
+      const blob = await createFullBackup()
       const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      const now = new Date()
-      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
-      a.href = url
-      a.download = `voicenest_backup_${dateStr}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
+      const link = document.createElement('a')
+      const date = new Date().toISOString().slice(0, 10).replaceAll('-', '')
+      link.href = url
+      link.download = `voicenest-backup-${date}.zip`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
       URL.revokeObjectURL(url)
-    } catch (err: any) {
-      alert(`导出备份失败: ${err.message}`)
+      alert('全量备份已开始下载。文件含 API Key 与 Token，请仅保存到可信位置。')
+    } catch (error) {
+      alert(`导出备份失败：${error instanceof Error ? error.message : '未知错误'}`)
+    } finally {
+      setBackupBusy(false)
     }
   }
 
-  // 导入备份
-  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const handleImportBackup = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
     if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      try {
-        const raw = event.target?.result as string
-        const parsed = JSON.parse(raw)
-
-        if (!parsed.noteTypes || !Array.isArray(parsed.noteTypes)) {
-          throw new Error('备份文件格式不正确，缺少有效的分类配置。')
-        }
-
-        if (parsed.asrConfig) {
-          const mergedAsr = { ...parsed.asrConfig }
-          if (!mergedAsr.apiKey && asrConfig.apiKey) {
-            mergedAsr.apiKey = asrConfig.apiKey
-          }
-          setAsrConfig(mergedAsr)
-          saveASRConfig(mergedAsr)
-        }
-
-        if (parsed.llmConfig) {
-          const mergedLlm = { ...parsed.llmConfig }
-          if (!mergedLlm.apiKey && llmConfig.apiKey) {
-            mergedLlm.apiKey = llmConfig.apiKey
-          }
-          setLlmConfig(mergedLlm)
-          saveLLMConfig(mergedLlm)
-        }
-
-        if (parsed.syncConfig) {
-          const mergedSync = { ...parsed.syncConfig }
-          if (!mergedSync.apiToken && syncConfig.apiToken) {
-            mergedSync.apiToken = syncConfig.apiToken
-          }
-          setSyncConfig(mergedSync)
-          saveSyncConfig(mergedSync)
-        }
-
-        if (parsed.wechatConfig) {
-          const importedWechat = {
-            enabled: Boolean(parsed.wechatConfig.enabled),
-            workerUrl: String(parsed.wechatConfig.workerUrl || '').trim()
-          }
-          setWechatConfig(importedWechat)
-          saveWechatDraftConfig(importedWechat)
-        }
-
-        if (Array.isArray(parsed.wechatPromptTemplates)) {
-          saveWechatPromptTemplates(parsed.wechatPromptTemplates)
-        }
-
-        setNoteTypes(parsed.noteTypes)
-        saveNoteTypes(parsed.noteTypes)
-
-        if (parsed.autoProcess !== undefined) {
-          setAutoProcess(parsed.autoProcess)
-          localStorage.setItem('vn_auto_process', parsed.autoProcess ? 'true' : 'false')
-        }
-        if (parsed.audioRetention !== undefined) {
-          setAudioRetention(parsed.audioRetention)
-          saveAudioRetention(parsed.audioRetention)
-        }
-        if (parsed.textRetention !== undefined) {
-          setTextRetention(parsed.textRetention)
-          saveTextRetention(parsed.textRetention)
-        }
-
-        alert('🎉 备份导入成功！已为您恢复所有分类、同步策略及选项。已自动为您保留本地已填写的 API 鉴权密钥，无需重填。')
-        window.location.reload()
-      } catch (err: any) {
-        alert(`导入备份失败: ${err.message}`)
-      }
+    setBackupBusy(true)
+    try {
+      const backup = await readFullBackup(file)
+      const confirmed = window.confirm(`已校验备份：${backup.manifest.recordingCount} 条录音、${backup.manifest.audioEntries.length} 个音频分片。\n\n继续将删除当前全部录音、音频、设置和 API 凭据，并用备份完整替换。此操作不可撤销。`)
+      if (!confirmed) return
+      await replaceLocalData(backup)
+      alert(`恢复完成：${backup.manifest.recordingCount} 条录音已恢复。应用将刷新。`)
+      window.location.reload()
+    } catch (error) {
+      alert(`导入备份失败：${error instanceof Error ? error.message : '备份文件无效'}`)
+    } finally {
+      setBackupBusy(false)
     }
-    reader.readAsText(file)
   }
 
   return (
@@ -802,23 +732,24 @@ export function SettingsPage() {
         <div className="row" onClick={() => toggleCollapse('backup')}>
           <div className="row-main">
             <div className="row-title">备份与恢复</div>
-            <div className="row-sub">脱敏导出 JSON 备份与合并式导入配置</div>
+            <div className="row-sub">导出录音、文本、提示词与凭据；导入会完整替换本地数据</div>
           </div>
           <div style={{ color: 'var(--muted)' }}>{activeCollapse === 'backup' ? '▼' : '›'}</div>
         </div>
         {activeCollapse === 'backup' && (
           <div style={{ padding: '12px 0', borderTop: '1px dashed var(--line)', display: 'grid', gap: '10px' }}>
             <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-              ⚠️ 安全提示：为了您的密钥安全，备份文件中不包含任何 API 密码与 FNS Token；公众号仅导出开关和服务地址。
+              ⚠️ 安全提示：备份文件包含 API Key、Obsidian Token 等敏感凭据，仅限个人离线保存；导入会删除当前全部本地数据。
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 type="button"
                 className="action primary"
                 onClick={handleExportBackup}
+                disabled={backupBusy}
                 style={{ padding: '10px' }}
               >
-                📤 导出备份
+                📤 {backupBusy ? '正在导出…' : '导出全量备份'}
               </button>
               <label
                 className="action"
@@ -827,14 +758,17 @@ export function SettingsPage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   background: 'var(--soft)',
-                  cursor: 'pointer'
+                  cursor: backupBusy ? 'default' : 'pointer',
+                  opacity: backupBusy ? 0.65 : 1,
+                  pointerEvents: backupBusy ? 'none' : undefined,
                 }}
               >
-                📥 导入备份
+                📥 {backupBusy ? '正在导入…' : '导入全量备份'}
                 <input
                   type="file"
-                  accept=".json"
+                  accept=".zip,application/zip"
                   onChange={handleImportBackup}
+                  disabled={backupBusy}
                   style={{ display: 'none' }}
                 />
               </label>
