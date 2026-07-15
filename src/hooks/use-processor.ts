@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getChunks, getRecording, recordingDb } from '../lib/recording-db'
-import { getASRConfig, getLLMConfig, getSyncConfig, getNoteTypes, getAudioRetention, getWechatDraftConfig } from '../lib/config-store'
+import { getASRConfig, getLLMConfig, getSyncConfig, getNoteTypes, getAudioRetention } from '../lib/config-store'
 import { transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
-import { syncProcessedNote } from '../lib/sync-targets'
+import { isObsidianConfigured, syncToObsidian } from '../lib/sync'
 import { cleanSyncedAudioChunks } from '../lib/retention'
 import type { Recording } from '../domain/recording'
 
@@ -16,64 +16,17 @@ async function syncProcessedRecording(
   markdown: string,
   obsidianDir: string
 ): Promise<void> {
-  const wechatConfig = getWechatDraftConfig()
-  let wechatRequestId = recording.wechatRequestId
-
-  if (wechatConfig.enabled) {
-    wechatRequestId = recording.wechatDraftMediaId
-      ? crypto.randomUUID()
-      : wechatRequestId || crypto.randomUUID()
-    await recordingDb.recordings.update(recording.id, {
-      wechatStatus: 'syncing',
-      wechatErrorMessage: undefined,
-      wechatRequestId,
-      updatedAt: new Date().toISOString()
-    })
+  const config = getSyncConfig()
+  if (!isObsidianConfigured(config)) {
+    throw new Error('未配置 Obsidian 同步')
   }
 
-  const results = await syncProcessedNote({
-    recordingId: recording.id,
-    title,
-    markdown,
-    obsidianDir,
-    obsidianConfig: getSyncConfig(),
-    wechatConfig,
-    wechatRequestId,
-    wechatDraftMediaId: recording.wechatDraftMediaId
-  })
-  const errors: string[] = []
-  const updates: Partial<Recording> = {
+  await syncToObsidian(title, markdown, obsidianDir, config)
+  await recordingDb.recordings.update(recording.id, {
+    status: 'synced',
+    errorMessage: undefined,
     updatedAt: new Date().toISOString()
-  }
-
-  if (results.obsidian && !results.obsidian.ok) {
-    errors.push(`Obsidian：${results.obsidian.error}`)
-  }
-  if (results.wechat) {
-    if (results.wechat.ok) {
-      updates.wechatStatus = 'drafted'
-      updates.wechatDraftMediaId = results.wechat.mediaId
-      updates.wechatErrorMessage = undefined
-    } else {
-      updates.wechatStatus = results.wechat.authorizationRequired ? 'authorization_required' : 'failed'
-      updates.wechatErrorMessage = results.wechat.error
-      errors.push(`公众号：${results.wechat.error}`)
-    }
-  }
-  if (!results.obsidian && !results.wechat) {
-    errors.push('未配置同步目标')
-  }
-
-  if (errors.length) {
-    updates.status = 'failed'
-    updates.errorMessage = errors.join('；')
-    await recordingDb.recordings.update(recording.id, updates)
-    return
-  }
-
-  updates.status = 'synced'
-  updates.errorMessage = undefined
-  await recordingDb.recordings.update(recording.id, updates)
+  })
   if (getAudioRetention() === 'immediate') {
     await cleanSyncedAudioChunks(recording.id)
   }
@@ -154,7 +107,7 @@ export function useProcessor() {
           updatedAt: new Date().toISOString()
         })
 
-        // 6. 分别同步已启用的 Obsidian 与公众号草稿目标
+        // 6. 同步个人笔记到 Obsidian
         await syncProcessedRecording(rec, formatted.title, formatted.markdown, currentType.obsidianPath)
       } else if (mode === 'sync_only') {
         // 仅重新同步已整理的内容
