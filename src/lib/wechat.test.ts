@@ -7,6 +7,7 @@ import {
 } from './config-store'
 import {
   getWechatStatusLabel,
+  previewWechatDraft,
   publishWechatDraft,
   testWechatConnection,
 } from './wechat'
@@ -67,6 +68,19 @@ describe('WeChat draft client', () => {
 
     const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1]?.body as string)
     expect(body.draftMediaId).toBe('draft-existing')
+  })
+
+  it('posts article markdown to the preview endpoint', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      title: '标题',
+      html: '<p>正文</p>'
+    })))
+
+    await expect(previewWechatDraft(config, { title: '标题', markdown: '正文' })).resolves.toEqual({ title: '标题', html: '<p>正文</p>' })
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://wechat-api.lucc.fun/preview',
+      expect.objectContaining({ method: 'POST', credentials: 'include' })
+    )
   })
 
   it('turns an expired Access session into an authorization error', async () => {

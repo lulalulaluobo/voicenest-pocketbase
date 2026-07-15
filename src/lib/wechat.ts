@@ -14,6 +14,11 @@ export interface WechatDraftResult {
   reused: boolean
 }
 
+export interface WechatPreviewResult {
+  title: string
+  html: string
+}
+
 export class WechatDraftError extends Error {
   constructor(
     message: string,
@@ -63,6 +68,27 @@ export async function testWechatConnection(config: WechatDraftConfig): Promise<v
   if (!response.ok) {
     throw await readError(response)
   }
+}
+
+export async function previewWechatDraft(
+  config: WechatDraftConfig,
+  article: Pick<WechatDraftRequest, 'title' | 'markdown'>
+): Promise<WechatPreviewResult> {
+  const response = await fetch(`${workerBaseUrl(config)}/preview`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(article)
+  })
+  if (!response.ok) {
+    throw await readError(response)
+  }
+
+  const data = await response.json() as Partial<WechatPreviewResult>
+  if (typeof data.title !== 'string' || typeof data.html !== 'string') {
+    throw new WechatDraftError('公众号预览服务返回的数据无效', 'api')
+  }
+  return { title: data.title, html: data.html }
 }
 
 export async function publishWechatDraft(
