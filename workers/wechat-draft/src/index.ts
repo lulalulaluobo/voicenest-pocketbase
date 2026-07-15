@@ -84,6 +84,11 @@ function isResponse(value: unknown): value is Response {
   return value instanceof Response
 }
 
+function isInvalidDraftMedia(error: unknown): boolean {
+  return error instanceof WechatApiError
+    && (error.code === 40007 || error.message.includes('invalid media_id'))
+}
+
 async function handleDraft(request: Request, env: Env): Promise<Response> {
   const input = validateDraft(await request.json().catch(() => null), env)
   if (isResponse(input)) return input
@@ -100,9 +105,17 @@ async function handleDraft(request: Request, env: Env): Promise<Response> {
   const article = makeArticle(input, env)
   if (isResponse(article)) return article
 
-  const mediaId = input.draftMediaId
-    ? await updateDraft(env, input.draftMediaId, article)
-    : await createDraft(env, article)
+  let mediaId: string
+  if (input.draftMediaId) {
+    try {
+      mediaId = await updateDraft(env, input.draftMediaId, article)
+    } catch (error) {
+      if (!isInvalidDraftMedia(error)) throw error
+      mediaId = await createDraft(env, article)
+    }
+  } else {
+    mediaId = await createDraft(env, article)
+  }
   await env.WECHAT_CACHE.put(`draft-request:${input.requestId}`, JSON.stringify({ mediaId }), {
     expirationTtl: REQUEST_TTL_SECONDS
   })

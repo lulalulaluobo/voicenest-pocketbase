@@ -28,7 +28,7 @@ function createEnv(): Env {
   }
 }
 
-function draftRequest(requestId = 'request-1'): Request {
+function draftRequest(requestId = 'request-1', draftMediaId?: string): Request {
   return new Request('https://wechat-api.lucc.fun/drafts', {
     method: 'POST',
     headers: {
@@ -39,7 +39,8 @@ function draftRequest(requestId = 'request-1'): Request {
       recordingId: 'recording-1',
       requestId,
       title: '今日感想',
-      markdown: '# 今日感想\n\n正文'
+      markdown: '# 今日感想\n\n正文',
+      ...(draftMediaId ? { draftMediaId } : {})
     })
   })
 }
@@ -93,6 +94,21 @@ describe('Worker routes', () => {
       code: 'WECHAT_IP_NOT_ALLOWED',
       message: '公众号 IP 白名单未配置：invalid ip 172.64.1.2 not in whitelist'
     })
+  })
+
+  it('creates a new draft when the saved draft ID is no longer valid', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token', expires_in: 7200 }))
+      .mockResolvedValueOnce(jsonResponse({ errcode: 40007, errmsg: 'invalid media_id hint: [stale]' }))
+      .mockResolvedValueOnce(jsonResponse({ media_id: 'draft-new' }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await worker.fetch(draftRequest('request-stale', 'draft-stale'), createEnv())
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ mediaId: 'draft-new', reused: false })
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/cgi-bin/draft/update?')
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain('/cgi-bin/draft/add?')
   })
 
   it('renders preview without requesting WeChat or changing drafts', async () => {
