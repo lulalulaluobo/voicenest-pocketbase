@@ -29,7 +29,7 @@ export async function downloadBlob(blob: Blob, filename: string) {
       filename,
       mimeType: blob.type.split(';')[0] || 'application/octet-stream',
     })
-    return
+    return 'native' as const
   }
 
   const url = URL.createObjectURL(blob)
@@ -40,4 +40,5 @@ export async function downloadBlob(blob: Blob, filename: string) {
   link.click()
   link.remove()
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
+  return 'browser' as const
 }

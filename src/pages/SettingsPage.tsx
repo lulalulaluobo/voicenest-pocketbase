@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ThemeToggle } from '../components/ThemeToggle'
 import {
@@ -68,6 +68,13 @@ export function SettingsPage() {
 
   // 折叠状态管理：'' | 'asr' | 'llm' | 'sync' | 'wechat' | 'audio_retention' | 'text_retention' | 'backup'
   const [activeCollapse, setActiveCollapse] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('wechat-authorized') !== '1') return
+    window.history.replaceState(null, '', window.location.pathname)
+    setActiveCollapse('wechat')
+    setWechatTestResult('✅ 授权成功，请点击“测试公众号连接”确认会话可用。')
+  }, [])
 
   const toggleCollapse = (name: string) => {
     setActiveCollapse(activeCollapse === name ? null : name)
@@ -240,7 +247,15 @@ export function SettingsPage() {
       alert('请先填写公众号发布服务地址')
       return
     }
-    window.location.assign(url)
+    try {
+      const authorizationUrl = new URL(url)
+      const returnUrl = new URL('/settings', window.location.origin)
+      returnUrl.searchParams.set('wechat-authorized', '1')
+      authorizationUrl.searchParams.set('return_to', returnUrl.toString())
+      window.location.assign(authorizationUrl.toString())
+    } catch {
+      alert('公众号发布服务地址无效')
+    }
   }
 
   // Auto process toggling

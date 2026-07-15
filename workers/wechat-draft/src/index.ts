@@ -19,9 +19,34 @@ function json(data: unknown, status = 200, origin?: string): Response {
   return new Response(JSON.stringify(data), { status, headers })
 }
 
+function isAllowedOrigin(origin: string, env: Env): boolean {
+  return env.ALLOWED_ORIGINS.split(',').map((value) => value.trim()).includes(origin)
+}
+
 function allowedOrigin(request: Request, env: Env): string | undefined {
   const origin = request.headers.get('Origin')
-  return origin && env.ALLOWED_ORIGINS.split(',').includes(origin) ? origin : undefined
+  return origin && isAllowedOrigin(origin, env) ? origin : undefined
+}
+
+function authorizationReturnUrl(url: URL, env: Env): string | undefined {
+  const value = url.searchParams.get('return_to')
+  if (!value) return undefined
+
+  try {
+    const target = new URL(value)
+    if (
+      target.protocol !== 'https:'
+      || !isAllowedOrigin(target.origin, env)
+      || target.pathname !== '/settings'
+      || target.search !== '?wechat-authorized=1'
+      || target.hash
+      || target.username
+      || target.password
+    ) return undefined
+    return target.toString()
+  } catch {
+    return undefined
+  }
 }
 
 function validateDraft(input: unknown, origin: string): DraftRequest | Response {
@@ -160,6 +185,8 @@ export default {
     }
 
     if (isAuthorizationPage) {
+      const returnUrl = authorizationReturnUrl(url, env)
+      if (returnUrl) return Response.redirect(returnUrl, 302)
       return new Response('VoiceNest 公众号草稿服务已授权，可以返回应用继续操作。', {
         headers: { 'Content-Type': 'text/plain; charset=utf-8' }
       })

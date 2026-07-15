@@ -99,8 +99,8 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
     }
   }
 
-  const canDownload = Boolean(recording.summary) && !recording.isAudioCleared
-  const downloadLabel = recording.isAudioCleared ? '音频已清理' : recording.summary ? '⇩ 下载' : '整理后下载'
+  const canDownload = !recording.isAudioCleared
+  const downloadLabel = recording.isAudioCleared ? '音频已清理' : '下载音频'
   const wechatConfig = getWechatDraftConfig()
   const canEditWechat = Boolean(recording.summary) && wechatConfig.enabled && Boolean(wechatConfig.workerUrl.trim())
   const wechatLabel = canEditWechat ? '改写公众号文章' : '请先在设置启用公众号编辑并填写服务地址'
@@ -113,23 +113,34 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
       return
     }
 
-    await downloadBlob(
-      await getRecordingAudioBlob(recording, chunks.map((chunk) => chunk.blob)),
-      getAudioDownloadFilename(recording.localTitle, recording.mimeType),
-    )
-    alert('音频已保存')
+    try {
+      const destination = await downloadBlob(
+        await getRecordingAudioBlob(recording, chunks.map((chunk) => chunk.blob)),
+        getAudioDownloadFilename(recording.localTitle, recording.mimeType),
+      )
+      alert(destination === 'native' ? '音频已保存至 下载/声笺' : '音频已开始下载')
+    } catch (error) {
+      alert(`音频下载失败：${error instanceof Error ? error.message : '未知错误'}`)
+    }
   }
 
   const isWorking = isProcessing || recording.status === 'processing'
 
   return (
-    <div
-      className={`item ${highlighted ? 'flash' : ''}`}
-      onClick={() => navigate(`/recordings/${recording.id}`)}
-      id={`recording-${recording.id}`}
-      style={{ position: 'relative' }}
-    >
-      <div className="item-top">
+    <div className={`item ${highlighted ? 'flash' : ''}`} id={`recording-${recording.id}`} style={{ position: 'relative' }}>
+      <div
+        className="item-top item-summary"
+        role="button"
+        tabIndex={0}
+        aria-label="查看录音详情"
+        onClick={() => navigate(`/recordings/${recording.id}`)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            navigate(`/recordings/${recording.id}`)
+          }
+        }}
+      >
         <div>
           <div className="item-title">{recording.localTitle}</div>
           <div className="meta">

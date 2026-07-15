@@ -75,11 +75,18 @@ describe('Worker routes', () => {
     expect(response.status).toBe(403)
   })
 
-  it('shows a success page after interactive Access authorization', async () => {
-    const response = await worker.fetch(new Request('https://wechat-api.lucc.fun/'), createEnv())
+  it('only returns to an allowed app settings page after interactive Access authorization', async () => {
+    const response = await worker.fetch(new Request(
+      'https://wechat-api.lucc.fun/?return_to=https%3A%2F%2Flocalhost%2Fsettings%3Fwechat-authorized%3D1'
+    ), createEnv())
 
-    expect(response.status).toBe(200)
-    await expect(response.text()).resolves.toContain('已授权')
+    expect(response.status).toBe(302)
+    expect(response.headers.get('Location')).toBe('https://localhost/settings?wechat-authorized=1')
+
+    const rejected = await worker.fetch(new Request(
+      'https://wechat-api.lucc.fun/?return_to=https%3A%2F%2Funsafe.example%2Fsettings%3Fwechat-authorized%3D1'
+    ), createEnv())
+    expect(rejected.status).toBe(200)
   })
 
   it('returns the same draft for a repeated request id', async () => {
