@@ -1,9 +1,11 @@
 import Dexie, { type Table } from 'dexie'
 import type { AudioChunk, Recording } from '../domain/recording'
+import type { ImagePromptTemplate } from './image-prompt-store'
 
 class RecordingDatabase extends Dexie {
   recordings!: Table<Recording, string>
   audioChunks!: Table<AudioChunk, string>
+  imagePromptTemplates!: Table<ImagePromptTemplate, string>
 
   constructor() {
     super('voice-inbox')
@@ -14,6 +16,11 @@ class RecordingDatabase extends Dexie {
     this.version(2).stores({
       recordings: 'id, createdAt, status, typeId',
       audioChunks: 'id, recordingId, [recordingId+index]',
+    })
+    this.version(3).stores({
+      recordings: 'id, createdAt, status, typeId',
+      audioChunks: 'id, recordingId, [recordingId+index]',
+      imagePromptTemplates: 'id',
     })
   }
 }

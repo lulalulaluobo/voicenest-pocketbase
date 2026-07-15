@@ -125,4 +125,16 @@ describe('recording database', () => {
     expect(updated?.wechatTitle).toBe('公众号标题')
     expect(updated?.wechatMarkdown).toBe('# 公众号标题\n\n正文')
   })
+
+  it('persists a generated WeChat cover on its recording', async () => {
+    await createRecording(draft)
+    await recordingDb.recordings.update(draft.id, {
+      wechatCoverBlob: new Blob(['png'], { type: 'image/png' }),
+      wechatCoverMimeType: 'image/png'
+    })
+
+    const updated = await getRecording(draft.id)
+    expect(updated?.wechatCoverBlob).toBeInstanceOf(Blob)
+    expect(updated?.wechatCoverMimeType).toBe('image/png')
+  })
 })
