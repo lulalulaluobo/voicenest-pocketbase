@@ -239,7 +239,7 @@ export function SettingsPage() {
       alert('请先填写公众号发布服务地址')
       return
     }
-    window.open(url, '_blank', 'noopener,noreferrer')
+    window.location.assign(url)
   }
 
   // Auto process toggling

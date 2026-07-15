@@ -18,9 +18,10 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 
 ## 3. Contracts
 
-- 根目录 `capacitor.config.json` 固定包含 `appId: "fun.lucc.voicenest"`、`appName: "声笺"`、`webDir: "dist"` 和 `server.androidScheme: "https"`。
+- 根目录 `capacitor.config.json` 固定包含 `appId: "fun.lucc.voicenest"`、`appName: "声笺"`、`webDir: "dist"` 和 `server.androidScheme: "https"`；`server.allowNavigation` 只能列出 `wechat-api.lucc.fun`，用于在同一 WebView 完成 Cloudflare Access 授权。
 - Android WebView 的预期 Origin 为 `https://localhost`。
-- `android/app/src/main/AndroidManifest.xml` 必须声明 `INTERNET` 与 `RECORD_AUDIO`。
+- `android/app/src/main/AndroidManifest.xml` 必须声明 `INTERNET`、`MODIFY_AUDIO_SETTINGS` 与 `RECORD_AUDIO`；Capacitor 对音频捕获会同时请求后两项。
+- `MainActivity` 必须允许 WebView 接收 Cookie 与第三方 Cookie；设置页“重新授权”必须使用当前窗口跳转，授权完成后由用户返回应用，使 Access Cookie 留在同一 WebView。
 - 录音仍使用 Web 的 `navigator.mediaDevices`、`MediaRecorder` 和 Dexie；完整 ZIP 仍由 `src/lib/backup.ts` 导入。
 - 密钥只能由设置页输入或 ZIP 恢复，禁止写入 Capacitor 配置、Manifest、Gradle 或 Git。
 
@@ -30,7 +31,8 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 | --- | --- |
 | 使用 `capacitor.config.ts` 且项目 TypeScript 为 7 | Capacitor CLI 会在读取 `ModuleKind.CommonJS` 时失败；改用等价的 `capacitor.config.json`。 |
 | 未设置 JBR/Android SDK 环境变量 | Capacitor/Gradle 无法定位 Java 或 SDK；使用 Android Studio JBR 与 `$HOME/Library/Android/sdk`。 |
-| 未声明 `RECORD_AUDIO` | WebView 无法完成录音授权；构建前检查 Manifest。 |
+| 未声明 `MODIFY_AUDIO_SETTINGS` | Capacitor 音频捕获会把权限请求整体拒绝，即使用户已授权麦克风。 |
+| 在外部浏览器完成 Access 授权 | Access Cookie 不会回到应用 WebView，预览和发布会显示 `Failed to fetch`。 |
 | 未连接 Android 设备 | APK 构建可通过，但真机录音、备份导入和 Access 登录必须标记为待用户验收。 |
 
 ## 5. Good / Base / Bad Cases
@@ -61,6 +63,9 @@ export default { appId: 'fun.lucc.voicenest' }
   "appId": "fun.lucc.voicenest",
   "appName": "声笺",
   "webDir": "dist",
-  "server": { "androidScheme": "https" }
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": ["wechat-api.lucc.fun"]
+  }
 }
 ```

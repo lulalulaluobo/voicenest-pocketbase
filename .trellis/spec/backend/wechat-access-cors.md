@@ -19,6 +19,7 @@ allowedOrigin(request: Request, env: Env): string | undefined
 - Worker `ALLOWED_ORIGINS` 固定包含 `https://obvoice.lucc.fun,https://localhost`，并只回显已匹配的请求 Origin。
 - Access 应用“VoiceNest 微信公众号草稿服务”的 `cors_headers` 必须包含同样两个 Origin、`POST`、`OPTIONS`、`Content-Type`、`allow_credentials: true` 和 `max_age: 86400`。
 - Access 应用保持管理员邮箱 Allow 策略和 `options_preflight_bypass: false`；OPTIONS 由 Access 响应，实际 POST 仍需要 Access Cookie。
+- Android 的“重新授权”在同一 WebView 打开该域名并返回应用；不得改用外部浏览器，否则其 Cookie 不会被 Android WebView 的 `credentials: 'include'` 请求使用。
 - 未匹配 Origin 的 Worker 请求返回 403；Access 预检也不得返回 `Access-Control-Allow-Origin`。
 
 ## 4. Validation & Error Matrix

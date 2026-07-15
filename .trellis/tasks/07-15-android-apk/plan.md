@@ -4,7 +4,7 @@
 
 **目标：** 把声笺 PWA 封装为可侧载的 Capacitor Android 调试 APK，并在不降低 Worker 鉴权的前提下支持现有服务链路。
 
-**架构：** Vite 仍构建唯一的 React 前端到 `dist/`，Capacitor 把该产物同步至 Android WebView。录音、Dexie、LocalStorage 和 ZIP 导入沿用现有浏览器实现；Android 只声明麦克风权限。公众号 Worker 将根据请求 Origin 反射允许的两个精确来源，Cloudflare Access 不变。
+**架构：** Vite 仍构建唯一的 React 前端到 `dist/`，Capacitor 把该产物同步至 Android WebView。录音、Dexie、LocalStorage 和 ZIP 导入沿用现有浏览器实现；Android 声明 Capacitor 音频捕获所需权限。公众号 Worker 将根据请求 Origin 反射允许的两个精确来源，Cloudflare Access 不变，并在同一 WebView 完成登录。
 
 **技术栈：** React 19、Vite 8、Capacitor 8、Android Gradle、Vitest、Cloudflare Workers。
 
@@ -94,7 +94,7 @@
   <uses-permission android:name="android.permission.RECORD_AUDIO" />
   ```
 
-  不修改生成的 `MainActivity`：Capacitor 8 官方 `BridgeWebChromeClient` 已将 WebView 的 `AUDIO_CAPTURE` 映射为 `RECORD_AUDIO` 运行时请求。
+  `BridgeWebChromeClient` 的 `AUDIO_CAPTURE` 同时请求 `MODIFY_AUDIO_SETTINGS` 与 `RECORD_AUDIO`，两项均需在 Manifest 中声明。`MainActivity` 需允许 WebView Cookie 与第三方 Cookie，以便登录后的 Access Cookie 可用于公众号接口请求。
 
 - [ ] **步骤 5：构建并同步。**
 
@@ -245,7 +245,7 @@
   4. 用恢复或手动配置测试 ASR、LLM、Obsidian。
   5. 登录 Cloudflare Access 后测试公众号预览与“发布到草稿箱”。
 
-  若第 5 项因 WebView Cookie 策略失败，记录请求 Origin、HTTP 状态和 Access 行为；保持 Access，不通过内置凭据绕过。
+  授权时由设置页在应用内跳转到 `wechat-api.lucc.fun`，登录后按 Android 返回键回到应用；若第 5 项仍失败，记录请求 Origin、HTTP 状态和 Access 行为；保持 Access，不通过内置凭据绕过。
 
 - [ ] **步骤 4：记录结果并提交可追踪配置。**
 

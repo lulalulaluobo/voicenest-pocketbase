@@ -1,1 +1,3 @@
 {"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file":".trellis/spec/frontend/android-apk.md","reason":"记录 Capacitor 音频权限与同一 WebView Access 授权的 Android 运行时契约"}
+{"file":".trellis/spec/backend/wechat-access-cors.md","reason":"补充 Android Access Cookie 必须在同一 WebView 完成授权的跨层约束"}

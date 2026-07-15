@@ -4,3 +4,5 @@
 {"check":"Android 调试 APK","result":"passed","evidence":"Gradle assembleDebug 通过；android/app/build/outputs/apk/debug/app-debug.apk 已生成；aapt 验证包名 fun.lucc.voicenest、应用名 声笺、INTERNET 与 RECORD_AUDIO 权限"}
 {"check":"Access 与 Worker CORS","result":"passed","evidence":"Access 与 Worker 均只允许 https://obvoice.lucc.fun、https://localhost；外部 OPTIONS 验证未知 Origin 无许可头"}
 {"check":"Android 真机验收","result":"pending_user","evidence":"未检测到 adb 设备；待验证麦克风授权、录音、重启持久化、ZIP 导入和 Access 登录后草稿发布"}
+{"check":"Android 录音与 Access 授权修复构建","result":"passed","evidence":"npm test 6 文件 29 项、Worker 3 文件 12 项与 tsc、npm run build、npx cap sync android、Gradle assembleDebug 全部通过；aapt 确认 APK 含 INTERNET、MODIFY_AUDIO_SETTINGS、RECORD_AUDIO，且同步后的 Capacitor 配置仅允许 wechat-api.lucc.fun 应用内跳转"}
+{"check":"Android 真机复验","result":"pending_user","evidence":"待安装本次 APK，验证录音；设置页重新授权须在应用内登录 Cloudflare Access 后按 Android 返回键回到应用，再验证公众号预览与发布"}

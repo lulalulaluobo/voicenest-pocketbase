@@ -3,6 +3,7 @@
   "appName": "声笺",
   "webDir": "dist",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "allowNavigation": ["wechat-api.lucc.fun"]
   }
 }
