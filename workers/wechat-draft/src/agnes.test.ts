@@ -43,6 +43,9 @@ describe('Agnes cover API', () => {
       size: '1200x510',
       n: 1
     })
+    const request = JSON.parse(fetchFn.mock.calls[0][1].body)
+    expect(request.prompt).toContain('文章仅用于理解核心主题，绝不复刻标题、正文或任何文字')
+    expect(request.prompt).toContain('参考图仅用于借鉴配色、光影、质感与氛围，禁止复制其文字、版式、主体、标志或水印')
   })
 
   it('passes a local data URL only through the reference-image probe field', async () => {

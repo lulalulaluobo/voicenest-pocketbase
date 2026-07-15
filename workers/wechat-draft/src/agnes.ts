@@ -11,7 +11,7 @@ export class CoverError extends Error {
 }
 
 function buildCoverPrompt(input: CoverGenerateRequest): string {
-  return `${input.prompt}\n\n公众号文章标题：${input.title}\n文章正文：${input.markdown}\n\n请生成一张用于微信公众号的横版封面，约 2.35:1，画面克制、留有呼吸感；不要添加任何可读文字、标志或水印。`
+  return `任务：为微信公众号文章生成一张横版封面。\n\n创作方向：${input.prompt}\n\n文章主题素材（文章仅用于理解核心主题，绝不复刻标题、正文或任何文字）：\n标题：${input.title}\n正文：${input.markdown}\n\n参考图规则：参考图仅用于借鉴配色、光影、质感与氛围，禁止复制其文字、版式、主体、标志或水印。\n\n输出要求：先根据文章主题提炼一个抽象或场景化的视觉隐喻，再创作全新画面。画面约 2.35:1，保持克制、留有呼吸感与明显留白；画面中不得出现任何可读文字、标题、段落、Logo 或水印。`
 }
 
 function imageMimeFromBytes(bytes: Uint8Array): ImageMimeType | undefined {
