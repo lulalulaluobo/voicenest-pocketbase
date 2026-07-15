@@ -4,6 +4,6 @@
   "webDir": "dist",
   "server": {
     "androidScheme": "https",
-    "allowNavigation": ["wechat-api.lucc.fun"]
+    "allowNavigation": ["wechat-api.lucc.fun", "luluen.cloudflareaccess.com"]
   }
 }

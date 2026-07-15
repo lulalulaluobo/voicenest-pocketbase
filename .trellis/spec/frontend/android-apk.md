@@ -18,7 +18,7 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 
 ## 3. Contracts
 
-- 根目录 `capacitor.config.json` 固定包含 `appId: "fun.lucc.voicenest"`、`appName: "声笺"`、`webDir: "dist"` 和 `server.androidScheme: "https"`；`server.allowNavigation` 只能列出 `wechat-api.lucc.fun`，用于在同一 WebView 完成 Cloudflare Access 授权。
+- 根目录 `capacitor.config.json` 固定包含 `appId: "fun.lucc.voicenest"`、`appName: "声笺"`、`webDir: "dist"` 和 `server.androidScheme: "https"`；`server.allowNavigation` 只能列出 `wechat-api.lucc.fun` 与 `luluen.cloudflareaccess.com`，用于在同一 WebView 完成 Cloudflare Access 授权。
 - Android WebView 的预期 Origin 为 `https://localhost`。
 - `android/app/src/main/AndroidManifest.xml` 必须声明 `INTERNET`、`MODIFY_AUDIO_SETTINGS` 与 `RECORD_AUDIO`；Capacitor 对音频捕获会同时请求后两项。
 - `MainActivity` 必须允许 WebView 接收 Cookie 与第三方 Cookie；设置页“重新授权”必须使用当前窗口跳转，授权完成后由用户返回应用，使 Access Cookie 留在同一 WebView。
@@ -34,6 +34,7 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 | 未设置 JBR/Android SDK 环境变量 | Capacitor/Gradle 无法定位 Java 或 SDK；使用 Android Studio JBR 与 `$HOME/Library/Android/sdk`。 |
 | 未声明 `MODIFY_AUDIO_SETTINGS` | Capacitor 音频捕获会把权限请求整体拒绝，即使用户已授权麦克风。 |
 | 在外部浏览器完成 Access 授权 | Access Cookie 不会回到应用 WebView，预览和发布会显示 `Failed to fetch`。 |
+| 仅允许 Worker 域名而遗漏 Access 团队域名 | Worker 的 302 会在登录页跳到系统浏览器，Access 显示 `Invalid login session`。 |
 | APK 版本未递增且遗留 Service Worker 接管页面 | 旧页面仍会执行 `window.open`，导致授权跳到系统浏览器并出现 Access `Invalid login session`。 |
 | 未连接 Android 设备 | APK 构建可通过，但真机录音、备份导入和 Access 登录必须标记为待用户验收。 |
 
@@ -50,6 +51,7 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 2. `npx cap sync android` 通过，`./gradlew assembleDebug` 产生 APK。
 3. 真机安装后验证麦克风授权、十秒录音播放/跳转、重启持久化和完整 ZIP 导入。
 4. 覆盖安装版本号更高的 APK 后，验证授权不会打开系统浏览器，且本地数据仍存在。
+5. 确认 `https://wechat-api.lucc.fun/` 的 302 目标 `https://luluen.cloudflareaccess.com/...` 也留在 App 内。
 
 ## 7. Wrong vs Correct
 
@@ -69,7 +71,7 @@ export default { appId: 'fun.lucc.voicenest' }
   "webDir": "dist",
   "server": {
     "androidScheme": "https",
-    "allowNavigation": ["wechat-api.lucc.fun"]
+    "allowNavigation": ["wechat-api.lucc.fun", "luluen.cloudflareaccess.com"]
   }
 }
 ```

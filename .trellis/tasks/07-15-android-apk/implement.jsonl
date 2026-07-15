@@ -2,3 +2,4 @@
 {"file":".trellis/spec/frontend/android-apk.md","reason":"记录 Capacitor 音频权限与同一 WebView Access 授权的 Android 运行时契约"}
 {"file":".trellis/spec/backend/wechat-access-cors.md","reason":"补充 Android Access Cookie 必须在同一 WebView 完成授权的跨层约束"}
 {"file":".trellis/spec/frontend/android-apk.md","reason":"记录 Android APK 与 PWA Service Worker 缓存隔离，以及递增 versionCode 的更新契约"}
+{"file":".trellis/spec/frontend/android-apk.md","reason":"记录 Cloudflare Access 的 Worker 域名与团队登录域名必须共同留在 Android WebView 白名单"}

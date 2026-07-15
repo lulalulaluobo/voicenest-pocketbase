@@ -8,3 +8,5 @@
 {"check":"Android 真机复验","result":"pending_user","evidence":"待安装本次 APK，验证录音；设置页重新授权须在应用内登录 Cloudflare Access 后按 Android 返回键回到应用，再验证公众号预览与发布"}
 {"check":"Android 授权缓存修复构建","result":"passed","evidence":"npm test 6 文件 29 项、npm run build、npx cap sync android 与 Gradle assembleDebug 均通过；aapt 确认 APK versionCode 2、versionName 1.1。Android 首次加载仅注销遗留 Service Worker，不清除本地数据或 Cookie。"}
 {"check":"Android 授权缓存真机复验","result":"pending_user","evidence":"待覆盖安装 versionCode 2 APK，确认重新授权不再启动系统浏览器，并在 App 内完成 Access 登录后测试预览与草稿发布。"}
+{"check":"Android Access 登录域名构建","result":"passed","evidence":"Worker 根路径 302 已验证跳转至 https://luluen.cloudflareaccess.com/cdn-cgi/access/login/...；npm test、npx cap sync android 与 Gradle assembleDebug 通过；aapt 确认 APK versionCode 3、versionName 1.2，打包配置同时包含 Worker 与 Access 团队域名。"}
+{"check":"Android Access 登录域名真机复验","result":"pending_user","evidence":"待覆盖安装 versionCode 3 APK，确认重新授权全程没有系统浏览器底栏，完成 Access 登录后验证公众号预览与草稿发布。"}
