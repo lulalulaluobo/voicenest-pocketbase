@@ -71,7 +71,7 @@ VoiceNest 可拆分为两部分部署：静态前端与微信公众号 Worker。
 5. 部署 Worker，记录其 https://<worker-name>.<account-subdomain>.workers.dev URL。
 6. 在 Cloudflare Access 为该 workers.dev Worker 启用鉴权，只允许 ACCESS_EMAIL。配置 Access CORS：允许同一个前端 Origin、GET、POST 和 OPTIONS、Content-Type 请求头、credentials，并保持 options preflight 不绕过 Access。
 7. 在 VoiceNest 设置页填入 Worker URL，完成 Access 登录后运行“测试连接”，然后选择内置默认封面或本地 PNG/JPEG/WebP 图片并显式上传。该操作会将图片写入该用户公众号的永久素材库。
-8. 最后只报告前端 URL、Worker URL、连接测试结果，以及是否还需配置公众号 IP 白名单；不要报告任何 Secret。
+8. 最后输出“部署交付报告”：前端提供商与 URL（仅 APK 时写明未部署）、Worker URL、KV 名称、Access 是否已启用、允许来源、连接/预览/草稿测试结果，以及本地未提交变更。报告必须说明网页端或 APK 端在 VoiceNest「设置 → 公众号草稿箱」中应填写的 Worker URL、Access 邮箱何时使用、上线前仍需用户完成的公众号 IP 白名单、默认封面和可选的 ASR/LLM/Obsidian 配置；不得报告任何 Secret、Access 邮箱、Cookie 或 Token。
 ```
 
 `ALLOWED_ORIGINS` 只在得到最终前端 URL 后设置。Cloudflare Access 才是 Worker 的鉴权边界；CORS 只限制浏览器来源，不能替代鉴权。

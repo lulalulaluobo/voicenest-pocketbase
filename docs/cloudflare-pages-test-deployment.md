@@ -126,16 +126,52 @@ Worker 的 `ALLOWED_ORIGINS` 与 Access CORS 必须一致。CORS 不是鉴权；
 5. 测试连接成功后，代理至少验证一次“预览排版”。
 6. 只有用户提供了准备好的测试文章或录音时，代理才点击“发布到草稿箱”。只创建草稿，绝不群发。
 
-## 8. 最终报告
+## 8. 部署交付报告
 
-最终只报告：
+完成后，代理必须按以下格式交付报告。未使用的项目写“未部署”或“不适用”，未完成的项目写“待用户完成”；不得省略。
 
-- Cloudflare Pages URL
-- 测试 Worker URL
-- 测试 KV 名称
-- Access 是否已启用
-- 连接测试、排版预览、草稿创建的结果
-- 唯一仍需用户手动完成的步骤：微信公众号 API 调用 IP 白名单
-- 本地未提交变更
+```text
+# VoiceNest 部署交付报告
+
+## 已部署资源
+- 使用模式：网页 / 仅 Android APK / 网页与 Android APK
+- 前端：Cloudflare Pages URL，或“未部署（仅 APK）”
+- Worker 后端：https://<worker-name>.<account-subdomain>.workers.dev
+- KV：<namespace 名称>
+- Cloudflare Access：已启用 / 未启用
+- Access 策略：仅允许 .dev.vars 中的 ACCESS_EMAIL（不显示实际邮箱）
+- 已配置来源：<PAGES_ORIGIN、https://localhost，或两者>
+
+## 在 VoiceNest 中如何填写
+### 网页端
+1. 打开前端 URL。
+2. 进入「设置 → 公众号草稿箱」，启用该功能。
+3. “公众号发布服务地址”填写：<Worker 后端 URL>。
+4. 点击“重新授权”，在 Cloudflare Access 页面使用 ACCESS_EMAIL 对应的邮箱登录；成功后返回应用。
+5. 点击“测试公众号连接”，再上传内置或自选默认封面。
+
+### Android APK
+1. 安装 APK。仅使用 APK 时无需部署 Pages。
+2. 确认 Worker 的 ALLOWED_ORIGINS 与 Access CORS 都包含 https://localhost；网页与 APK 同时使用时，两处都必须同时包含 Pages URL 和 https://localhost。
+3. 进入「设置 → 公众号草稿箱」，填写同一个 Worker 后端 URL，然后按网页端的“重新授权、测试连接、上传封面”步骤操作。
+
+## ACCESS_EMAIL 的用途
+- 它在第 5 节被写入 Cloudflare Access 的唯一 Allow 策略。
+- 它不填写在 VoiceNest 设置页，也不属于 Worker Secret。
+- 用户点击“重新授权”后，必须用该邮箱对应的 Access 身份完成登录；报告只说明该策略是否已配置，不显示邮箱值。
+
+## 上线前仍需用户完成
+- [ ] 在微信公众号后台添加 Cloudflare API 调用 IP 白名单，并重新运行“测试公众号连接”。
+- [ ] 在 VoiceNest 设置中配置可用的 ASR 与 LLM 服务；它们是“录音 → 转写 → 润色”流程的必要条件。
+- [ ] 如需同步笔记，再配置 Fast Note Sync（Obsidian）；如不需要可跳过。
+- [ ] 如需发布公众号草稿，完成默认封面上传；只预览排版可不创建草稿。
+
+## 验收结果
+- Access 登录：通过 / 待完成
+- 连接测试：通过 / 待 IP 白名单 / 失败（原因）
+- 排版预览：通过 / 未执行
+- 草稿创建：通过 / 未执行 / 失败（原因）
+- 本地未提交变更：<路径或“无”>
+```
 
 最终不得输出 Secret、AppID、AppSecret、`media_id`、Access 邮箱、Cookie、Token 或密码。
