@@ -33,7 +33,7 @@ POST /drafts
 - 未配置默认封面时，`POST /drafts` 返回 `422 COVER_NOT_CONFIGURED`，不得创建或更新草稿。
 - Worker 的地址为 `https://<worker-name>.<account-subdomain>.workers.dev`；Cloudflare Access 必须只允许 `ACCESS_EMAIL`。
 - Access CORS 与 Worker 同时允许该 Origin、`GET`、`POST`、`OPTIONS`、`Content-Type` 和 credentials；`options_preflight_bypass` 保持关闭。
-- 部署代理获得 `Access: Apps and Policies Write` 时，必须自行创建测试 Worker 的自托管 Access 应用和唯一 Allow 策略，并通过 API 读取回验；仅在该权限缺失时才暂停要求用户在 Dashboard 完成同一配置。
+- 部署代理必须使用具备 `Access: Apps and Policies Write` 的当前授权会话，自行创建测试 Worker 的自托管 Access 应用和唯一 Allow 策略，并通过 API 读取回验；不得将 Access 资源配置交给用户。
 - CORS 不是鉴权。Access 负责防止未授权用户调用持有公众号 Secret 的 Worker。
 
 ## 4. Validation & Error Matrix
@@ -51,7 +51,7 @@ POST /drafts
 
 ## 5. Good / Base / Bad Cases
 
-- Good：用户填本地 `.dev.vars`，部署代理创建独立 KV、导入 Secret、写入最终 Pages/Vercel Origin 和测试 Access 策略；用户在已登录 Access 的 PWA 中上传一次默认封面，然后发布草稿。
+- Good：用户填本地 `.dev.vars`，部署代理创建独立 KV、导入 Secret、写入最终 Pages/Vercel Origin 和测试 Access 策略，并在当前浏览器会话中完成 Access 回跳；用户只在公众号后台配置 API IP 白名单。
 - Base：只部署前端，未启用公众号功能；前端仍可本地录音、处理和保存，不请求 Worker。
 - Bad：将 AppSecret 或封面 `media_id` 放入 Vite 环境变量、README、`wrangler.jsonc`、Git 历史；或在设置页自动上传封面并意外消耗永久素材配额。
 
@@ -61,7 +61,7 @@ POST /drafts
 2. `workers/wechat-draft/src/images.test.ts` 验证允许的封面 Data URL 与不允许的格式。
 3. `workers/wechat-draft/src/index.test.ts` 验证 OPTIONS 包含 `GET`、封面状态不泄露 `media_id`、上传封面会保存 KV、无封面时草稿返回 422。
 4. `npm --prefix workers/wechat-draft test`、`npm --prefix workers/wechat-draft run check`、`npm test` 与 `npm run build` 通过。
-5. 部署后代理读取回验 Access 应用、唯一 Allow 策略与 CORS；未登录请求必须被 Access 重定向。用户在浏览器中完成 Access 登录后，运行“测试连接”、上传默认封面并验证预览；若收到 `WECHAT_IP_NOT_ALLOWED`，更新公众号 IP 白名单后再次验证。
+5. 部署后代理读取回验 Access 应用、唯一 Allow 策略与 CORS；未登录请求必须被 Access 重定向。代理在当前浏览器会话中完成 Access 登录后，运行“测试连接”、上传默认封面并验证预览；若收到 `WECHAT_IP_NOT_ALLOWED`，等待用户更新公众号 IP 白名单后再次验证。
 
 ## 7. Wrong vs Correct
 

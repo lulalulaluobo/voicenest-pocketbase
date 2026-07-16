@@ -9,7 +9,7 @@
 - 只使用 Cloudflare Pages；本次测试不使用 Vercel。
 - 测试 Worker、Pages 项目和 KV 名称必须与生产资源不同。推荐 Worker 名称：`voicenest-wechat-draft-test`；推荐 Pages 项目名：`voicenest-test`。
 - 可以读取 `workers/wechat-draft/.dev.vars`，但不得打印、复制到聊天、写入日志、提交 Git、写入前端环境变量或备份文件。
-- 不索取、不保存账户密码或长期 API Token。涉及 Cloudflare、GitHub、Access、微信公众号后台登录时，暂停并由用户在官方页面完成。
+- 不索取、不保存账户密码、Cookie 或长期 API Token。代理使用当前浏览器和 Wrangler 的已授权会话完成 Cloudflare、GitHub 与 Access 交互；不得将这些交互变成用户的部署配置任务。
 - 不修改、删除或覆盖现有生产 Worker、Pages、KV、域名或公众号草稿。
 - 每次可能影响资源的操作前，核对名称含 `-test`；不符合则停止并说明。
 
@@ -91,7 +91,7 @@ ALLOWED_ORIGINS=<PAGES_ORIGIN>,https://localhost
 
 Worker 的 `ALLOWED_ORIGINS` 与 Access CORS 必须一致。CORS 不是鉴权；Access 才负责限制公众号 Secret 的使用者。
 
-若当前 Cloudflare 授权缺少 `Access: Apps and Policies Write`，代理才暂停，并明确要求用户完成该授权或在 Dashboard 配置同一组值；不得因普通网页登录而默认将此步骤交给用户。
+代理必须使用具备 `Access: Apps and Policies Write` 的当前授权会话完成此步骤；若会话需要重新授权，代理在当前浏览器中完成 OAuth/授权流程，但不得要求用户手动配置 Access 资源。
 
 ## 6. 微信公众号 API 调用 IP 白名单
 
@@ -119,13 +119,12 @@ Worker 的 `ALLOWED_ORIGINS` 与 Access CORS 必须一致。CORS 不是鉴权；
 
 ## 7. 前端验收
 
-1. 打开 `PAGES_ORIGIN`。
-2. 在 VoiceNest「设置 → 公众号草稿箱」填写测试 Worker URL。
-3. 点击“重新授权”；用户在 Access 页面登录后返回应用。
-4. 点击“测试连接”。
-5. 选择内置默认封面或一张本地 PNG/JPEG/WebP 图片，点击上传；确认上传成功。此操作只会创建该公众号的永久图片素材，不会发布文章。
-6. 测试连接成功后，至少验证一次“预览排版”。
-7. 只有用户提供了准备好的测试文章或录音时，才点击“发布到草稿箱”。只创建草稿，绝不群发。
+1. 代理打开 `PAGES_ORIGIN`，在 VoiceNest「设置 → 公众号草稿箱」填写测试 Worker URL。
+2. 代理点击“重新授权”，使用当前浏览器已授权会话完成 Access 回跳；不得要求用户手动配置或复制 Cookie。
+3. 代理点击“测试连接”。若返回 `40164` 或 `WECHAT_IP_NOT_ALLOWED`，暂停等待用户完成第 6 节的公众号白名单后重试。
+4. 代理选择内置默认封面或一张本地 PNG/JPEG/WebP 图片，点击上传并确认成功。此操作只会创建该公众号的永久图片素材，不会发布文章。
+5. 测试连接成功后，代理至少验证一次“预览排版”。
+6. 只有用户提供了准备好的测试文章或录音时，代理才点击“发布到草稿箱”。只创建草稿，绝不群发。
 
 ## 8. 最终报告
 
@@ -136,7 +135,7 @@ Worker 的 `ALLOWED_ORIGINS` 与 Access CORS 必须一致。CORS 不是鉴权；
 - 测试 KV 名称
 - Access 是否已启用
 - 连接测试、排版预览、草稿创建的结果
-- 仍需用户手动完成的步骤
+- 唯一仍需用户手动完成的步骤：微信公众号 API 调用 IP 白名单
 - 本地未提交变更
 
 最终不得输出 Secret、AppID、AppSecret、`media_id`、Access 邮箱、Cookie、Token 或密码。
