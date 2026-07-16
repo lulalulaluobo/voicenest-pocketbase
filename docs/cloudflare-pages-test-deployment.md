@@ -82,18 +82,16 @@ ALLOWED_ORIGINS=<PAGES_ORIGIN>,https://localhost
 
 ## 5. 配置 Cloudflare Access 与 CORS
 
-为测试 Worker 的 `workers.dev` 地址启用 Cloudflare Access：
+此步骤由 AI 代理优先通过 Cloudflare Access API 完成；创建前确认目标应用不存在，且仅覆盖测试 Worker 的 `workers.dev` 域名。
 
-- 仅允许 `ACCESS_EMAIL`。
-- Access CORS 的 Allowed origins 设置为 `PAGES_ORIGIN`；Android 测试时额外加入 `https://localhost`。
-- 允许方法：`GET`、`POST`、`OPTIONS`。
-- 允许请求头：`Content-Type`。
-- 启用 credentials。
-- 不绕过 OPTIONS 预检。
+1. 创建自托管 Access 应用，域名为测试 Worker 的 `workers.dev` 地址，不显示在 App Launcher。
+2. 创建唯一 Allow 策略，仅包含 `.dev.vars` 中的 `ACCESS_EMAIL`；不得加入通配符、全员或生产邮箱。
+3. 写入 Access CORS：Allowed origins 为 `PAGES_ORIGIN`；Android 测试时才额外加入 `https://localhost`；允许方法 `GET`、`POST`、`OPTIONS`；允许请求头 `Content-Type`；启用 credentials；将 `options_preflight_bypass` 显式设为关闭。
+4. 验证 Access 应用的域名、唯一策略、CORS 配置均准确，且未登录请求被重定向到 Access，而不是直接返回 Worker 内容。
 
 Worker 的 `ALLOWED_ORIGINS` 与 Access CORS 必须一致。CORS 不是鉴权；Access 才负责限制公众号 Secret 的使用者。
 
-若需要在 Cloudflare 页面创建或确认 Access 配置，暂停并明确告诉用户需要完成的页面操作。
+若当前 Cloudflare 授权缺少 `Access: Apps and Policies Write`，代理才暂停，并明确要求用户完成该授权或在 Dashboard 配置同一组值；不得因普通网页登录而默认将此步骤交给用户。
 
 ## 6. 微信公众号 API 调用 IP 白名单
 
