@@ -147,6 +147,34 @@ button {
   overflow-x: hidden;
 }
 
+.home-view {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.home-view .topbar,
+.home-view .type-row,
+.home-view .pause-row {
+  flex: none;
+}
+
+.home-view .rec-card {
+  flex: 1;
+  min-height: 0;
+}
+
+.home-view .pause-row {
+  margin-top: 14px;
+}
+
+.home-view .ghost {
+  flex: 1;
+  min-height: 52px;
+}
+
 .topbar {
   display: flex;
   align-items: center;

@@ -1,5 +1,6 @@
 # standard ignores
 .gemini/
+.superpowers/
 .obsidian/workspace.json
 node_modules/
 dist/

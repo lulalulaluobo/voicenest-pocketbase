@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Recording } from '../domain/recording'
 import { useRecorder } from '../hooks/use-recorder'
-import { listRecordings, recordingDb } from '../lib/recording-db'
-import { RecordingCard } from '../components/RecordingCard'
+import { recordingDb } from '../lib/recording-db'
 import { getNoteTypes, type UserNoteType } from '../lib/config-store'
 import { useProcessor } from '../hooks/use-processor'
 import { ThemeToggle } from '../components/ThemeToggle'
@@ -17,52 +15,35 @@ export function HomePage({ recorder }: { recorder: ReturnType<typeof useRecorder
   const navigate = useNavigate()
   const [types, setTypes] = useState<UserNoteType[]>([])
   const [selectedType, setSelectedType] = useState<UserNoteType | null>(null)
-  const [recent, setRecent] = useState<Recording[]>([])
-  const [highlightedId, setHighlightedId] = useState<string | null>(null)
   
   // 底部抽屉与遮罩
   const [showMoreSheet, setShowMoreSheet] = useState(false)
 
   const { processRecording } = useProcessor()
 
-  const refresh = useCallback(async () => {
-    setRecent((await listRecordings()).slice(0, 2))
+  useEffect(() => {
     const noteTypes = getNoteTypes()
     setTypes(noteTypes)
-    if (!selectedType && noteTypes.length > 0) {
+    setSelectedType((selected) => {
+      if (selected || !noteTypes.length) return selected
       const def = noteTypes.find((t) => t.isDefault) || noteTypes[0]
-      setSelectedType(def)
-    }
-  }, [selectedType])
-
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
-
-  useEffect(() => {
-    if (!highlightedId) return
-    document.getElementById(`recording-${highlightedId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    const timer = window.setTimeout(() => setHighlightedId(null), 2000)
-    return () => window.clearTimeout(timer)
-  }, [highlightedId])
+      return def
+    })
+  }, [])
 
   const complete = async () => {
     if (!selectedType) return
     const id = await recorder.stop()
-    await refresh()
     if (id) {
-      setHighlightedId(id)
-      
       const autoProcess = localStorage.getItem('vn_auto_process') === 'true'
       if (autoProcess) {
         if (navigator.onLine) {
-          void processRecording(id, 'full').then(() => refresh())
+          void processRecording(id, 'full')
         } else {
           await recordingDb.recordings.update(id, {
             status: 'waiting_network',
             updatedAt: new Date().toISOString()
           })
-          await refresh()
         }
       }
     }
@@ -76,7 +57,7 @@ export function HomePage({ recorder }: { recorder: ReturnType<typeof useRecorder
   }
 
   return (
-    <section className="view">
+    <section className="view home-view">
       {/* 顶部栏 */}
       <header className="topbar">
         <div>
@@ -123,41 +104,20 @@ export function HomePage({ recorder }: { recorder: ReturnType<typeof useRecorder
           aria-label="录音主控"
         />
 
-        {/* 暂停与完成控制行 */}
-        <div className={`pause-row ${recorder.state !== 'idle' ? 'show' : ''}`}>
-          {recorder.state === 'recording' && (
-            <button className="ghost" onClick={recorder.pause}>暂停</button>
-          )}
-          {recorder.state === 'paused' && (
-            <button className="ghost" onClick={recorder.resume}>继续</button>
-          )}
-          <button className="ghost" onClick={() => void complete()}>完成</button>
-        </div>
-
         <div className="rec-hint">
           {recorder.state === 'idle' ? '点击开始录音' : '请保持页面前台'}
         </div>
       </div>
 
-      {/* 最近录音板块 */}
-      <div className="section-head" id="recentHead">
-        <h2>最近录音</h2>
-        <button onClick={() => navigate('/recordings')}>查看全部</button>
-      </div>
-
-      <div className="list" id="recentList">
-        {recent.length ? (
-          recent.map((recording) => (
-            <RecordingCard
-              highlighted={recording.id === highlightedId}
-              key={recording.id}
-              recording={recording}
-              onRefresh={refresh}
-            />
-          ))
-        ) : (
-          <p className="empty-state">还没有本地录音，立即点击按钮录制一个吧！</p>
+      {/* 暂停与结束控制行 */}
+      <div className={`pause-row ${recorder.state !== 'idle' ? 'show' : ''}`}>
+        {recorder.state === 'recording' && (
+          <button className="ghost" onClick={recorder.pause}>暂停</button>
         )}
+        {recorder.state === 'paused' && (
+          <button className="ghost" onClick={recorder.resume}>继续</button>
+        )}
+        <button className="ghost" onClick={() => void complete()}>结束</button>
       </div>
 
       {/* 更多分类抽屉 */}
