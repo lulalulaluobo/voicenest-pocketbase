@@ -31,27 +31,31 @@
 
 ## 2. 部署 Cloudflare Pages
 
-1. 从当前 GitHub 仓库创建新的 Cloudflare Pages **生产**项目，名称使用独立测试名，例如 `voicenest-test`。
-2. 设置构建命令为 `npm run build`，输出目录为 `dist`。
-3. 完成生产部署，记录固定生产地址：
+此步骤由 AI 代理自行完成；不得要求用户在 Cloudflare Dashboard 手动创建 Pages 项目或连接 GitHub。
+
+1. 从当前 GitHub 仓库已检出的工作区构建前端。创建新的 Cloudflare Pages **生产**项目，名称使用独立测试名，例如 `voicenest-test`；创建前确认该项目不存在，且名称含 `-test`。
+2. 将项目构建配置写为构建命令 `npm run build`、输出目录 `dist`、生产分支 `main`。
+3. 在本地运行 `npm run build`，然后将 `dist` 以生产分支上传到该测试 Pages 项目。代理必须使用 Pages 的固定项目域名，不得把上传返回的随机部署 URL 当作 Origin。
+4. 验证固定生产地址可访问，记录：
 
    ```text
    https://<pages-project>.pages.dev
    ```
 
-4. 将该地址记为 `PAGES_ORIGIN`。不要使用 PR 预览部署的随机 URL。
+5. 将该地址记为 `PAGES_ORIGIN`。不要使用 PR 预览部署的随机 URL。
 
 ## 3. 部署独立测试 Worker 与 KV
 
 1. 在本地将 `workers/wechat-draft/wrangler.jsonc` 的 `name` 临时改为唯一测试名称，例如 `voicenest-wechat-draft-test`。不得使用生产名称。
-2. 在 `workers/wechat-draft` 目录部署 Worker 到 `workers.dev`，并创建/绑定独立的 `WECHAT_CACHE` KV namespace。
-3. 记录 Worker 地址：
+2. 创建名为 `voicenest-wechat-cache-test` 的独立 `WECHAT_CACHE` KV namespace，并仅在本地 `wrangler.jsonc` 绑定其 ID。不得使用或改动生产 KV。
+3. 在部署前执行 Worker 干跑校验，确认部署目标与 KV 均为 `-test` 资源。
+4. 按第 4 节以 Secret 一并完成首次部署，再记录 Worker 地址：
 
    ```text
    https://voicenest-wechat-draft-test.<cloudflare-subdomain>.workers.dev
    ```
 
-4. 如果 Wrangler 把新 KV ID 写回本地 `wrangler.jsonc`，保留它仅用于本次测试；不要提交。测试结束后向用户报告这项本地变更。
+5. 如果 Wrangler 把新 KV ID 写回本地 `wrangler.jsonc`，保留它仅用于本次测试；不要提交。测试结束后向用户报告这项本地变更。
 
 ## 4. 配置 Worker Secret 与 Origin
 
@@ -72,7 +76,9 @@ ALLOWED_ORIGINS=<PAGES_ORIGIN>
 ALLOWED_ORIGINS=<PAGES_ORIGIN>,https://localhost
 ```
 
-确认测试 Worker 存在三项必需 Secret 后，再执行最终部署。不得显示 Secret、AppID 或 AppSecret。
+对于尚不存在的测试 Worker，Wrangler 不能先执行 `secret put`。代理必须从 `.dev.vars` 读取两项值，并与 `ALLOWED_ORIGINS` 在进程标准输入中合成为 `--secrets-file /dev/stdin` 的首次部署输入；不得将 Secret 写入仓库、前端、日志、临时文件或备份文件。首次部署成功后，使用 `secret list` 仅核对三个 Secret 名称是否存在。
+
+确认测试 Worker 存在三项必需 Secret 后，再执行最终部署或验证。不得显示 Secret、AppID 或 AppSecret。
 
 ## 5. 配置 Cloudflare Access 与 CORS
 

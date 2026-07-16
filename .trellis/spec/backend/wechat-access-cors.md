@@ -27,6 +27,7 @@ POST /drafts
 
 - 用户从 `workers/wechat-draft/.dev.vars.example` 复制出本地 `.dev.vars`，填写 AppID、AppSecret、`ACCESS_EMAIL` 和 `FRONTEND_PROVIDER`；此文件被 Git 忽略。
 - 部署代理先得到前端生产 HTTPS Origin，再将其精确写入 `ALLOWED_ORIGINS` Secret。不得使用 `*`，也不得保留其他部署者的 Origin。
+- 对尚不存在的 Worker，代理必须在首次 `wrangler deploy` 时通过进程标准输入提供 `WECHAT_APP_ID`、`WECHAT_APP_SECRET` 与 `ALLOWED_ORIGINS`；不得为 `--secrets-file` 持久化创建含密钥的临时、备份或仓库文件。
 - `WECHAT_CACHE` 为用户自己的 KV namespace；其中 `wechat:default-cover-media-id` 保存用户已上传封面的永久素材 ID，绝不返回给前端。
 - 设置页可显示内置封面或选择 PNG/JPEG/WebP（最大 5 MiB），但仅在用户显式点击上传时，Worker 才以 `material/add_material?type=image` 写入该用户的公众号永久素材库并更新 KV。
 - 未配置默认封面时，`POST /drafts` 返回 `422 COVER_NOT_CONFIGURED`，不得创建或更新草稿。
