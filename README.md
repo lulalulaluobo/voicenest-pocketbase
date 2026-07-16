@@ -2,6 +2,29 @@
 
 个人使用的本地优先语音收件箱。录音、模型 API Key 与公众号配置均保存在用户自己的设备或 Cloudflare 账号中。
 
+## 项目用途
+
+把一闪而过的想法变成可继续使用的内容：录音、转写、润色，再写入你的知识库或公众号草稿箱。
+
+- 笔记工作流：`录音 → ASR 转文字 → LLM 按笔记类型润色 → 同步到 Obsidian`
+- 公众号工作流：`录音 → ASR 转文字 → LLM 按公众号提示词改写 → 预览排版 → 保存到微信公众号草稿箱`
+
+录音、文本和设置默认只保存在当前设备；你可以按需连接自己的 ASR、LLM、Obsidian 与微信公众号服务。
+
+## 界面预览
+
+<p align="center">
+  <img src="docs/assets/recording-screen.png" alt="VoiceNest 录音页" width="30%">
+  <img src="docs/assets/library-screen.png" alt="VoiceNest 音频列表页" width="30%">
+  <img src="docs/assets/settings-screen.png" alt="VoiceNest 设置页" width="30%">
+</p>
+
+## 一句话交给 AI 部署
+
+```text
+请阅读当前 VoiceNest 仓库的 README.md，严格按“交给 AI 代理部署”一节完成部署；绝不输出、提交或泄露 workers/wechat-draft/.dev.vars 中的任何值。
+```
+
 ## 本地运行
 
 ```bash
