@@ -11,6 +11,10 @@ npm run test
 npm run build
 ```
 
+## Android
+
+在 [GitHub Releases](https://github.com/lulalulaluobo/VoiceNest/releases/latest) 下载 `VoiceNest-*-debug.apk`。这是调试包；首次安装时，Android 可能要求允许此来源安装未知应用。应用数据、录音和配置仍仅保存在设备本地。
+
 ## 部署
 
 VoiceNest 可拆分为两部分部署：静态前端与微信公众号 Worker。前端可部署到 Vercel 或 Cloudflare Pages；二者提供免费平台子域名（`.vercel.app` / `.pages.dev`），不是免费自定义域名。Worker 使用 Cloudflare 提供的 `workers.dev` 地址，不需要购买域名。

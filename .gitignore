@@ -14,4 +14,9 @@ references/
 .env*
 workers/wechat-draft/.dev.vars*
 !workers/wechat-draft/.dev.vars.example
+# Android signing and service configuration
+*.jks
+*.keystore
+*.p12
+google-services.json
 .DS_Store
