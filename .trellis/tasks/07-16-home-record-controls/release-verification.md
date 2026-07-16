@@ -5,23 +5,21 @@
 ## 发布提交
 
 - Git 提交：`8079d0da953b3a5c6365813e41e7a7f09277dfa9`
-- 前端构建：`npm run build` 成功。
-- 仓库没有 Git 远程；本次需要手动部署，提交不会触发 CI/CD。
+- 前端构建：`npm test`（30 项）与 `npm run build` 均成功。
+- 仓库没有 Git 远程；本次通过 CLI 手动部署。
 
 ## 入口地图与结果
 
-| 入口 | 现状 | 验证结果 |
-| --- | --- | --- |
-| Web / 自定义域名 `obvoice.lucc.fun` | Vercel 静态 PWA | 生产 HTML 引用的资源哈希与本次本地构建不同，尚未部署本次提交。 |
-| 已安装 PWA | 依赖生产站点及 Service Worker 更新 | 未验证；生产 Web 仍为旧资源，不能交付为本次版本。 |
-| Worker `wechat-api.lucc.fun` | Cloudflare Worker，自定义域名 | 未验证业务响应。来自生产 Origin 的无副作用 `/preview` 请求被 Cloudflare Access 以 302 登录跳转拦截，发生在 Worker CORS 逻辑之前。 |
-| Android APK | Capacitor Android，`versionCode 8` / `versionName 1.7` | 未构建；本机无 Java Runtime，Gradle 无法启动；未发现可交付的 APK/AAB 产物。 |
+| 入口 | 结果 |
+| --- | --- |
+| Web / 自定义域名 `obvoice.lucc.fun` | 已通过 Vercel 部署并显式切换别名。生产 HTML 返回本次构建资源 `index-DgGReZLc.js`，HTTP 200。 |
+| 已安装 PWA | 生产 Web 已更新；仍需在已有安装实例完整重启后确认 Service Worker 已换新。 |
+| Worker `wechat-api.lucc.fun` | 已部署 `voicenest-wechat-draft`，版本 `072a2c25-c14b-430a-b5d9-1b74d8c4d9d1`，并保留现有 KV 与环境变量。业务 `/preview` 仍受 Cloudflare Access 登录保护，需登录会话后验证。 |
+| Android release APK | 已构建 `android/app/build/outputs/apk/release/app-release-unsigned.apk`，包版本为 `versionCode 8` / `versionName 1.7`；因未配置 release 签名，不能安装或作为生产包交付。 |
+| Android 模拟器验证 | 已构建并安装 debug APK 到 `emulator-5554`，应用正常启动至固定单屏主页，底部导航可见，无崩溃日志。 |
 
-## 发布阻塞与后续验证
+## 剩余发布动作
 
-1. 通过 Vercel 手动部署当前提交，并确认 `obvoice.lucc.fun` 的 HTML 引用新构建资源。
-2. 在已安装 PWA 完整重启后确认 Service Worker 已更新，再完成主页最短录音路径。
-3. 在同一浏览器容器完成 Cloudflare Access 登录后，从 Web/PWA 重新调用 `/preview`；Android 还需从 `https://localhost` Origin 走完登录、回跳、Cookie 持久化和接口调用。
-4. 安装 JDK 后运行 Capacitor 同步和 Gradle release 构建，安装 APK 到真机并完成本次主页录音路径。
-
-在以上入口未完成验证前，不应将本次提交宣称为已发布版本。
+1. 提供 release keystore 后签名 release APK，安装到真机并完成录音、暂停、结束的最短路径。
+2. 在生产 Web/PWA 与 Android WebView 的已登录 Cloudflare Access 会话中，各调用一次 Worker `/preview`，验证回跳、Cookie 和接口响应。
+3. 在已安装 PWA 完整重启后确认 Service Worker 更新。
