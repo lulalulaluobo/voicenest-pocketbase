@@ -1,8 +1,10 @@
 import { renderWechatHtml } from './markdown'
+import { parseImageDataUrl } from './images'
 import type { DraftArticle, DraftRequest, DraftResponse, Env } from './types'
-import { createDraft, getAccessToken, updateDraft, WechatApiError } from './wechat'
+import { createDraft, getAccessToken, updateDraft, uploadCover, WechatApiError } from './wechat'
 
 const REQUEST_TTL_SECONDS = 60 * 60 * 24 * 7
+const DEFAULT_COVER_KEY = 'wechat:default-cover-media-id'
 
 interface PreviewRequest {
   title: string
@@ -92,15 +94,20 @@ function validateContent(content: string, origin: string): Response | undefined 
   }
 }
 
-function makeArticle(request: DraftRequest, env: Env, origin: string): DraftArticle | Response {
+async function makeArticle(request: DraftRequest, env: Env, origin: string): Promise<DraftArticle | Response> {
   const content = renderWechatHtml(request.markdown)
   const invalid = validateContent(content, origin)
   if (invalid) return invalid
 
+  const coverMediaId = await env.WECHAT_CACHE.get(DEFAULT_COVER_KEY)
+  if (!coverMediaId) {
+    return json({ code: 'COVER_NOT_CONFIGURED', message: '请先在设置中上传公众号默认封面' }, 422, origin)
+  }
+
   return {
     title: request.title,
     content,
-    thumb_media_id: env.WECHAT_COVER_MEDIA_ID,
+    thumb_media_id: coverMediaId,
     need_open_comment: 0,
     only_fans_can_comment: 0
   }
@@ -128,7 +135,7 @@ async function handleDraft(request: Request, env: Env, origin: string): Promise<
     }
   }
 
-  const article = makeArticle(input, env, origin)
+  const article = await makeArticle(input, env, origin)
   if (isResponse(article)) return article
 
   let mediaId: string
@@ -148,6 +155,26 @@ async function handleDraft(request: Request, env: Env, origin: string): Promise<
 
   const response: DraftResponse = { mediaId, reused: false }
   return json(response, 200, origin)
+}
+
+async function handleCoverStatus(env: Env, origin: string): Promise<Response> {
+  return json({ configured: Boolean(await env.WECHAT_CACHE.get(DEFAULT_COVER_KEY)) }, 200, origin)
+}
+
+async function handleCover(request: Request, env: Env, origin: string): Promise<Response> {
+  const input = await request.json().catch(() => null) as { dataUrl?: unknown } | null
+  let image
+  try {
+    image = parseImageDataUrl(input?.dataUrl)
+  } catch (error) {
+    return json({
+      code: 'INVALID_COVER',
+      message: error instanceof Error ? error.message : '封面图片无效'
+    }, 400, origin)
+  }
+  const mediaId = await uploadCover(env, image)
+  await env.WECHAT_CACHE.put(DEFAULT_COVER_KEY, mediaId)
+  return json({ configured: true }, 200, origin)
 }
 
 async function handlePreview(request: Request, origin: string): Promise<Response> {
@@ -201,7 +228,7 @@ export default {
           'Access-Control-Allow-Origin': origin!,
           'Access-Control-Allow-Credentials': 'true',
           'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
           Vary: 'Origin'
         }
       })
@@ -211,6 +238,12 @@ export default {
       if (request.method === 'POST' && url.pathname === '/connection-test') {
         await getAccessToken(env)
         return json({ ok: true }, 200, origin)
+      }
+      if (request.method === 'GET' && url.pathname === '/cover') {
+        return await handleCoverStatus(env, origin)
+      }
+      if (request.method === 'POST' && url.pathname === '/cover') {
+        return await handleCover(request, env, origin)
       }
       if (request.method === 'POST' && url.pathname === '/preview') {
         return await handlePreview(request, origin)

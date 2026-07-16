@@ -13,7 +13,6 @@
     "required": [
       "WECHAT_APP_ID",
       "WECHAT_APP_SECRET",
-      "WECHAT_COVER_MEDIA_ID",
       "ALLOWED_ORIGINS"
     ]
   }

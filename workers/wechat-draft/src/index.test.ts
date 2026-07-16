@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import worker from './index'
 import type { Env, KVStore } from './types'
 
-function createKv(): KVStore {
-  const values = new Map<string, string>()
+function createKv(initial: Record<string, string> = {}): KVStore {
+  const values = new Map<string, string>(Object.entries(initial))
   return {
     get: async (key) => values.get(key) ?? null,
     put: async (key, value) => {
@@ -18,12 +18,11 @@ function jsonResponse(data: unknown): Response {
   })
 }
 
-function createEnv(): Env {
+function createEnv(withCover = true): Env {
   return {
-    WECHAT_CACHE: createKv(),
+    WECHAT_CACHE: createKv(withCover ? { 'wechat:default-cover-media-id': 'cover-media-id' } : {}),
     WECHAT_APP_ID: 'app-id',
     WECHAT_APP_SECRET: 'app-secret',
-    WECHAT_COVER_MEDIA_ID: 'cover-media-id',
     ALLOWED_ORIGINS: 'https://obvoice.lucc.fun,https://localhost'
   }
 }
@@ -67,6 +66,7 @@ describe('Worker routes', () => {
 
     expect(response.status).toBe(204)
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://localhost')
+    expect(response.headers.get('Access-Control-Allow-Methods')).toBe('GET, POST, OPTIONS')
   })
 
   it('rejects origins outside the allowlist', async () => {
@@ -144,6 +144,63 @@ describe('Worker routes', () => {
     await expect(response.json()).resolves.toMatchObject({
       title: '预览标题',
       html: expect.stringContaining('<h2 style=')
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('reports whether a default cover is configured without exposing its media ID', async () => {
+    const response = await worker.fetch(new Request('https://wechat-api.lucc.fun/cover', {
+      headers: { Origin: 'https://obvoice.lucc.fun' }
+    }), createEnv())
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ configured: true })
+  })
+
+  it('uploads and saves a default cover as permanent WeChat material', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token', expires_in: 7200 }))
+      .mockResolvedValueOnce(jsonResponse({ media_id: 'cover-new' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const env = createEnv(false)
+
+    const response = await worker.fetch(new Request('https://wechat-api.lucc.fun/cover', {
+      method: 'POST',
+      headers: { Origin: 'https://obvoice.lucc.fun', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataUrl: 'data:image/png;base64,AA==' })
+    }), env)
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ configured: true })
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/cgi-bin/material/add_material?access_token=token&type=image')
+    await expect(env.WECHAT_CACHE.get('wechat:default-cover-media-id')).resolves.toBe('cover-new')
+  })
+
+  it('rejects an unsupported cover before calling WeChat', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await worker.fetch(new Request('https://wechat-api.lucc.fun/cover', {
+      method: 'POST',
+      headers: { Origin: 'https://obvoice.lucc.fun', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataUrl: 'data:image/gif;base64,AA==' })
+    }), createEnv(false))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({ code: 'INVALID_COVER' })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('does not create a draft before a default cover is configured', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await worker.fetch(draftRequest(), createEnv(false))
+
+    expect(response.status).toBe(422)
+    await expect(response.json()).resolves.toEqual({
+      code: 'COVER_NOT_CONFIGURED',
+      message: '请先在设置中上传公众号默认封面'
     })
     expect(fetchMock).not.toHaveBeenCalled()
   })

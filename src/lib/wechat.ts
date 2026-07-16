@@ -19,10 +19,14 @@ export interface WechatPreviewResult {
   html: string
 }
 
+export interface WechatCoverStatus {
+  configured: boolean
+}
+
 export class WechatDraftError extends Error {
   constructor(
     message: string,
-    public readonly kind: 'authorization' | 'ip_whitelist' | 'api'
+    public readonly kind: 'authorization' | 'ip_whitelist' | 'cover_missing' | 'api'
   ) {
     super(message)
     this.name = 'WechatDraftError'
@@ -57,7 +61,25 @@ async function readError(response: Response): Promise<WechatDraftError> {
   if (data?.code === 'WECHAT_IP_NOT_ALLOWED') {
     return new WechatDraftError('公众号 IP 白名单未配置，请先运行连接测试', 'ip_whitelist')
   }
+  if (data?.code === 'COVER_NOT_CONFIGURED') {
+    return new WechatDraftError('请先在设置中上传公众号默认封面', 'cover_missing')
+  }
   return new WechatDraftError(data?.message || `公众号发布服务请求失败 (${response.status})`, 'api')
+}
+
+async function readCoverStatus(response: Response): Promise<WechatCoverStatus> {
+  const data = await response.json().catch(() => null) as Partial<WechatCoverStatus> | null
+  if (typeof data?.configured !== 'boolean') {
+    throw new WechatDraftError('公众号封面服务返回的数据无效', 'api')
+  }
+  return { configured: data.configured }
+}
+
+async function imageDataUrl(file: File): Promise<string> {
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return `data:${file.type};base64,${btoa(binary)}`
 }
 
 export async function testWechatConnection(config: WechatDraftConfig): Promise<void> {
@@ -68,6 +90,29 @@ export async function testWechatConnection(config: WechatDraftConfig): Promise<v
   if (!response.ok) {
     throw await readError(response)
   }
+}
+
+export async function getWechatCoverStatus(config: WechatDraftConfig): Promise<WechatCoverStatus> {
+  const response = await fetch(`${workerBaseUrl(config)}/cover`, {
+    method: 'GET',
+    credentials: 'include'
+  })
+  if (!response.ok) throw await readError(response)
+  return readCoverStatus(response)
+}
+
+export async function uploadWechatCover(
+  config: WechatDraftConfig,
+  file: File
+): Promise<WechatCoverStatus> {
+  const response = await fetch(`${workerBaseUrl(config)}/cover`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dataUrl: await imageDataUrl(file) })
+  })
+  if (!response.ok) throw await readError(response)
+  return readCoverStatus(response)
 }
 
 export async function previewWechatDraft(

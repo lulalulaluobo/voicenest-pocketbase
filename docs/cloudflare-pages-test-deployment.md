@@ -25,7 +25,6 @@
 
 - `WECHAT_APP_ID`
 - `WECHAT_APP_SECRET`
-- `WECHAT_COVER_MEDIA_ID`
 - `ACCESS_EMAIL`
 
 将 `FRONTEND_PROVIDER` 设为 `cloudflare-pages`。如果该文件不存在，先从 `workers/wechat-draft/.dev.vars.example` 复制生成；真实 `.dev.vars` 不得提交。
@@ -60,7 +59,6 @@
 
 - `WECHAT_APP_ID`
 - `WECHAT_APP_SECRET`
-- `WECHAT_COVER_MEDIA_ID`
 
 再写入：
 
@@ -74,7 +72,7 @@ ALLOWED_ORIGINS=<PAGES_ORIGIN>
 ALLOWED_ORIGINS=<PAGES_ORIGIN>,https://localhost
 ```
 
-确认测试 Worker 存在四项必需 Secret 后，再执行最终部署。不得显示 Secret、AppID、AppSecret 或 `media_id`。
+确认测试 Worker 存在三项必需 Secret 后，再执行最终部署。不得显示 Secret、AppID 或 AppSecret。
 
 ## 5. 配置 Cloudflare Access 与 CORS
 
@@ -82,7 +80,7 @@ ALLOWED_ORIGINS=<PAGES_ORIGIN>,https://localhost
 
 - 仅允许 `ACCESS_EMAIL`。
 - Access CORS 的 Allowed origins 设置为 `PAGES_ORIGIN`；Android 测试时额外加入 `https://localhost`。
-- 允许方法：`POST`、`OPTIONS`。
+- 允许方法：`GET`、`POST`、`OPTIONS`。
 - 允许请求头：`Content-Type`。
 - 启用 credentials。
 - 不绕过 OPTIONS 预检。
@@ -121,8 +119,9 @@ Worker 的 `ALLOWED_ORIGINS` 与 Access CORS 必须一致。CORS 不是鉴权；
 2. 在 VoiceNest「设置 → 公众号草稿箱」填写测试 Worker URL。
 3. 点击“重新授权”；用户在 Access 页面登录后返回应用。
 4. 点击“测试连接”。
-5. 测试连接成功后，至少验证一次“预览排版”。
-6. 只有用户提供了准备好的测试文章或录音时，才点击“发布到草稿箱”。只创建草稿，绝不群发。
+5. 选择内置默认封面或一张本地 PNG/JPEG/WebP 图片，点击上传；确认上传成功。此操作只会创建该公众号的永久图片素材，不会发布文章。
+6. 测试连接成功后，至少验证一次“预览排版”。
+7. 只有用户提供了准备好的测试文章或录音时，才点击“发布到草稿箱”。只创建草稿，绝不群发。
 
 ## 8. 最终报告
 

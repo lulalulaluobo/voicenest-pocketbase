@@ -26,9 +26,17 @@ import {
 import { transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
 import { testSyncConnection } from '../lib/sync'
-import { testWechatConnection } from '../lib/wechat'
+import {
+  getWechatCoverStatus,
+  testWechatConnection,
+  uploadWechatCover
+} from '../lib/wechat'
 import { createFullBackup, readFullBackup, replaceLocalData } from '../lib/backup'
 import { downloadBlob } from '../lib/file-download'
+import defaultWechatCoverUrl from '../assets/default-wechat-cover.png'
+
+const MAX_WECHAT_COVER_BYTES = 5 * 1024 * 1024
+const WECHAT_COVER_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
 export function SettingsPage() {
   const navigate = useNavigate()
@@ -53,6 +61,11 @@ export function SettingsPage() {
   const [editingWechatPrompt, setEditingWechatPrompt] = useState<WechatPromptTemplate | null>(null)
   const [wechatTesting, setWechatTesting] = useState(false)
   const [wechatTestResult, setWechatTestResult] = useState<string | null>(null)
+  const [wechatCoverConfigured, setWechatCoverConfigured] = useState<boolean | null>(null)
+  const [wechatCoverFile, setWechatCoverFile] = useState<File | null>(null)
+  const [wechatCoverPreview, setWechatCoverPreview] = useState<string | null>(null)
+  const [wechatCoverUploading, setWechatCoverUploading] = useState(false)
+  const [wechatCoverResult, setWechatCoverResult] = useState<string | null>(null)
 
   // Note Types
   const [noteTypes, setNoteTypes] = useState<UserNoteType[]>(getNoteTypes())
@@ -75,6 +88,20 @@ export function SettingsPage() {
     setActiveCollapse('wechat')
     setWechatTestResult('✅ 授权成功，请点击“测试公众号连接”确认会话可用。')
   }, [])
+
+  useEffect(() => {
+    if (activeCollapse !== 'wechat' || !wechatConfig.workerUrl.trim()) return
+
+    let cancelled = false
+    getWechatCoverStatus(wechatConfig)
+      .then((status) => {
+        if (!cancelled) setWechatCoverConfigured(status.configured)
+      })
+      .catch(() => {
+        if (!cancelled) setWechatCoverConfigured(null)
+      })
+    return () => { cancelled = true }
+  }, [activeCollapse, wechatConfig])
 
   const toggleCollapse = (name: string) => {
     setActiveCollapse(activeCollapse === name ? null : name)
@@ -238,6 +265,61 @@ export function SettingsPage() {
       setWechatTestResult(`⚠️ 连接测试失败: ${err.message}`)
     } finally {
       setWechatTesting(false)
+    }
+  }
+
+  const handleWechatCoverSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    if (!WECHAT_COVER_TYPES.includes(file.type)) {
+      setWechatCoverResult('⚠️ 仅支持 PNG、JPEG 或 WebP 图片')
+      return
+    }
+    if (file.size > MAX_WECHAT_COVER_BYTES) {
+      setWechatCoverResult('⚠️ 封面图片不能超过 5 MiB')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => setWechatCoverPreview(typeof reader.result === 'string' ? reader.result : null)
+    reader.readAsDataURL(file)
+    setWechatCoverFile(file)
+    setWechatCoverResult('已选择新封面，点击“上传选中图片”后才会写入公众号素材库。')
+  }
+
+  const handleUploadWechatCover = async (file: File, successMessage: string) => {
+    setWechatCoverUploading(true)
+    setWechatCoverResult(null)
+    try {
+      await uploadWechatCover(wechatConfig, file)
+      setWechatCoverConfigured(true)
+      setWechatCoverFile(null)
+      setWechatCoverResult(`✅ ${successMessage}`)
+    } catch (err: any) {
+      setWechatCoverResult(`⚠️ 封面上传失败: ${err.message}`)
+    } finally {
+      setWechatCoverUploading(false)
+    }
+  }
+
+  const handleUploadSelectedWechatCover = async () => {
+    if (!wechatCoverFile) {
+      setWechatCoverResult('请先选择一张封面图片')
+      return
+    }
+    await handleUploadWechatCover(wechatCoverFile, '默认封面已上传到公众号素材库')
+  }
+
+  const handleUseDefaultWechatCover = async () => {
+    try {
+      const response = await fetch(defaultWechatCoverUrl)
+      const blob = await response.blob()
+      const file = new File([blob], 'voicenest-default-wechat-cover.png', { type: 'image/png' })
+      setWechatCoverPreview(defaultWechatCoverUrl)
+      await handleUploadWechatCover(file, '内置默认封面已上传到公众号素材库')
+    } catch {
+      setWechatCoverResult('⚠️ 无法读取内置默认封面')
     }
   }
 
@@ -676,7 +758,7 @@ export function SettingsPage() {
               />
             </div>
             <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-              服务地址受管理员访问保护；AppID、Secret 和封面 media_id 仅保存在 Worker 密钥中。
+              服务地址受管理员访问保护；AppID 和 Secret 仅保存在 Worker 密钥中。
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button type="button" className="action primary" onClick={handleTestWechat} disabled={wechatTesting}>
@@ -691,6 +773,32 @@ export function SettingsPage() {
                 {wechatTestResult}
               </div>
             )}
+            <div style={{ display: 'grid', gap: '8px', paddingTop: '8px', borderTop: '1px dashed var(--line)' }}>
+              <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>公众号默认封面</div>
+              <img
+                src={wechatCoverPreview ?? defaultWechatCoverUrl}
+                alt="公众号默认封面预览"
+                style={{ width: '100%', maxWidth: '300px', aspectRatio: '1922 / 818', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--line)' }}
+              />
+              <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                {wechatCoverConfigured === true ? '已在公众号素材库配置默认封面。' : '尚未配置默认封面；发布草稿前请先上传。'}
+                {' '}支持 PNG、JPEG、WebP，最大 5 MiB。上传会写入公众号永久素材库。
+              </div>
+              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleWechatCoverSelection} />
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button type="button" className="action" onClick={handleUseDefaultWechatCover} disabled={wechatCoverUploading}>
+                  使用内置默认封面
+                </button>
+                <button type="button" className="action primary" onClick={handleUploadSelectedWechatCover} disabled={wechatCoverUploading || !wechatCoverFile}>
+                  {wechatCoverUploading ? '正在上传...' : '上传选中图片'}
+                </button>
+              </div>
+              {wechatCoverResult && (
+                <div style={{ fontSize: '12px', background: 'var(--soft)', padding: '8px', borderRadius: '6px' }}>
+                  {wechatCoverResult}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </section>

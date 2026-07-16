@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createDraft, getAccessToken } from './wechat'
+import { createDraft, getAccessToken, uploadCover } from './wechat'
 import type { Env, KVStore } from './types'
 
 function createKv(initial: Record<string, string> = {}): KVStore {
@@ -22,7 +22,6 @@ const env: Env = {
   WECHAT_CACHE: createKv(),
   WECHAT_APP_ID: 'app-id',
   WECHAT_APP_SECRET: 'app-secret',
-  WECHAT_COVER_MEDIA_ID: 'cover-media-id',
   ALLOWED_ORIGINS: 'https://obvoice.lucc.fun,https://localhost'
 }
 
@@ -37,7 +36,7 @@ describe('WeChat API', () => {
     expect(fetchFn).not.toHaveBeenCalled()
   })
 
-  it('creates a draft with the shared cover and closed comments', async () => {
+  it('creates a draft with the configured cover and closed comments', async () => {
     const fetchFn = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ access_token: 'token', expires_in: 7200 }))
       .mockResolvedValueOnce(jsonResponse({ media_id: 'draft-1' }))
@@ -45,7 +44,7 @@ describe('WeChat API', () => {
     const mediaId = await createDraft(env, {
       title: '今日感想',
       content: '<p>内容</p>',
-      thumb_media_id: '',
+      thumb_media_id: 'cover-media-id',
       need_open_comment: 0,
       only_fans_can_comment: 0
     }, fetchFn)
@@ -57,6 +56,20 @@ describe('WeChat API', () => {
       need_open_comment: 0,
       only_fans_can_comment: 0
     })
+  })
+
+  it('uploads a cover as permanent image material', async () => {
+    const fetchFn = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token', expires_in: 7200 }))
+      .mockResolvedValueOnce(jsonResponse({ media_id: 'cover-1' }))
+
+    await expect(uploadCover({ ...env, WECHAT_CACHE: createKv() }, {
+      blob: new Blob([new Uint8Array([0])], { type: 'image/png' }),
+      mimeType: 'image/png'
+    }, fetchFn)).resolves.toBe('cover-1')
+
+    expect(fetchFn.mock.calls[1][0]).toContain('/cgi-bin/material/add_material?access_token=token&type=image')
+    expect(fetchFn.mock.calls[1][1]).toMatchObject({ method: 'POST' })
   })
 
 })

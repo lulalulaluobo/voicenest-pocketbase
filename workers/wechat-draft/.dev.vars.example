@@ -2,9 +2,6 @@
 WECHAT_APP_ID=
 WECHAT_APP_SECRET=
 
-# 公众号后台素材库中默认封面的永久素材 media_id
-WECHAT_COVER_MEDIA_ID=
-
 # Cloudflare Access 仅允许此邮箱访问 Worker
 ACCESS_EMAIL=
 

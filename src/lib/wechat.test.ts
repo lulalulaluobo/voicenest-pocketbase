@@ -7,9 +7,11 @@ import {
 } from './config-store'
 import {
   getWechatStatusLabel,
+  getWechatCoverStatus,
   previewWechatDraft,
   publishWechatDraft,
   testWechatConnection,
+  uploadWechatCover,
 } from './wechat'
 
 const config = {
@@ -83,10 +85,49 @@ describe('WeChat draft client', () => {
     )
   })
 
+  it('reads the configured default-cover status', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(JSON.stringify({ configured: true })))
+
+    await expect(getWechatCoverStatus(config)).resolves.toEqual({ configured: true })
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://wechat-api.lucc.fun/cover',
+      expect.objectContaining({ method: 'GET', credentials: 'include' })
+    )
+  })
+
+  it('uploads a selected image only when requested', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(JSON.stringify({ configured: true })))
+    const image = {
+      type: 'image/png',
+      arrayBuffer: async () => new Uint8Array([0]).buffer
+    } as File
+
+    await expect(uploadWechatCover(config, image)).resolves.toEqual({ configured: true })
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://wechat-api.lucc.fun/cover',
+      expect.objectContaining({ method: 'POST', credentials: 'include' })
+    )
+  })
+
   it('turns an expired Access session into an authorization error', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response('', { status: 401 }))
 
     await expect(testWechatConnection(config)).rejects.toThrow('公众号发布授权已过期')
+  })
+
+  it('turns a missing Worker cover into an actionable error', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      code: 'COVER_NOT_CONFIGURED',
+      message: 'ignored'
+    }), { status: 422 }))
+
+    await expect(publishWechatDraft(config, request)).rejects.toThrow('请先在设置中上传公众号默认封面')
+  })
+
+  it('rejects an invalid cover-status response', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(JSON.stringify({ configured: 'yes' })))
+
+    await expect(getWechatCoverStatus(config)).rejects.toThrow('公众号封面服务返回的数据无效')
   })
 
   it('persists only the public Worker configuration', () => {

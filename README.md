@@ -20,7 +20,7 @@ VoiceNest 可拆分为两部分部署：静态前端与微信公众号 Worker。
 ### 部署前准备
 
 1. Fork 本仓库，并准备 Cloudflare 账号、Vercel 或 Cloudflare Pages 账号。
-2. 在微信公众号后台准备 AppID、AppSecret，以及素材库中默认封面的永久 `media_id`。
+2. 在微信公众号后台准备 AppID 和 AppSecret；部署后在 VoiceNest 设置页上传默认封面。
 3. 准备用于 Cloudflare Access 的管理员邮箱。
 4. 复制本地私密配置文件，填写自己的信息：
 
@@ -39,11 +39,11 @@ VoiceNest 可拆分为两部分部署：静态前端与微信公众号 Worker。
 
 1. 根据 FRONTEND_PROVIDER 将前端部署到 Vercel 或 Cloudflare Pages，记录最终生产 HTTPS Origin。
 2. 登录我的 Cloudflare 账号。在 workers/wechat-draft 部署 Worker，创建并绑定我自己的 WECHAT_CACHE KV；若 Wrangler 把新 KV ID 写回本地 wrangler.jsonc，保留该本地变更但不要提交。
-3. 将 WECHAT_APP_ID、WECHAT_APP_SECRET、WECHAT_COVER_MEDIA_ID 写为 Cloudflare Worker Secrets。
+3. 将 WECHAT_APP_ID、WECHAT_APP_SECRET 写为 Cloudflare Worker Secrets。
 4. 将第 1 步的准确 Origin 写为 ALLOWED_ORIGINS Worker Secret；不要使用 *，不要添加旧域名。
 5. 部署 Worker，记录其 https://<worker-name>.<account-subdomain>.workers.dev URL。
-6. 在 Cloudflare Access 为该 workers.dev Worker 启用鉴权，只允许 ACCESS_EMAIL。配置 Access CORS：允许同一个前端 Origin、POST 和 OPTIONS、Content-Type 请求头、credentials，并保持 options preflight 不绕过 Access。
-7. 在 VoiceNest 设置页填入 Worker URL，完成 Access 登录后运行“测试连接”。
+6. 在 Cloudflare Access 为该 workers.dev Worker 启用鉴权，只允许 ACCESS_EMAIL。配置 Access CORS：允许同一个前端 Origin、GET、POST 和 OPTIONS、Content-Type 请求头、credentials，并保持 options preflight 不绕过 Access。
+7. 在 VoiceNest 设置页填入 Worker URL，完成 Access 登录后运行“测试连接”，然后选择内置默认封面或本地 PNG/JPEG/WebP 图片并显式上传。该操作会将图片写入该用户公众号的永久素材库。
 8. 最后只报告前端 URL、Worker URL、连接测试结果，以及是否还需配置公众号 IP 白名单；不要报告任何 Secret。
 ```
 
