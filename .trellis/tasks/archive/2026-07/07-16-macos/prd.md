@@ -16,8 +16,8 @@
 
 ## Acceptance Criteria
 
-- [ ] `git check-ignore` 显示根目录及嵌套目录的 `.DS_Store` 均由根 `.gitignore` 忽略。
-- [ ] `git ls-files` 不再包含 `.DS_Store`。
+- [x] `git check-ignore` 显示根目录及嵌套目录的 `.DS_Store` 均由根 `.gitignore` 忽略。
+- [x] `git ls-files` 不再包含 `.DS_Store`。
 
 ## Out of Scope
 
