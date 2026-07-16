@@ -3,17 +3,18 @@
   "name": "voicenest-wechat-draft",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-15",
-  "workers_dev": false,
-  "routes": [
-    { "pattern": "wechat-api.lucc.fun", "custom_domain": true }
-  ],
+  "workers_dev": true,
   "kv_namespaces": [
     {
-      "binding": "WECHAT_CACHE",
-      "id": "185d1e57b556475a8efebb3f29829938"
+      "binding": "WECHAT_CACHE"
     }
   ],
-  "vars": {
-    "ALLOWED_ORIGINS": "https://obvoice.lucc.fun,https://localhost"
+  "secrets": {
+    "required": [
+      "WECHAT_APP_ID",
+      "WECHAT_APP_SECRET",
+      "WECHAT_COVER_MEDIA_ID",
+      "ALLOWED_ORIGINS"
+    ]
   }
 }

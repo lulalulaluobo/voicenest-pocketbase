@@ -13,3 +13,4 @@ references/
 .wrangler/
 .env*
 workers/wechat-draft/.dev.vars*
+!workers/wechat-draft/.dev.vars.example
