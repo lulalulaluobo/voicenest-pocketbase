@@ -15,6 +15,8 @@ npm run build
 
 VoiceNest 可拆分为两部分部署：静态前端与微信公众号 Worker。前端可部署到 Vercel 或 Cloudflare Pages；二者提供免费平台子域名（`.vercel.app` / `.pages.dev`），不是免费自定义域名。Worker 使用 Cloudflare 提供的 `workers.dev` 地址，不需要购买域名。
 
+需要在不影响生产资源的前提下演练 Cloudflare Pages + Worker 全链路时，阅读[测试部署指南](docs/cloudflare-pages-test-deployment.md)。
+
 ### 部署前准备
 
 1. Fork 本仓库，并准备 Cloudflare 账号、Vercel 或 Cloudflare Pages 账号。
