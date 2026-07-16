@@ -14,3 +14,4 @@ references/
 .env*
 workers/wechat-draft/.dev.vars*
 !workers/wechat-draft/.dev.vars.example
+.DS_Store
