@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getWechatDraftConfig,
@@ -45,6 +46,11 @@ describe('WeChat draft client', () => {
     globalThis.fetch = originalFetch
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('does not retain Worker authorization callback code', () => {
+    expect(readFileSync('src/lib/wechat.ts', 'utf8')).not.toContain('workerBaseUrl')
+    expect(readFileSync('src/pages/SettingsPage.tsx', 'utf8')).not.toContain('wechat-authorized')
   })
 
   it('posts markdown to the configured worker with same-site credentials', async () => {

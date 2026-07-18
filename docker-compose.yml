@@ -5,7 +5,7 @@ services:
     image: ${VOICENEST_IMAGE:-lulalulaluobo/voicenest:latest}
     container_name: voicenest
     ports:
-      - "127.0.0.1:8090:8090"
+      - "${PB_BIND_ADDRESS:-127.0.0.1}:8090:8090"
     environment:
       # 仅运行期注入；缺失时 PocketBase 启动后 wechat hook 会拒绝解密
       - VN_ENCRYPTION_KEY=${VN_ENCRYPTION_KEY:?VN_ENCRYPTION_KEY 未设置}

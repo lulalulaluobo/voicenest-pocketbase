@@ -165,13 +165,6 @@ export function SettingsPage() {
   }
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get('wechat-authorized') !== '1') return
-    window.history.replaceState(null, '', window.location.pathname)
-    setActiveCollapse('wechat')
-    setWechatTestResult('✅ 授权成功，请点击“测试公众号连接”确认会话可用。')
-  }, [])
-
-  useEffect(() => {
     if (activeCollapse !== 'wechat' || !wechatConfig.appId.trim()) return
 
     let cancelled = false

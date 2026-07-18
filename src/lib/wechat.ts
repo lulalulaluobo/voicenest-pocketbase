@@ -45,7 +45,7 @@ export function getWechatStatusLabel(status?: WechatDraftStatus): string | undef
   return status ? labels[status] : undefined
 }
 
-function workerBaseUrl(): string {
+function wechatApiBaseUrl(): string {
   return `${pb.baseUrl}/api/wechat`
 }
 
@@ -88,7 +88,7 @@ async function imageDataUrl(file: File): Promise<string> {
 }
 
 export async function testWechatConnection(config: WechatDraftConfig): Promise<void> {
-  const response = await fetch(`${workerBaseUrl()}/connection-test`, {
+  const response = await fetch(`${wechatApiBaseUrl()}/connection-test`, {
     method: 'POST',
     headers: {
       ...getAuthHeaders()
@@ -100,7 +100,7 @@ export async function testWechatConnection(config: WechatDraftConfig): Promise<v
 }
 
 export async function getWechatCoverStatus(config: WechatDraftConfig): Promise<WechatCoverStatus> {
-  const response = await fetch(`${workerBaseUrl()}/cover`, {
+  const response = await fetch(`${wechatApiBaseUrl()}/cover`, {
     method: 'GET',
     headers: {
       ...getAuthHeaders()
@@ -114,7 +114,7 @@ export async function uploadWechatCover(
   config: WechatDraftConfig,
   file: File
 ): Promise<WechatCoverStatus> {
-  const response = await fetch(`${workerBaseUrl()}/cover`, {
+  const response = await fetch(`${wechatApiBaseUrl()}/cover`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -130,7 +130,7 @@ export async function previewWechatDraft(
   config: WechatDraftConfig,
   article: Pick<WechatDraftRequest, 'title' | 'markdown'>
 ): Promise<WechatPreviewResult> {
-  const response = await fetch(`${workerBaseUrl()}/preview`, {
+  const response = await fetch(`${wechatApiBaseUrl()}/preview`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -153,7 +153,7 @@ export async function publishWechatDraft(
   config: WechatDraftConfig,
   request: WechatDraftRequest
 ): Promise<WechatDraftResult> {
-  const response = await fetch(`${workerBaseUrl()}/drafts`, {
+  const response = await fetch(`${wechatApiBaseUrl()}/drafts`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -176,7 +176,7 @@ export async function setupWechatCredentials(
   appId: string,
   appSecret: string
 ): Promise<{ success: boolean; configured: boolean }> {
-  const response = await fetch(`${workerBaseUrl()}/setup-credential`, {
+  const response = await fetch(`${wechatApiBaseUrl()}/setup-credential`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

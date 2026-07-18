@@ -105,13 +105,18 @@ export async function syncToObsidian(
 export async function testSyncConnection(config: SyncConfig): Promise<void> {
   const baseUrl = assertSecureSyncEndpoint(config.api)
   const url = `${baseUrl}/api/user/info`
-  
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'token': config.apiToken
-    }
-  })
+
+  let response: Response
+  try {
+    response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'token': config.apiToken
+      }
+    })
+  } catch {
+    throw new Error('无法连接 FNS：请检查 FNS 是否使用 HTTPS，并允许应用来源 https://localhost 跨域访问。')
+  }
 
   if (!response.ok) {
     throw new Error(`连接失败 (${response.status})`)
