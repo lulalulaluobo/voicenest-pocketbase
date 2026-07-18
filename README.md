@@ -1,8 +1,16 @@
-# VoiceNest - 本地优先语音收件箱 (PocketBase 统一托管版)
+# VoiceNest PocketBase
 
-VoiceNest 是一款为个人量身打造的**本地优先（Local-First）**语音收件箱。它可以将你一闪而过的语音想法，通过 ASR 与 LLM 大模型转录润色，并安全地同步至你的 Obsidian 本地知识库或微信公众号草稿箱。
+VoiceNest PocketBase 是 VoiceNest 的**自托管、本地优先（Local-First）**版本。它可以将一闪而过的语音想法经 ASR 与 LLM 转录润色，并同步至 Obsidian 或微信公众号草稿箱。
 
-本分支为 **PocketBase 统一托管与加密代理版本**：废弃了原先复杂的 Cloudflare Worker，通过单容器的 PocketBase 承载账户鉴权与微信公众号加密代发，保障最高规格的 Local-First 隐私安全性。
+它不依赖 Cloudflare、Vercel、Pages、Worker 或 KV：单个 PocketBase Docker 容器负责账号鉴权与微信公众号凭据加密代理；录音、文本与模型配置仍只保存在用户当前设备。
+
+## 界面预览
+
+<p align="center">
+  <img src="docs/assets/recording-screen.png" alt="VoiceNest 录音页" width="30%">
+  <img src="docs/assets/library-screen.png" alt="VoiceNest 音频列表页" width="30%">
+  <img src="docs/assets/settings-screen.png" alt="VoiceNest 设置页" width="30%">
+</p>
 
 ---
 
@@ -27,7 +35,7 @@ VoiceNest 是一款为个人量身打造的**本地优先（Local-First）**语�
 ```bash
 npm install
 npm run dev   # 启动前端开发服务器 (http://localhost:5173)
-npm run test  # 运行 49 个单元测试用例
+npm run test  # 运行单元测试
 npm run build # 编译前端静态 PWA 资源 (生成 dist 目录)
 ```
 
@@ -35,7 +43,7 @@ npm run build # 编译前端静态 PWA 资源 (生成 dist 目录)
 当前 Android APK 容器基于 Capacitor 实现。若前端发生改动，请在工作区下运行以下命令同步：
 ```bash
 npm run build
-npx cap sync  # 将最新前端静态文件拷入 Android 壳工程中
+npx cap sync android  # 将最新前端静态文件拷入 Android 壳工程中
 ```
 **编译生成 APK 安装包：**
 * **方式一**：使用 **Android Studio** 打开 `android/` 目录，等待同步完成后点击菜单栏 **`Build`** -> **`Build Bundle(s) / APK(s)`** -> **`Build APK(s)`**，生成后点击右下角 locate 即可。

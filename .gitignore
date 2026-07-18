@@ -10,17 +10,18 @@ references/
 *.db-shm
 *.db-wal
 *.log
-.vercel
-.wrangler/
 .env*
 !.env.example
-workers/wechat-draft/.dev.vars*
-!workers/wechat-draft/.dev.vars.example
 # PocketBase 运行期数据（含用户 SQLite 数据库），绝不提交
 pb_data/
-# Android signing and service configuration
+# 本地编辑器状态与签名私钥
+.idea/
+.vscode/
 *.jks
 *.keystore
 *.p12
+*.pem
+*.key
+*.p8
 google-services.json
 .DS_Store
