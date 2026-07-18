@@ -1,6 +1,29 @@
 // admin_i18n.pb.js - PocketBase 官方管理后台中文化挂钩扩展 (支持中英切换且默认中文，并包含默认管理员改密强制弹窗)
 
 // ==========================================
+// 0. 安全防护：禁止删除初始管理员用户 & 禁止删除 users 集合
+// ==========================================
+
+// 禁止在 users 集合中删除 admin@example.com（初始管理员账号）
+onRecordDeleteExecute((e) => {
+  if (e.record.collection().name === "users") {
+    const email = e.record.get("email");
+    if (email === "admin@example.com") {
+      throw new BadRequestError("禁止删除初始管理员账号 admin@example.com，请联系系统管理员。");
+    }
+  }
+  e.next();
+});
+
+// 禁止删除 users 系统集合本身
+onCollectionDeleteExecute((e) => {
+  if (e.collection.name === "users") {
+    throw new BadRequestError("禁止删除 users 系统集合，该集合为系统核心数据表。");
+  }
+  e.next();
+});
+
+// ==========================================
 // 1. 超级管理员免旧密码直接重置 API
 // ==========================================
 routerAdd("POST", "/api/admin/reset-password", (c) => {
