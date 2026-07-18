@@ -1,3 +1,5 @@
+import { pb } from './pocketbase'
+
 export interface SyncConfig {
   api: string
   apiToken: string
@@ -8,8 +10,7 @@ export function isObsidianConfigured(config: SyncConfig): boolean {
   return Boolean(config.apiToken.trim() && config.vault.trim())
 }
 
-// Fast Note Sync 走前端直连用户自配的 Obsidian 同步服务。
-// 如遇 CORS，由用户在 Fast Note Sync 服务端配置允许的前端 Origin。
+// 网页端通过同源 PocketBase 转发 FNS；Token 仅随单次请求传递，不保存到后端。
 
 export function assertSecureSyncEndpoint(api: string): string {
   let parsed: URL
@@ -51,7 +52,6 @@ export async function syncToObsidian(
   config: SyncConfig
 ): Promise<void> {
   const baseUrl = assertSecureSyncEndpoint(config.api)
-  const url = `${baseUrl}/api/note`
   const cleanDir = normalizeObsidianDirectory(obsidianDir)
   const safeTitle = sanitizeNoteFilename(title)
   
@@ -63,13 +63,15 @@ export async function syncToObsidian(
     attempts++
     const fullPath = cleanDir ? `${cleanDir}/${currentTitle}.md` : `${currentTitle}.md`
 
-    const response = await fetch(url, {
+    const response = await fetch(`${pb.baseUrl}/api/fns/note`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'token': config.apiToken
+        ...(pb.authStore.isValid && pb.authStore.token ? { Authorization: `Bearer ${pb.authStore.token}` } : {})
       },
       body: JSON.stringify({
+        api: baseUrl,
+        apiToken: config.apiToken,
         vault: config.vault,
         path: fullPath,
         content: markdown,
@@ -104,18 +106,19 @@ export async function syncToObsidian(
 
 export async function testSyncConnection(config: SyncConfig): Promise<void> {
   const baseUrl = assertSecureSyncEndpoint(config.api)
-  const url = `${baseUrl}/api/user/info`
 
   let response: Response
   try {
-    response = await fetch(url, {
-      method: 'GET',
+    response = await fetch(`${pb.baseUrl}/api/fns/connection-test`, {
+      method: 'POST',
       headers: {
-        'token': config.apiToken
-      }
+        'Content-Type': 'application/json',
+        ...(pb.authStore.isValid && pb.authStore.token ? { Authorization: `Bearer ${pb.authStore.token}` } : {})
+      },
+      body: JSON.stringify({ api: baseUrl, apiToken: config.apiToken })
     })
   } catch {
-    throw new Error('无法连接 FNS：请检查 FNS 是否使用 HTTPS，并允许应用来源 https://localhost 跨域访问。')
+    throw new Error('无法连接 VoiceNest 后端，请检查登录状态和网络。')
   }
 
   if (!response.ok) {

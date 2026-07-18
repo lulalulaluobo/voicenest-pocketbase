@@ -203,6 +203,11 @@ describe('API Clients Unit Tests', () => {
         vault: 'my-vault'
       })
     ).resolves.not.toThrow()
+
+    expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:8090/api/fns/note', expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('"api":"https://fns.example.test"'),
+    }))
   })
 
   it('should auto append suffix and retry when note already exists', async () => {
