@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { setPocketbaseUrl } from '../lib/pocketbase'
 
+const PUBLIC_BACKEND_URL = 'https://voicenest.lucc.fun'
+
 // APK 首次启动时的后端地址配置引导。
 // 浏览器（PWA）走同源部署，不需要此组件；仅在 Capacitor 原生环境 + 未配置地址时显示。
 export function BackendSetupPrompt({ onConfigured }: { onConfigured: () => void }) {
@@ -9,10 +11,9 @@ export function BackendSetupPrompt({ onConfigured }: { onConfigured: () => void 
   const [error, setError] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const verifyAndSave = async (value: string) => {
     setError(null)
-    const trimmed = url.trim().replace(/\/+$/, '')
+    const trimmed = value.trim().replace(/\/+$/, '')
 
     if (!trimmed) {
       setError('请输入 PocketBase 后端地址')
@@ -41,6 +42,16 @@ export function BackendSetupPrompt({ onConfigured }: { onConfigured: () => void 
     } finally {
       setTesting(false)
     }
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    void verifyAndSave(url)
+  }
+
+  const handleUsePublicBackend = () => {
+    setUrl(PUBLIC_BACKEND_URL)
+    void verifyAndSave(PUBLIC_BACKEND_URL)
   }
 
   return (
@@ -128,6 +139,15 @@ export function BackendSetupPrompt({ onConfigured }: { onConfigured: () => void 
         >
           {testing ? '正在验证连接…' : '验证并保存'}
         </button>
+        <button
+          type="button"
+          onClick={handleUsePublicBackend}
+          disabled={testing}
+          className="action"
+          style={{ width: '100%', padding: '12px' }}
+        >
+          使用免费公共后端
+        </button>
       </form>
 
       <p style={{
@@ -137,8 +157,8 @@ export function BackendSetupPrompt({ onConfigured }: { onConfigured: () => void 
         marginTop: '20px',
         textAlign: 'center'
       }}>
-        地址会保存在本机，仅用于连接你自己的后端。
-        <br />可随时在「设置 → 后端地址」中修改。
+        公共后端可直接体验，也可随时改为你自己的后端地址。
+        <br />地址只保存在本机，可在「设置 → 后端地址」中修改。
       </p>
     </div>
   )

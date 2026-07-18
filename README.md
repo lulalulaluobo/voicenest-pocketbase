@@ -92,7 +92,7 @@ docker compose up -d
 
 ## ⚙️ 使用与配对流程
 
-1. **下载安装 APK**：手机安装编译好的 APK。首次启动时会要求填写您的 PocketBase 后端公网连接地址（例如 `https://pb.yourdomain.com`）。
+1. **下载安装 APK**：手机安装编译好的 APK。首次启动时可点击“使用免费公共后端”连接 `https://voicenest.lucc.fun`，或填写您自建的 PocketBase HTTPS 地址（例如 `https://pb.yourdomain.com`）。
 2. **注册与登录**：点击“注册”账号并自动登录，您的账号将独占独立的云端微信加密数据行。
 3. **配置 Fast Note Sync（可选）**：在“设置” -> “Fast Note Sync (Obsidian)”填入 FNS 的 HTTPS API 地址、Token 与 Vault。FNS 服务端必须允许应用来源 `https://localhost` 跨域访问；不要再填写已移除的 Cloudflare Worker 地址。
 4. **安全配置微信**：
