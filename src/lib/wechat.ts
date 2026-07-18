@@ -1,5 +1,6 @@
 import type { WechatDraftConfig } from './config-store'
 import type { WechatDraftStatus } from '../domain/recording'
+import { pb } from './pocketbase'
 
 export interface WechatDraftRequest {
   recordingId: string
@@ -44,27 +45,31 @@ export function getWechatStatusLabel(status?: WechatDraftStatus): string | undef
   return status ? labels[status] : undefined
 }
 
-function workerBaseUrl(config: WechatDraftConfig): string {
-  const url = config.workerUrl.replace(/\/+$/, '')
-  if (!url) {
-    throw new WechatDraftError('请先填写公众号发布服务地址', 'api')
+function workerBaseUrl(): string {
+  return `${pb.baseUrl}/api/wechat`
+}
+
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {}
+  if (pb.authStore.isValid && pb.authStore.token) {
+    headers['Authorization'] = `Bearer ${pb.authStore.token}`
   }
-  return url
+  return headers
 }
 
 async function readError(response: Response): Promise<WechatDraftError> {
   if (response.status === 401 || response.status === 403) {
-    return new WechatDraftError('公众号发布授权已过期，请重新授权', 'authorization')
+    return new WechatDraftError('公众号配置或授权已过期，请检查设置。', 'authorization')
   }
 
   const data = await response.json().catch(() => null) as { code?: string; message?: string } | null
   if (data?.code === 'WECHAT_IP_NOT_ALLOWED') {
-    return new WechatDraftError('公众号 IP 白名单未配置，请先运行连接测试', 'ip_whitelist')
+    return new WechatDraftError('公众号 IP 白名单未配置。', 'ip_whitelist')
   }
   if (data?.code === 'COVER_NOT_CONFIGURED') {
-    return new WechatDraftError('请先在设置中上传公众号默认封面', 'cover_missing')
+    return new WechatDraftError('请先在设置中上传公众号默认封面。', 'cover_missing')
   }
-  return new WechatDraftError(data?.message || `公众号发布服务请求失败 (${response.status})`, 'api')
+  return new WechatDraftError(data?.message || `公众号中转服务请求失败 (${response.status})`, 'api')
 }
 
 async function readCoverStatus(response: Response): Promise<WechatCoverStatus> {
@@ -83,9 +88,11 @@ async function imageDataUrl(file: File): Promise<string> {
 }
 
 export async function testWechatConnection(config: WechatDraftConfig): Promise<void> {
-  const response = await fetch(`${workerBaseUrl(config)}/connection-test`, {
+  const response = await fetch(`${workerBaseUrl()}/connection-test`, {
     method: 'POST',
-    credentials: 'include'
+    headers: {
+      ...getAuthHeaders()
+    }
   })
   if (!response.ok) {
     throw await readError(response)
@@ -93,9 +100,11 @@ export async function testWechatConnection(config: WechatDraftConfig): Promise<v
 }
 
 export async function getWechatCoverStatus(config: WechatDraftConfig): Promise<WechatCoverStatus> {
-  const response = await fetch(`${workerBaseUrl(config)}/cover`, {
+  const response = await fetch(`${workerBaseUrl()}/cover`, {
     method: 'GET',
-    credentials: 'include'
+    headers: {
+      ...getAuthHeaders()
+    }
   })
   if (!response.ok) throw await readError(response)
   return readCoverStatus(response)
@@ -105,10 +114,12 @@ export async function uploadWechatCover(
   config: WechatDraftConfig,
   file: File
 ): Promise<WechatCoverStatus> {
-  const response = await fetch(`${workerBaseUrl(config)}/cover`, {
+  const response = await fetch(`${workerBaseUrl()}/cover`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders()
+    },
     body: JSON.stringify({ dataUrl: await imageDataUrl(file) })
   })
   if (!response.ok) throw await readError(response)
@@ -119,10 +130,12 @@ export async function previewWechatDraft(
   config: WechatDraftConfig,
   article: Pick<WechatDraftRequest, 'title' | 'markdown'>
 ): Promise<WechatPreviewResult> {
-  const response = await fetch(`${workerBaseUrl(config)}/preview`, {
+  const response = await fetch(`${workerBaseUrl()}/preview`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders()
+    },
     body: JSON.stringify(article)
   })
   if (!response.ok) {
@@ -140,10 +153,12 @@ export async function publishWechatDraft(
   config: WechatDraftConfig,
   request: WechatDraftRequest
 ): Promise<WechatDraftResult> {
-  const response = await fetch(`${workerBaseUrl(config)}/drafts`, {
+  const response = await fetch(`${workerBaseUrl()}/drafts`, {
     method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders()
+    },
     body: JSON.stringify(request)
   })
   if (!response.ok) {

@@ -5,7 +5,8 @@ import { pb } from './pocketbase'
 
 export interface WechatDraftConfig {
   enabled: boolean
-  workerUrl: string
+  appId: string
+  appSecret: string
 }
 
 export interface WechatPromptTemplate {
@@ -146,7 +147,7 @@ export function saveSyncConfig(cfg: SyncConfig): void {
 
 export function getWechatDraftConfig(): WechatDraftConfig {
   const data = localStorage.getItem('vn_wechat_draft')
-  return data ? JSON.parse(data) : { enabled: false, workerUrl: '' }
+  return data ? JSON.parse(data) : { enabled: false, appId: '', appSecret: '' }
 }
 
 export function saveWechatDraftConfig(config: WechatDraftConfig): void {

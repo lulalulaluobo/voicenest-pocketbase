@@ -27,6 +27,9 @@ COPY --from=build-stage /app/dist /app/pb_public
 # Copy DB migration scripts
 COPY pb_migrations /app/pb_migrations
 
+# Copy custom JS hook scripts
+COPY pb_hooks /app/pb_hooks
+
 EXPOSE 8090
 
 # Run PocketBase server

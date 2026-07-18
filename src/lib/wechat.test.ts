@@ -16,7 +16,8 @@ import {
 
 const config = {
   enabled: true,
-  workerUrl: 'https://wechat-api.lucc.fun'
+  appId: 'wx-test-appid',
+  appSecret: 'secret-test'
 }
 
 const request = {
@@ -53,8 +54,8 @@ describe('WeChat draft client', () => {
 
     await expect(publishWechatDraft(config, request)).resolves.toEqual({ mediaId: 'draft-1', reused: false })
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://wechat-api.lucc.fun/drafts',
-      expect.objectContaining({ method: 'POST', credentials: 'include' })
+      'http://127.0.0.1:8090/api/wechat/drafts',
+      expect.objectContaining({ method: 'POST' })
     )
     const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0][1]?.body as string)
     expect(body.recordingId).toBe('recording-1')
@@ -80,8 +81,8 @@ describe('WeChat draft client', () => {
 
     await expect(previewWechatDraft(config, { title: '标题', markdown: '正文' })).resolves.toEqual({ title: '标题', html: '<p>正文</p>' })
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://wechat-api.lucc.fun/preview',
-      expect.objectContaining({ method: 'POST', credentials: 'include' })
+      'http://127.0.0.1:8090/api/wechat/preview',
+      expect.objectContaining({ method: 'POST' })
     )
   })
 
@@ -90,8 +91,8 @@ describe('WeChat draft client', () => {
 
     await expect(getWechatCoverStatus(config)).resolves.toEqual({ configured: true })
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://wechat-api.lucc.fun/cover',
-      expect.objectContaining({ method: 'GET', credentials: 'include' })
+      'http://127.0.0.1:8090/api/wechat/cover',
+      expect.objectContaining({ method: 'GET' })
     )
   })
 
@@ -104,15 +105,15 @@ describe('WeChat draft client', () => {
 
     await expect(uploadWechatCover(config, image)).resolves.toEqual({ configured: true })
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://wechat-api.lucc.fun/cover',
-      expect.objectContaining({ method: 'POST', credentials: 'include' })
+      'http://127.0.0.1:8090/api/wechat/cover',
+      expect.objectContaining({ method: 'POST' })
     )
   })
 
   it('turns an expired Access session into an authorization error', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response('', { status: 401 }))
 
-    await expect(testWechatConnection(config)).rejects.toThrow('公众号发布授权已过期')
+    await expect(testWechatConnection(config)).rejects.toThrow('公众号配置或授权已过期')
   })
 
   it('turns a missing Worker cover into an actionable error', async () => {
@@ -130,11 +131,10 @@ describe('WeChat draft client', () => {
     await expect(getWechatCoverStatus(config)).rejects.toThrow('公众号封面服务返回的数据无效')
   })
 
-  it('persists only the public Worker configuration', () => {
+  it('persists WeChat configuration locally', () => {
     saveWechatDraftConfig(config)
 
     expect(getWechatDraftConfig()).toEqual(config)
-    expect(values.get('vn_wechat_draft')).not.toContain('AppSecret')
   })
 
   it('uses three editable WeChat prompt templates', () => {

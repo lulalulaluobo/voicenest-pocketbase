@@ -103,8 +103,8 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
   const canDownload = !recording.isAudioCleared
   const downloadLabel = recording.isAudioCleared ? '音频已清理' : '下载音频'
   const wechatConfig = getWechatDraftConfig()
-  const canEditWechat = Boolean(recording.summary) && wechatConfig.enabled && Boolean(wechatConfig.workerUrl.trim())
-  const wechatLabel = canEditWechat ? '改写公众号文章' : '请先在设置启用公众号编辑并填写服务地址'
+  const canEditWechat = Boolean(recording.summary) && wechatConfig.enabled && Boolean(wechatConfig.appId.trim()) && Boolean(wechatConfig.appSecret.trim())
+  const wechatLabel = canEditWechat ? '改写公众号文章' : '请先在设置中启用公众号并配置 AppID/Secret'
 
   const handleDownloadClick = async (e: React.MouseEvent) => {
     e.stopPropagation()

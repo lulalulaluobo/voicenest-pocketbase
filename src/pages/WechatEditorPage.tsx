@@ -68,7 +68,7 @@ export function WechatEditorPage() {
 
   const handlePreview = async () => {
     const config = getWechatDraftConfig()
-    if (!title.trim() || !markdown.trim() || !config.enabled || !config.workerUrl.trim()) return
+    if (!title.trim() || !markdown.trim() || !config.enabled || !config.appId.trim() || !config.appSecret.trim()) return
 
     setIsPreviewing(true)
     setMessage('')
@@ -84,7 +84,7 @@ export function WechatEditorPage() {
 
   const handlePublish = async () => {
     const config = getWechatDraftConfig()
-    if (!recording || !title.trim() || !markdown.trim() || !config.enabled || !config.workerUrl.trim()) return
+    if (!recording || !title.trim() || !markdown.trim() || !config.enabled || !config.appId.trim() || !config.appSecret.trim()) return
 
     const requestId = crypto.randomUUID()
     setIsPublishing(true)
@@ -122,8 +122,8 @@ export function WechatEditorPage() {
   const isBusy = isRewriting || isPreviewing || isPublishing
   const unavailableReason = !config.enabled
     ? '请先在设置中启用公众号草稿编辑。'
-    : !config.workerUrl.trim()
-      ? '请先在设置中填写公众号发布服务地址。'
+    : (!config.appId.trim() || !config.appSecret.trim())
+      ? '请先在设置中配置公众号的 AppID 与 AppSecret。'
       : ''
 
   if (recording === undefined) return <section className="view"><p className="empty-state">正在加载公众号编辑器…</p></section>

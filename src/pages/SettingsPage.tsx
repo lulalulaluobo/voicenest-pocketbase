@@ -90,7 +90,7 @@ export function SettingsPage() {
   }, [])
 
   useEffect(() => {
-    if (activeCollapse !== 'wechat' || !wechatConfig.workerUrl.trim()) return
+    if (activeCollapse !== 'wechat' || !wechatConfig.appId.trim()) return
 
     let cancelled = false
     getWechatCoverStatus(wechatConfig)
@@ -329,22 +329,7 @@ export function SettingsPage() {
     }
   }
 
-  const handleOpenWechatAuthorization = () => {
-    const url = wechatConfig.workerUrl.trim()
-    if (!url) {
-      alert('请先填写公众号发布服务地址')
-      return
-    }
-    try {
-      const authorizationUrl = new URL(url)
-      const returnUrl = new URL('/settings', window.location.origin)
-      returnUrl.searchParams.set('wechat-authorized', '1')
-      authorizationUrl.searchParams.set('return_to', returnUrl.toString())
-      window.location.assign(authorizationUrl.toString())
-    } catch {
-      alert('公众号发布服务地址无效')
-    }
-  }
+
 
   // Auto process toggling
   const handleToggleAutoProcess = () => {
@@ -757,24 +742,31 @@ export function SettingsPage() {
               启用公众号草稿编辑
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>公众号发布服务地址</label>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>微信公众号 AppID</label>
               <input
-                type="url"
-                value={wechatConfig.workerUrl}
-                placeholder="https://wechat.example.com"
-                onChange={(e) => handleWechatConfigChange({ workerUrl: e.target.value })}
+                type="text"
+                value={wechatConfig.appId || ''}
+                placeholder="wx1234567890abcdef"
+                onChange={(e) => handleWechatConfigChange({ appId: e.target.value })}
+                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>微信公众号 AppSecret</label>
+              <input
+                type="password"
+                value={wechatConfig.appSecret || ''}
+                placeholder="填写您的微信公众号 AppSecret"
+                onChange={(e) => handleWechatConfigChange({ appSecret: e.target.value })}
                 style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
               />
             </div>
             <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-              服务地址受管理员访问保护；AppID 和 Secret 仅保存在 Worker 密钥中。
+              AppID 和 AppSecret 保存在您的 PocketBase 私有云端，请求微信时将通过安全后端代理，不会暴露给前端。
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button type="button" className="action primary" onClick={handleTestWechat} disabled={wechatTesting}>
                 {wechatTesting ? '正在测试...' : '测试公众号连接'}
-              </button>
-              <button type="button" className="action" onClick={handleOpenWechatAuthorization}>
-                重新授权
               </button>
             </div>
             {wechatTestResult && (
