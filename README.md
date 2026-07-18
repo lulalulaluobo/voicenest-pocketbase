@@ -1,84 +1,87 @@
-# VoiceNest
+# VoiceNest - 本地优先语音收件箱 (PocketBase 统一托管版)
 
-个人使用的本地优先语音收件箱。录音、模型 API Key 与公众号配置均保存在用户自己的设备或 PocketBase 后端中。
+VoiceNest 是一款为个人量身打造的**本地优先（Local-First）**语音收件箱。它可以将你一闪而过的语音想法，通过 ASR 与 LLM 大模型转录润色，并安全地同步至你的 Obsidian 本地知识库或微信公众号草稿箱。
 
-## 项目用途
+本分支为 **PocketBase 统一托管与加密代理版本**：废弃了原先复杂的 Cloudflare Worker，通过单容器的 PocketBase 承载账户鉴权与微信公众号加密代发，保障最高规格的 Local-First 隐私安全性。
 
-把一闪而过的想法变成可继续使用的内容：录音、转写、润色，再写入你的知识库或公众号草稿箱。
+---
 
-- 笔记工作流：`录音 → ASR 转文字 → LLM 按笔记类型润色 → 同步到 Obsidian`
-- 公众号工作流：`录音 → ASR 转文字 → LLM 按公众号提示词改写 → 预览排版 → 保存到微信公众号草稿箱`
+## ✨ 核心特性
 
-录音、文本和设置默认只保存在当前设备；你可以按需连接自己的 ASR、LLM、Obsidian 与微信公众号服务。
+1. **🔒 数据 100% 本地优先 (Local-First)**：
+   * **隐私零上云**：所有录音音频分片（IndexedDB）与转录润色出来的文本笔记，**仅保存在您当前设备本地的浏览器/手机数据库中**，绝不上传到云端服务器。
+   * **配置完全离线**：您的 ASR 密钥、LLM 端点、NoteTypes（分类）等设置也完全离线保存在本地 localStorage，保护大模型 API Key 绝不脱离您的受控设备，从物理上杜绝脱库风险。
+2. **🛡️ 微信凭证 SaaS 级加密与代理代发**：
+   * 微信公众号要求请求源为固定公网 IP（白名单）。本系统通过 VPS 上的 PocketBase 后端作为代理网关发起微信请求。
+   * **AES-256-GCM 强加密**：用户的公众号 `AppSecret` 由前端单向提交，在后端使用 32 字节主密钥加密后存储于 SQLite 中。
+   * **字段防泄漏**：利用 PocketBase 引擎底层的 `"hidden": true` 过滤机制，`encryptedSecret` 密文字段在任何 API 响应中都会被强制抹除，前端客户端和外界绝无可能再次拉取到密钥。
+3. **🌐 官方管理后台动态汉化 (中文默认)**：
+   * 搭载了无损热插拔汉化钩子（[admin_i18n.pb.js](pb_hooks/admin_i18n.pb.js)），无需解包即可让 PocketBase 官方管理后台**默认以中文呈现**（避开代码和数据区，不产生任何副作用）。
+   * 右下角提供精致的毛玻璃悬浮切换钮，支持在“简体中文 / English”之间无缝切换并保存偏好。
 
-## 界面预览
+---
 
-<p align="center">
-  <img src="docs/assets/recording-screen.png" alt="VoiceNest 录音页" width="30%">
-  <img src="docs/assets/library-screen.png" alt="VoiceNest 音频列表页" width="30%">
-  <img src="docs/assets/settings-screen.png" alt="VoiceNest 设置页" width="30%">
-</p>
+## 🛠️ 项目运行与编译
 
-## 一句话交给 AI 部署
-
-```text
-请阅读当前 VoiceNest 仓库的 README.md，严格按“Docker 部署”一节完成部署；绝不输出、提交或泄露 .env 中的 VN_ENCRYPTION_KEY 或任何微信凭据。
-```
-
-## 本地运行
-
+### 1. 本地开发调试
 ```bash
 npm install
-npm run dev
-npm run test
-npm run build
+npm run dev   # 启动前端开发服务器 (http://localhost:5173)
+npm run test  # 运行 49 个单元测试用例
+npm run build # 编译前端静态 PWA 资源 (生成 dist 目录)
 ```
 
-## Android
+### 2. Android 壳同步与编译 (Capacitor)
+当前 Android APK 容器基于 Capacitor 实现。若前端发生改动，请在工作区下运行以下命令同步：
+```bash
+npm run build
+npx cap sync  # 将最新前端静态文件拷入 Android 壳工程中
+```
+**编译生成 APK 安装包：**
+* **方式一**：使用 **Android Studio** 打开 `android/` 目录，等待同步完成后点击菜单栏 **`Build`** -> **`Build Bundle(s) / APK(s)`** -> **`Build APK(s)`**，生成后点击右下角 locate 即可。
+* **方式二**：若您本机有 JDK 运行环境，直接在终端中切到 `android/` 目录运行：
+  ```bash
+  cd android
+  ./gradlew assembleDebug
+  ```
+  生成的 APK 路径为：`android/app/build/outputs/apk/debug/app-debug.apk`。
 
-在 [GitHub Releases](https://github.com/lulalulaluobo/VoiceNest/releases/latest) 下载 `VoiceNest-*-debug.apk`。这是调试包；首次安装时，Android 可能要求允许此来源安装未知应用。
+---
 
-APK 首次启动时会要求填写 PocketBase 后端地址（即按下方「部署」一节你自己部署的服务地址）。地址仅保存在本机，可随时在「设置 → 后端连接」中修改。之后即可登录或注册账号。
+## 🚀 Docker 生产部署
 
-应用数据、录音和配置仍仅保存在设备本地与你的 PocketBase 后端。
+生产环境推荐使用 Docker 进行一键式容器部署。PocketBase 会在启动时自动运行 `pb_migrations` 迁移以及 `pb_hooks`。
 
-## 部署
-
-VoiceNest 采用前后端一体的 PocketBase 部署：PocketBase 既托管前端静态 PWA，又承载用户认证、录音云端同步、微信公众号草稿代理。生产环境推荐 Docker 部署。
-
-### 部署前准备
-
-1. 准备一台可公网访问的服务器（或本地局域网测试机），已安装 Docker 与 Docker Compose。
-2. 在微信公众号后台准备 AppID 和 AppSecret；部署后在 VoiceNest 设置页上传默认封面。
-3. 生成 32 字节随机加密主密钥（用于后端 AES-256-GCM 加密微信 AppSecret）：
-
+### 1. 部署前准备
+1. 准备一台可公网访问且有固定 IP 的服务器（用于填写进微信公众号后台的 IP 白名单中），已安装 Docker 与 Docker Compose。
+2. 生成一个 32 字节随机加密主密钥（用于后端 AES 加密）：
    ```bash
    openssl rand -base64 24 | head -c 32
    ```
-
-4. 在仓库根目录复制环境变量文件并填入密钥：
-
-   ```bash
-   cp .env.example .env
-   # 编辑 .env，把 VN_ENCRYPTION_KEY 填为上一步生成的 32 字节字符串
+3. 在项目根目录下创建环境变量文件 `.env` 并填入该密钥：
+   ```env
+   VN_ENCRYPTION_KEY=您的32字节随机密钥字符串
    ```
+   ⚠️ **注意**：`.env` 已被 Git 忽略。**切勿**将其公开提交或写入任何前端代码中。若长度不为 32，容器启动时会报错拒绝服务。
 
-   `.env` 已被 Git 忽略。**切勿**提交、截图、贴入公开 Issue，或把它的值写入前端环境变量。
-   缺失或长度不为 32 时，PocketBase 启动后微信加解密 hook 会直接抛错拒绝服务。
-
-### Docker 部署
-
+### 2. 一键启动
 ```bash
-# 构建并启动（compose 会强制校验 VN_ENCRYPTION_KEY，未设置则拒绝启动）
+# 构建并启动 (Compose 会强制校验环境变量，未配置会提示报错)
 docker compose up -d --build
 ```
+* **前端 PWA 地址**：`http://<您的服务器IP>:8090`
+* **管理后台 (已汉化)**：`http://<您的服务器IP>:8090/_/` (首次访问需注册管理员账号)
 
-服务启动后访问 `http://<服务器IP>:8090`。首次访问 `http://<服务器IP>:8090/_/` 创建管理员账号。
+*强烈建议在公网部署时，在 PocketBase 前面套一层 Caddy / Nginx 并配置 SSL 证书（手机 PWA 正常调用麦克风录音权限必须工作在 HTTPS 协议下）。*
 
-生产环境强烈建议在前面套一层 Caddy / Nginx 做 HTTPS 终止（手机 PWA 必须通过 HTTPS 访问）。
+---
 
-### 微信公众号 IP 白名单
+## ⚙️ 使用与配对流程
 
-在公众号后台的 API 调用 IP 白名单中加入你部署服务器的出口公网 IP，然后到 VoiceNest 设置页运行“测试连接”。
-
-若使用 Fast Note Sync，同步服务必须提供手机可访问的 HTTPS 地址，并正确配置 CORS；`localhost` 或 HTTP 地址无法从 HTTPS PWA 中访问。
+1. **下载安装 APK**：手机安装编译好的 APK。首次启动时会要求填写您的 PocketBase 后端公网连接地址（例如 `https://pb.yourdomain.com`）。
+2. **注册与登录**：点击“注册”账号并自动登录，您的账号将独占独立的云端微信加密数据行。
+3. **安全配置微信**：
+   * 进入“设置” -> “公众号草稿编辑”，输入您的公众号 `AppID` 与 `AppSecret` 点击**保存**（自动单向加密上传）。
+   * 将您 VPS 的公网固定 IP 填入微信公众号后台的“IP白名单”中，随后在设置页中点击“测试公众号连接”验证。
+   * 选择并上传一张图片作为您公众号默认的封面图（同步写入微信永久素材库）。
+4. **开始体验**：回到主页，点击录音 -> 整理 -> 改写并预览排版 -> 点击一键发布到您的微信草稿箱！
