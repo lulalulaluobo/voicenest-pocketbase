@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { strToU8, zipSync } from 'fflate'
-import { createFullBackup, readFullBackup, replaceLocalData } from './backup'
+import { createFullBackup, readFullBackup, replaceLocalData, writeFullBackup } from './backup'
 import { appendChunk, createRecording, getChunks, listRecordings, recordingDb } from './recording-db'
 
 describe('full backup', () => {
@@ -61,6 +61,26 @@ describe('full backup', () => {
       wechatStatus: 'drafted',
     }])
     expect(await (await getChunks('r1'))[0].blob.text()).toBe('audio-bytes')
+  })
+
+  it('writes ZIP output incrementally for native export', async () => {
+    await createRecording({ id: 'streamed', typeId: 'idea', typeName: '随想', mimeType: 'audio/webm', localTitle: '流式备份' })
+    await appendChunk({
+      id: 'streamed-chunk',
+      recordingId: 'streamed',
+      index: 0,
+      createdAt: '2026-07-18T00:00:00.000Z',
+      blob: new Blob([new Uint8Array(600_000).map((_, index) => index % 251)], { type: 'audio/webm' }),
+      size: 600_000,
+    })
+
+    const pieces: BlobPart[] = []
+    await writeFullBackup(async (piece) => { pieces.push(new Uint8Array(piece)) })
+
+    expect(pieces.length).toBeGreaterThan(1)
+    await expect(readFullBackup(new Blob(pieces, { type: 'application/zip' }))).resolves.toMatchObject({
+      manifest: { recordingCount: 1 },
+    })
   })
 
   it('rejects duplicate recording IDs before local data is replaced', async () => {
@@ -184,4 +204,3 @@ describe('full backup', () => {
     expect(localStorage.getItem('vn_asr')).toBe('restored-setting')
   })
 })
-

@@ -24,7 +24,7 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 - `MainActivity` 必须接受 Cookie 与第三方 Cookie、在页面完成时 `CookieManager.flush()`，并只在首次加载 `https://localhost` 时注销遗留 Service Worker 后重载；不得清空 WebView 数据、Dexie 或 Cookie。
 - Android 内不注册新的 PWA Service Worker。设置页“公众号草稿箱”只展示 AppID/AppSecret 的保存和连通性测试；不得添加 Worker 授权 URL、`wechat-authorized` 回调或外部浏览器跳转。
 - Android 构建每次交付新前端时必须递增 `android/app/build.gradle` 的 `versionCode`。
-- Android WebView 不支持把 `blob:` 的 `<a download>` 写入文件；`FileDownload` 原生插件必须用 `ACTION_CREATE_DOCUMENT` 让用户选择保存位置，再写入浏览器传来的 Base64。网页端继续使用 `<a download>` 回退。
+- Android WebView 不支持把 `blob:` 的 `<a download>` 写入文件；`FileDownload` 原生插件在 Android 10+ 写入 `Download/声笺`，旧版使用 `ACTION_CREATE_DOCUMENT` 选择位置。WebView 只能以 256 KiB Base64 块依次调用 `begin` → `append` → `finish`，不能传整份文件。网页端继续使用 `<a download>` 回退。
 - 密钥只能由设置页输入或 ZIP 恢复，禁止写入 Capacitor 配置、Manifest、Gradle 或 Git。
 
 ## 4. Validation & Error Matrix
@@ -37,7 +37,8 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 | FNS 只提供 HTTP 或未允许 `https://localhost` | WebView 在预检或请求阶段拦截，设置页应提示检查 HTTPS 与 CORS。 |
 | 从旧网页备份恢复公众号配置 | 旧 AppID/状态可以恢复，但不会恢复旧 Worker 代码；用户需在设置页重新保存有效 AppID/AppSecret。 |
 | APK 版本未递增且遗留 Service Worker 接管页面 | 旧页面可能继续执行已删除的授权逻辑；递增版本并由 `MainActivity` 首次加载时注销遗留 Service Worker。 |
-| Android 对 `blob:` 链接调用 `<a download>` | WebView 不会开始文件下载；必须调用 `FileDownload.save`。 |
+| Android 对 `blob:` 链接调用 `<a download>` | WebView 不会开始文件下载；必须调用 `FileDownload.begin`/`append`/`finish`。 |
+| 将整份备份 ZIP/Base64 通过 Capacitor 桥接 | WebView 内存会同时保留 ZIP、Base64 与 Java 解码副本并闪退；必须使用 `begin`/`append`/`finish` 分块写入。 |
 
 ## 5. Good / Base / Bad Cases
 
@@ -55,7 +56,7 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 4. 覆盖安装版本号更高的 APK 后，验证不会打开系统浏览器，且本地数据仍存在。
 5. 真机填写 AppID/AppSecret、保存后重启 App，并测试公众号连接仍成功。
 6. 为 FNS 配置 HTTPS 地址，验证 `https://localhost` CORS 预检、Token 测试和笔记同步。
-7. Android 点击下载音频与完整备份，选择位置后检查文件可被系统文件管理器读取。
+7. Android 点击下载音频与完整备份，检查 `Download/声笺` 中的文件可被系统文件管理器读取；模拟器至少验证一次 `begin`/`append`/`finish` 写入。
 
 ## 7. Wrong vs Correct
 
@@ -85,5 +86,5 @@ link.click()
 ### Correct
 
 ```ts
-await downloadBlob(blob, filename) // Android 调用 ACTION_CREATE_DOCUMENT，网页端回退为 <a download>
+await exportFullBackup(filename) // Android 分块写入，网页端回退为 <a download>
 ```

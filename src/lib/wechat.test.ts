@@ -53,6 +53,13 @@ describe('WeChat draft client', () => {
     expect(readFileSync('src/pages/SettingsPage.tsx', 'utf8')).not.toContain('wechat-authorized')
   })
 
+  it('keeps the recording WeChat button actionable before setup is complete', () => {
+    const card = readFileSync('src/components/RecordingCard.tsx', 'utf8')
+
+    expect(card).not.toContain('disabled={!canEditWechat}')
+    expect(card).toContain("navigate(canEditWechat ? `/recordings/${recording.id}/wechat` : '/settings')")
+  })
+
   it('keeps PocketBase hook constants inside the required helper module', () => {
     const hook = readFileSync('pb_hooks/wechat.pb.js', 'utf8')
     const helpers = readFileSync('pb_hooks/wechat_helpers.js', 'utf8')

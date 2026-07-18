@@ -1,6 +1,7 @@
-import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
+import { strFromU8, strToU8, unzipSync, Zip, ZipDeflate } from 'fflate'
 import type { AudioChunk, Recording } from '../domain/recording'
 import { recordingDb } from './recording-db'
+import { downloadStream } from './file-download'
 
 export const BACKUP_FORMAT = 'voicenest-backup'
 export const BACKUP_VERSION = 2
@@ -124,19 +125,16 @@ function isRecording(value: unknown): value is Recording {
     && (recording.wechatMarkdown === undefined || typeof recording.wechatMarkdown === 'string')
 }
 
-export async function createFullBackup(): Promise<Blob> {
-  const recordings = await recordingDb.recordings.toArray()
-  const chunks = await recordingDb.audioChunks.toArray()
-  const audioEntries: AudioEntry[] = []
-  const files: Record<string, Uint8Array> = {
-    'settings.json': jsonFile(vnSettings()),
-    'recordings.json': jsonFile(recordings),
-  }
+type BackupChunkWriter = (chunk: Uint8Array) => Promise<void>
 
-  for (const chunk of chunks) {
-    const path = `audio/${chunk.recordingId}/${chunk.id}.bin`
-    audioEntries.push({
-      path,
+async function getAudioEntries(): Promise<{ ids: string[], entries: AudioEntry[] }> {
+  const ids = await recordingDb.audioChunks.toCollection().primaryKeys() as string[]
+  const entries: AudioEntry[] = []
+  for (const id of ids) {
+    const chunk = await recordingDb.audioChunks.get(id)
+    if (!chunk) throw new Error('读取音频分片失败')
+    entries.push({
+      path: `audio/${chunk.recordingId}/${chunk.id}.bin`,
       id: chunk.id,
       recordingId: chunk.recordingId,
       index: chunk.index,
@@ -144,8 +142,13 @@ export async function createFullBackup(): Promise<Blob> {
       size: chunk.size,
       type: chunk.blob.type,
     })
-    files[path] = new Uint8Array(await chunk.blob.arrayBuffer())
   }
+  return { ids, entries }
+}
+
+export async function writeFullBackup(write: BackupChunkWriter): Promise<void> {
+  const recordings = await recordingDb.recordings.toArray()
+  const { ids, entries: audioEntries } = await getAudioEntries()
 
   const manifest: BackupManifest = {
     format: BACKUP_FORMAT,
@@ -154,8 +157,47 @@ export async function createFullBackup(): Promise<Blob> {
     recordingCount: recordings.length,
     audioEntries,
   }
-  files['manifest.json'] = jsonFile(manifest)
-  return new Blob([zipSync(files, { level: 6 })], { type: 'application/zip' })
+
+  let writeChain = Promise.resolve()
+  let zipError: Error | null = null
+  const zip = new Zip((error, chunk) => {
+    if (error) {
+      zipError = error
+      return
+    }
+    if (chunk) writeChain = writeChain.then(() => write(chunk))
+  })
+  const flush = async () => {
+    await writeChain
+    if (zipError) throw zipError
+  }
+  const add = async (path: string, bytes: Uint8Array) => {
+    const file = new ZipDeflate(path, { level: 6 })
+    zip.add(file)
+    file.push(bytes, true)
+    await flush()
+  }
+
+  await add('settings.json', jsonFile(vnSettings()))
+  await add('recordings.json', jsonFile(recordings))
+  await add('manifest.json', jsonFile(manifest))
+  for (const id of ids) {
+    const chunk = await recordingDb.audioChunks.get(id)
+    if (!chunk) throw new Error('读取音频分片失败')
+    await add(`audio/${chunk.recordingId}/${chunk.id}.bin`, new Uint8Array(await chunk.blob.arrayBuffer()))
+  }
+  zip.end()
+  await flush()
+}
+
+export async function createFullBackup(): Promise<Blob> {
+  const chunks: BlobPart[] = []
+  await writeFullBackup(async (chunk) => { chunks.push(new Uint8Array(chunk)) })
+  return new Blob(chunks, { type: 'application/zip' })
+}
+
+export async function exportFullBackup(filename: string) {
+  return downloadStream(filename, 'application/zip', writeFullBackup)
 }
 
 export async function readFullBackup(file: Blob): Promise<FullBackup> {

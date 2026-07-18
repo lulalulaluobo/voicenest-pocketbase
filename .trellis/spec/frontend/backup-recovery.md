@@ -8,6 +8,8 @@
 
 ```ts
 export async function createFullBackup(): Promise<Blob>
+export async function writeFullBackup(write: (chunk: Uint8Array) => Promise<void>): Promise<void>
+export async function exportFullBackup(filename: string): Promise<'native' | 'browser'>
 export async function readFullBackup(file: Blob): Promise<FullBackup>
 export async function replaceLocalData(backup: FullBackup): Promise<void>
 ```
@@ -20,6 +22,7 @@ export async function replaceLocalData(backup: FullBackup): Promise<void>
 - ZIP 必须包含 `manifest.json`、`settings.json`、`recordings.json` 与 `audio/<recordingId>/<chunkId>.bin`。
 - `settings.json` 只允许 `vn_*` 键，值必须是字符串；它包含 ASR/LLM API Key 与 Obsidian Token。
 - `recordings.json` 保存完整 `Recording` 字段；音频文件保存原始 `AudioChunk.blob` 字节，不转码。
+- Android 导出必须调用 `exportFullBackup()`：它逐个读取 Dexie 音频分片，使用 `ZipDeflate` 逐个生成 ZIP 条目，并把 ZIP 输出交给原生写入器；不得先构造整份 ZIP `Blob`。
 - `replaceLocalData()` 只删除并恢复 VoiceNest 自己的 `vn_*` 设置和两张 Dexie 表，不触碰其他站点/应用数据。
 
 ## 4. Validation & Error Matrix
@@ -30,6 +33,7 @@ export async function replaceLocalData(backup: FullBackup): Promise<void>
 | 设置键不是 `vn_*` 或值不是字符串 | 抛出“备份设置无效”，不修改本地数据。 |
 | 录音字段缺失、状态未知或 ID 重复 | 抛出“录音清单无效”，不修改本地数据。 |
 | 音频路径/ID 重复、找不到音频、字节数不匹配、录音不存在 | 抛出音频清单错误，不修改本地数据。 |
+| Android 将整份 ZIP 转为单个 Base64 再跨桥接 | 会造成多份大对象同时驻留 WebView 内存并可能闪退；必须按 256 KiB 分块传输。 |
 | 用户取消确认 | 不调用 `replaceLocalData()`。 |
 | 所有校验通过且用户确认 | 清空两张 VoiceNest 表与全部 `vn_*` 键，再写入完整备份。 |
 
@@ -47,6 +51,7 @@ export async function replaceLocalData(backup: FullBackup): Promise<void>
 2. 仅保留文本、无音频分片的录音。
 3. 重复录音 ID、缺失必填字段、未知处理状态均被拒绝。
 4. 读取无效备份后，已有 Dexie 数据和 `vn_*` 设置保持不变。
+5. `writeFullBackup()` 产生多个 ZIP 输出块，拼接后仍可被 `readFullBackup()` 完整读取。
 
 ## 7. Wrong vs Correct
 

@@ -32,8 +32,7 @@ import {
   uploadWechatCover,
   setupWechatCredentials
 } from '../lib/wechat'
-import { createFullBackup, readFullBackup, replaceLocalData } from '../lib/backup'
-import { downloadBlob } from '../lib/file-download'
+import { exportFullBackup, readFullBackup, replaceLocalData } from '../lib/backup'
 import { getPocketbaseUrl, setPocketbaseUrl, pb } from '../lib/pocketbase'
 import defaultWechatCoverUrl from '../assets/default-wechat-cover.png'
 
@@ -509,10 +508,9 @@ export function SettingsPage() {
   const handleExportBackup = async () => {
     setBackupBusy(true)
     try {
-      const blob = await createFullBackup()
       const date = new Date().toISOString().slice(0, 10).replaceAll('-', '')
-      await downloadBlob(blob, `voicenest-backup-${date}.zip`)
-      alert('全量备份已保存。文件含 API Key 与 Token，请仅保存到可信位置。')
+      const destination = await exportFullBackup(`voicenest-backup-${date}.zip`)
+      alert(destination === 'native' ? '全量备份已保存至 下载/声笺。文件含 API Key 与 Token，请仅保存到可信位置。' : '全量备份已开始下载。文件含 API Key 与 Token，请仅保存到可信位置。')
     } catch (error) {
       alert(`导出备份失败：${error instanceof Error ? error.message : '未知错误'}`)
     } finally {

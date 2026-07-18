@@ -190,8 +190,10 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
         {recording.summary && (
           <button
             className="action wechat-btn"
-            onClick={(e) => { e.stopPropagation(); navigate(`/recordings/${recording.id}/wechat`) }}
-            disabled={!canEditWechat}
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(canEditWechat ? `/recordings/${recording.id}/wechat` : '/settings')
+            }}
             aria-label={wechatLabel}
             title={wechatLabel}
           >
