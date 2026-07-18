@@ -105,9 +105,21 @@ async function saveToCloud(key: string, value: any): Promise<void> {
   }
 }
 
+function readStoredJson<T>(key: string, fallback: T): T {
+  const data = localStorage.getItem(key)
+  if (!data) return fallback
+
+  try {
+    return JSON.parse(data) as T
+  } catch {
+    localStorage.removeItem(key)
+    return fallback
+  }
+}
+}
+
 export function getASRConfig(): ASRConfig {
-  const data = localStorage.getItem('vn_asr')
-  return data ? JSON.parse(data) : { type: 'openai', endpoint: 'https://api.openai.com/v1', apiKey: '', model: 'whisper-1' }
+  return readStoredJson('vn_asr', { type: 'openai', endpoint: 'https://api.openai.com/v1', apiKey: '', model: 'whisper-1' })
 }
 
 export function saveASRConfig(cfg: ASRConfig): void {
@@ -116,8 +128,7 @@ export function saveASRConfig(cfg: ASRConfig): void {
 }
 
 export function getLLMConfig(): LLMConfig {
-  const data = localStorage.getItem('vn_llm')
-  return data ? JSON.parse(data) : { endpoint: 'https://api.openai.com/v1', apiKey: '', model: 'gpt-4o' }
+  return readStoredJson('vn_llm', { endpoint: 'https://api.openai.com/v1', apiKey: '', model: 'gpt-4o' })
 }
 
 export function saveLLMConfig(cfg: LLMConfig): void {
@@ -126,8 +137,7 @@ export function saveLLMConfig(cfg: LLMConfig): void {
 }
 
 export function getSyncConfig(): SyncConfig {
-  const data = localStorage.getItem('vn_sync')
-  return data ? JSON.parse(data) : { api: 'http://localhost:8080', apiToken: '', vault: '' }
+  return readStoredJson('vn_sync', { api: '', apiToken: '', vault: '' })
 }
 
 export function saveSyncConfig(cfg: SyncConfig): void {
@@ -160,12 +170,12 @@ export function saveWechatPromptTemplates(templates: WechatPromptTemplate[]): vo
 }
 
 export function getNoteTypes(): UserNoteType[] {
-  const data = localStorage.getItem('vn_note_types')
-  if (!data) {
+  const types = readStoredJson<UserNoteType[] | null>('vn_note_types', null)
+  if (!types) {
     localStorage.setItem('vn_note_types', JSON.stringify(DEFAULT_NOTE_TYPES))
     return DEFAULT_NOTE_TYPES
   }
-  return JSON.parse(data)
+  return types
 }
 
 export function saveNoteTypes(types: UserNoteType[]): void {

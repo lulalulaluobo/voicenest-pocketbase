@@ -12,20 +12,49 @@ async function fetchWithProxy(url: string, options: RequestInit): Promise<Respon
   try {
     return await fetch(url, options)
   } catch (err: any) {
-    // 捕获跨域/网络故障产生的 Failed to fetch 错误
     const isPublic = /^https?:\/\//i.test(url) && !url.includes('localhost') && !url.includes('127.0.0.1')
     if (isPublic) {
       console.warn('直连失败或遇到 CORS 跨域拦截，尝试降级通过 Vercel 代理转发:', url)
-      
-      // 本地开发环境下，自动路由到线上 Vercel 实例代理，省去本地 Serverless 函数配置
       const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       const proxyBase = isLocalhost ? 'https://codex-stage1-recording.vercel.app' : ''
       const proxyUrl = `${proxyBase}/api/proxy?url=${encodeURIComponent(url)}`
-      
       return await fetch(proxyUrl, options)
     }
     throw err
   }
+}
+
+export function assertSecureSyncEndpoint(api: string): string {
+  let parsed: URL
+  try {
+    parsed = new URL(api)
+  } catch {
+    throw new Error('Fast Note Sync 地址必须是有效的 HTTPS URL。')
+  }
+
+  if (parsed.protocol !== 'https:') {
+    throw new Error('Fast Note Sync 必须使用 HTTPS 地址；手机 PWA 无法访问 localhost 或 HTTP 服务。')
+  }
+
+  return parsed.toString().replace(/\/+$/, '')
+}
+
+export function normalizeObsidianDirectory(directory: string): string {
+  const segments = directory.split('/').map((segment) => segment.trim()).filter(Boolean)
+  if (segments.some((segment) => segment === '.' || segment === '..' || /[\\\u0000-\u001F]/.test(segment))) {
+    throw new Error('Obsidian 目录不能包含 .、..、反斜杠或控制字符。')
+  }
+  return segments.join('/')
+}
+
+export function sanitizeNoteFilename(title: string): string {
+  const safe = title
+    .normalize('NFKC')
+    .replace(/[\\/:*?"<>|\u0000-\u001F]/g, ' ')
+    .replace(/^\.+/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return safe || '未命名笔记'
 }
 
 export async function syncToObsidian(
@@ -34,12 +63,12 @@ export async function syncToObsidian(
   obsidianDir: string,
   config: SyncConfig
 ): Promise<void> {
-  const baseUrl = config.api.replace(/\/+$/, '')
+  const baseUrl = assertSecureSyncEndpoint(config.api)
   const url = `${baseUrl}/api/note`
+  const cleanDir = normalizeObsidianDirectory(obsidianDir)
+  const safeTitle = sanitizeNoteFilename(title)
   
-  const cleanDir = obsidianDir.replace(/^\/+|\/+$/g, '')
-  
-  let currentTitle = title
+  let currentTitle = safeTitle
   let attempts = 0
   const maxAttempts = 3
 
@@ -62,8 +91,7 @@ export async function syncToObsidian(
     })
 
     if (!response.ok) {
-      const errText = await response.text().catch(() => '')
-      throw new Error(`Obsidian 同步失败 (${response.status}): ${errText}`)
+      throw new Error(`Obsidian 同步失败 (${response.status})`)
     }
 
     const data = await response.json().catch(() => null)
@@ -73,8 +101,7 @@ export async function syncToObsidian(
         const now = new Date()
         const pad = (n: number) => String(n).padStart(2, '0')
         const suffix = `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
-        currentTitle = `${title}_${suffix}`
-        console.warn(`检测到同名文件 [${fullPath}]，自动添加时间戳后缀 [${currentTitle}] 进行重试...`)
+        currentTitle = `${safeTitle}_${suffix}_${attempts}`
         continue
       }
 
@@ -89,7 +116,7 @@ export async function syncToObsidian(
 }
 
 export async function testSyncConnection(config: SyncConfig): Promise<void> {
-  const baseUrl = config.api.replace(/\/+$/, '')
+  const baseUrl = assertSecureSyncEndpoint(config.api)
   const url = `${baseUrl}/api/user/info`
   
   const response = await fetchWithProxy(url, {
@@ -100,8 +127,7 @@ export async function testSyncConnection(config: SyncConfig): Promise<void> {
   })
 
   if (!response.ok) {
-    const errText = await response.text().catch(() => '')
-    throw new Error(`连接失败 (${response.status}): ${errText}`)
+    throw new Error(`连接失败 (${response.status})`)
   }
 
   const data = await response.json().catch(() => null)

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { transcribeAudio } from './asr'
+import { testASRConnection, transcribeAudio } from './asr'
 import { formatNote, rewriteWechatArticle } from './llm'
-import { syncToObsidian } from './sync'
+import { assertSecureSyncEndpoint, normalizeObsidianDirectory, sanitizeNoteFilename, syncToObsidian } from './sync'
 
 describe('API Clients Unit Tests', () => {
   const originalFetch = globalThis.fetch
@@ -13,6 +13,7 @@ describe('API Clients Unit Tests', () => {
   afterEach(() => {
     globalThis.fetch = originalFetch
     vi.restoreAllMocks()
+    vi.unstubAllGlobals()
   })
 
   it('should send form data correctly in transcribeAudio', async () => {
@@ -33,6 +34,91 @@ describe('API Clients Unit Tests', () => {
 
     expect(text).toBe('转写成功内容')
     expect(globalThis.fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('checks StepAudio credentials through the model list endpoint', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ object: 'list', data: [] }),
+    } as Response)
+
+    await expect(testASRConnection({
+      type: 'step',
+      endpoint: 'https://api.stepfun.com/v1',
+      apiKey: 'step-test',
+      model: 'stepaudio-2.5-asr',
+    })).resolves.toBeUndefined()
+
+    expect(globalThis.fetch).toHaveBeenCalledWith('https://api.stepfun.com/v1/models', {
+      headers: { Authorization: 'Bearer step-test' },
+    })
+  })
+
+  it('uses StepAudio multipart requirements for Ogg recordings', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ text: '转写成功内容' }),
+    } as Response)
+
+    await transcribeAudio(new Blob(['audio'], { type: 'audio/ogg;codecs=opus' }), {
+      type: 'step',
+      endpoint: 'https://api.stepfun.com/v1',
+      apiKey: 'step-test',
+      model: 'stepaudio-2.5-asr',
+    })
+
+    const [, request] = vi.mocked(globalThis.fetch).mock.calls[0]
+    const formData = request?.body as FormData
+    expect(formData.get('response_format')).toBe('json')
+    expect((formData.get('file') as File).name).toBe('audio.ogg')
+  })
+
+  it('converts WebM recordings to WAV before sending them to StepAudio', async () => {
+    class FakeAudioContext {
+      async decodeAudioData() {
+        return {
+          numberOfChannels: 1,
+          length: 2,
+          sampleRate: 16_000,
+          getChannelData: () => new Float32Array([0, 0.5]),
+        } as unknown as AudioBuffer
+      }
+
+      async close() {}
+    }
+
+    vi.stubGlobal('AudioContext', FakeAudioContext)
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ text: '转写成功内容' }),
+    } as Response)
+
+    await expect(transcribeAudio(new Blob(['audio'], { type: 'audio/webm' }), {
+      type: 'step',
+      endpoint: 'https://api.stepfun.com/v1',
+      apiKey: 'step-test',
+      model: 'stepaudio-2.5-asr',
+    })).resolves.toBe('转写成功内容')
+
+    const [, request] = vi.mocked(globalThis.fetch).mock.calls[0]
+    const file = (request?.body as FormData).get('file') as File
+    expect(file.name).toBe('audio.wav')
+    expect(file.type).toBe('audio/wav')
+  })
+
+  it('keeps the safe StepAudio no-speech error code for connection testing', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { code: 'no_speech_found' } }),
+    } as Response)
+
+    await expect(transcribeAudio(new Blob(['audio'], { type: 'audio/wav' }), {
+      type: 'step',
+      endpoint: 'https://api.stepfun.com/v1',
+      apiKey: 'step-test',
+      model: 'stepaudio-2.5-asr',
+    })).rejects.toThrow('ASR API 调用失败 (400): no_speech_found')
   })
 
   it('should format note via LLM chat completions and parse JSON', async () => {
@@ -91,6 +177,18 @@ describe('API Clients Unit Tests', () => {
     expect(body.messages[0].content).toContain('禁止输出空的列表标记')
   })
 
+  it('does not expose provider response bodies in API errors', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      text: async () => 'invalid key sk-secret-value',
+    } as Response)
+
+    await expect(transcribeAudio(new Blob(['audio']), {
+      type: 'openai', endpoint: 'https://api.openai.com/v1', apiKey: 'sk-test', model: 'whisper-1',
+    })).rejects.toThrow('ASR API 调用失败 (401)')
+  })
+
   it('should sync markdown file to Obsidian via Fast Note Sync', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,
@@ -100,7 +198,7 @@ describe('API Clients Unit Tests', () => {
 
     await expect(
       syncToObsidian('测试文件', '# 内容', 'Inbox/Ideas', {
-        api: 'http://localhost:8080',
+        api: 'https://fns.example.test',
         apiToken: 'token-xyz',
         vault: 'my-vault'
       })
@@ -124,12 +222,21 @@ describe('API Clients Unit Tests', () => {
 
     await expect(
       syncToObsidian('重名文件', '# 内容', 'Inbox/Ideas', {
-        api: 'http://localhost:8080',
+        api: 'https://fns.example.test',
         apiToken: 'token-xyz',
         vault: 'my-vault'
       })
     ).resolves.not.toThrow()
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects non-HTTPS Fast Note Sync endpoints', () => {
+    expect(() => assertSecureSyncEndpoint('http://localhost:8080')).toThrow('HTTPS')
+  })
+
+  it('rejects path traversal and strips unsafe filename characters', () => {
+    expect(() => normalizeObsidianDirectory('../Inbox')).toThrow('..')
+    expect(sanitizeNoteFilename('../会议:总结?')).toBe('会议 总结')
   })
 })

@@ -35,7 +35,7 @@ export async function sweepExpiredStorage(): Promise<void> {
     const days = textPolicy === '7d' ? 7 : 30
     const cutoffDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
     
-    // 找出所有早于 cutoff 且状态为 synced 的笔记
+    // 找出所有早于 cutoff 且状态为 synced 的笔记，仅清除文本内容。
     const expiredRecordings = await recordingDb.recordings
       .where('status')
       .equals('synced')
@@ -43,9 +43,13 @@ export async function sweepExpiredStorage(): Promise<void> {
       .toArray()
 
     if (expiredRecordings.length > 0) {
-      console.log(`[Retention] 扫描到 ${expiredRecordings.length} 条已同步文本及录音到期删除记录`)
+      console.log(`[Retention] 扫描到 ${expiredRecordings.length} 条已同步文本到期记录`)
       for (const rec of expiredRecordings) {
-        await deleteRecording(rec.id)
+        await updateRecording(rec.id, {
+          transcript: undefined,
+          summary: undefined,
+          updatedAt: new Date().toISOString()
+        })
       }
     }
   }
