@@ -8,7 +8,6 @@ import { getNoteTypes, type UserNoteType } from '../lib/config-store'
 import { useProcessor } from '../hooks/use-processor'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { getWechatStatusLabel } from '../lib/wechat'
-import { buildPlaybackBlob } from '../lib/audio-playback'
 
 function formatTime(secs: number) {
   if (isNaN(secs)) return '00:00'
@@ -76,7 +75,7 @@ export function RecordingDetailPage() {
       // 音频只存本地：无本地分片则不生成播放 URL（UI 显示「已清理」提示）
       const chunks = await getChunks(recordingId)
       if (!chunks.length) return
-      currentUrl = URL.createObjectURL(buildPlaybackBlob(chunks, rec.mimeType))
+      currentUrl = URL.createObjectURL(await getRecordingAudioBlob(rec, chunks.map((chunk) => chunk.blob)))
       setAudioUrl(currentUrl)
     })()
 
