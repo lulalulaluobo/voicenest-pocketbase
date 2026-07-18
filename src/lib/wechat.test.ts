@@ -12,12 +12,13 @@ import {
   publishWechatDraft,
   testWechatConnection,
   uploadWechatCover,
+  setupWechatCredentials,
 } from './wechat'
 
 const config = {
   enabled: true,
   appId: 'wx-test-appid',
-  appSecret: 'secret-test'
+  configured: true
 }
 
 const request = {
@@ -129,6 +130,22 @@ describe('WeChat draft client', () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(JSON.stringify({ configured: 'yes' })))
 
     await expect(getWechatCoverStatus(config)).rejects.toThrow('公众号封面服务返回的数据无效')
+  })
+
+  it('sends credentials to backend securely', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      success: true,
+      configured: true
+    })))
+
+    await expect(setupWechatCredentials('wx-app-id', 'wx-secret')).resolves.toEqual({ success: true, configured: true })
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'http://127.0.0.1:8090/api/wechat/setup-credential',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ appId: 'wx-app-id', appSecret: 'wx-secret' })
+      })
+    )
   })
 
   it('persists WeChat configuration locally', () => {

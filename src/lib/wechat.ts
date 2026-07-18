@@ -171,3 +171,21 @@ export async function publishWechatDraft(
   }
   return { mediaId: data.mediaId, reused: data.reused }
 }
+
+export async function setupWechatCredentials(
+  appId: string,
+  appSecret: string
+): Promise<{ success: boolean; configured: boolean }> {
+  const response = await fetch(`${workerBaseUrl()}/setup-credential`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders()
+    },
+    body: JSON.stringify({ appId, appSecret })
+  })
+  if (!response.ok) {
+    throw await readError(response)
+  }
+  return response.json() as Promise<{ success: boolean; configured: boolean }>
+}

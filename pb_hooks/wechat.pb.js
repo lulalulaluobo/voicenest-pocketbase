@@ -1,4 +1,4 @@
-// wechat.pb.js - PocketBase 后端微信公众号草稿同步代理
+// wechat.pb.js - PocketBase 后端微信公众号凭证安全加密与代理同步
 
 // ==========================================
 // 1. 本地 KV 缓存工具 (基于 wechat_kv SQLite 表)
@@ -30,7 +30,26 @@ function putWechatCache(app, key, value) {
   }
 }
 
-// Base64 纯 JS 解码为 Uint8Array (防止 goja 中 atob 不可用)
+// ==========================================
+// 2. AES-256-GCM 安全加解密工具
+// ==========================================
+function getMasterEncryptionKey() {
+  let key = os.getenv("VN_ENCRYPTION_KEY");
+  if (!key || key.length < 16) {
+    console.warn("[WeChat Auth] 未在环境中检测到强密钥 VN_ENCRYPTION_KEY，已降级启用内置备用密钥，请勿用于生产环境！");
+    key = "vn_master_default_secure_key_32b";
+  }
+  
+  if (key.length > 32) {
+    return key.slice(0, 32);
+  }
+  while (key.length < 32) {
+    key += "x";
+  }
+  return key;
+}
+
+// Base64 纯 JS 解码为 Uint8Array
 function base64ToUint8Array(base64) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   const lookup = new Uint8Array(256);
@@ -89,9 +108,9 @@ function buildMultipartBody(boundary, fieldName, filename, fileMime, fileBase64)
 }
 
 // ==========================================
-// 2. 微信 API 操作封装
+// 3. 微信 API 操作封装
 // ==========================================
-const TOKEN_SAFETY_MARGIN_MS = 300000; // 5分钟安全空间
+const TOKEN_SAFETY_MARGIN_MS = 300000;
 const DEFAULT_COVER_KEY = "wechat:default-cover-media-id";
 
 function getAccessToken(app, appId, appSecret) {
@@ -205,7 +224,7 @@ function updateDraft(app, appId, appSecret, mediaId, article) {
 }
 
 // ==========================================
-// 3. 简易 Markdown 内联微信样式编译器
+// 4. 简易 Markdown 内联微信样式编译器
 // ==========================================
 function normalizeWechatMarkdown(source) {
   return source.replace(/^[\t ]*(?:[-+*]|\d+[.)])[\t ]*(?:\r?\n|$)/gm, '');
@@ -266,41 +285,83 @@ function handleApiError(err, c) {
   return c.json(statusCode, { code: code, message: message });
 }
 
-// 检查是否具备用户授权和密钥配置
-function getWechatConfig(c) {
-  const authRecord = c.get("authRecord");
-  if (!authRecord) {
-    throw new Error("UNAUTHORIZED");
-  }
-
-  const rawConfig = authRecord.get("wechatDraftConfig");
-  let config = {};
+// 安全提取与解密微信 AppSecret 凭据
+function getWechatCredentials(app, authRecord) {
   try {
-    config = typeof rawConfig === "string" ? JSON.parse(rawConfig) : (rawConfig || {});
-  } catch (_) {}
+    const record = app.findFirstRecordByFilter("wechat_accounts", "owner = {:owner}", { owner: authRecord.id });
+    if (!record) return null;
 
-  if (!config.enabled || !config.appId || !config.appSecret) {
-    throw new Error("CONFIG_MISSING");
+    const appId = record.get("appId");
+    const encrypted = record.get("encryptedSecret");
+    if (!appId || !encrypted) return null;
+
+    const key = getMasterEncryptionKey();
+    const appSecret = $security.decrypt(encrypted, key);
+    return { appId: appId, appSecret: appSecret };
+  } catch (_) {
+    return null;
   }
-
-  return config;
 }
 
 // ==========================================
-// 4. 自定义路由注册
+// 5. 自定义路由注册
 // ==========================================
 
-routerAdd("POST", "/api/wechat/connection-test", (c) => {
-  let config;
-  try {
-    config = getWechatConfig(c);
-  } catch (err) {
-    if (err.message === "UNAUTHORIZED") return c.json(401, { code: "UNAUTHORIZED", message: "未登录或登录会话已过期" });
-    if (err.message === "CONFIG_MISSING") return c.json(400, { code: "CONFIG_MISSING", message: "请先在设置中启用微信草稿箱并配置 AppID/Secret" });
+// 安全单向保存微信凭据接口
+routerAdd("POST", "/api/wechat/setup-credential", (c) => {
+  const authRecord = c.get("authRecord");
+  if (!authRecord) {
+    return c.json(401, { code: "UNAUTHORIZED", message: "未登录或登录会话已过期" });
   }
 
   try {
-    getAccessToken(c.app, config.appId, config.appSecret);
+    const body = JSON.parse(c.request().body);
+    const appId = body.appId || "";
+    const appSecret = body.appSecret || "";
+
+    if (!appId.trim()) {
+      return c.json(400, { code: "INVALID_REQUEST", message: "微信公众号 AppID 不能为空" });
+    }
+
+    // 查询当前用户的记录
+    let record;
+    try {
+      record = c.app.findFirstRecordByFilter("wechat_accounts", "owner = {:owner}", { owner: authRecord.id });
+    } catch (_) {
+      const collection = c.app.findCollectionByNameOrId("wechat_accounts");
+      record = new Record(collection);
+      record.set("owner", authRecord.id);
+    }
+
+    record.set("appId", appId.trim());
+
+    // 只有在前端传了非空 AppSecret 时才进行加密并更新。若为空，则说明仅修改了 AppID 且沿用原密码。
+    if (appSecret.trim()) {
+      const key = getMasterEncryptionKey();
+      const encrypted = $security.encrypt(appSecret.trim(), key);
+      record.set("encryptedSecret", encrypted);
+    }
+
+    c.app.save(record);
+    return c.json(200, { success: true, configured: true });
+  } catch (err) {
+    return c.json(500, { code: "INTERNAL_ERROR", message: "保存微信凭据失败: " + err.message });
+  }
+});
+
+routerAdd("POST", "/api/wechat/connection-test", (c) => {
+  const authRecord = c.get("authRecord");
+  if (!authRecord) {
+    return c.json(401, { code: "UNAUTHORIZED", message: "请先登录" });
+  }
+
+  const credentials = getWechatCredentials(c.app, authRecord);
+  if (!credentials) {
+    return c.json(400, { code: "CONFIG_MISSING", message: "请先在设置中配置微信公众号的 AppID 与 AppSecret" });
+  }
+
+  try {
+    getAccessToken(c.app, credentials.appId, credentials.appSecret);
     return c.json(200, { ok: true });
   } catch (err) {
     return handleApiError(err, c);
@@ -308,25 +369,29 @@ routerAdd("POST", "/api/wechat/connection-test", (c) => {
 });
 
 routerAdd("GET", "/api/wechat/cover", (c) => {
-  let config;
-  try {
-    config = getWechatConfig(c);
-  } catch (err) {
-    if (err.message === "UNAUTHORIZED") return c.json(401, { code: "UNAUTHORIZED", message: "未登录" });
-    if (err.message === "CONFIG_MISSING") return c.json(400, { code: "CONFIG_MISSING", message: "微信配置缺失" });
+  const authRecord = c.get("authRecord");
+  if (!authRecord) {
+    return c.json(401, { code: "UNAUTHORIZED", message: "未登录" });
   }
 
-  const coverMediaId = getWechatCache(c.app, DEFAULT_COVER_KEY + ":" + config.appId);
+  const credentials = getWechatCredentials(c.app, authRecord);
+  if (!credentials) {
+    return c.json(200, { configured: false });
+  }
+
+  const coverMediaId = getWechatCache(c.app, DEFAULT_COVER_KEY + ":" + credentials.appId);
   return c.json(200, { configured: Boolean(coverMediaId) });
 });
 
 routerAdd("POST", "/api/wechat/cover", (c) => {
-  let config;
-  try {
-    config = getWechatConfig(c);
-  } catch (err) {
-    if (err.message === "UNAUTHORIZED") return c.json(401, { code: "UNAUTHORIZED", message: "未登录" });
-    if (err.message === "CONFIG_MISSING") return c.json(400, { code: "CONFIG_MISSING", message: "微信配置缺失" });
+  const authRecord = c.get("authRecord");
+  if (!authRecord) {
+    return c.json(401, { code: "UNAUTHORIZED", message: "未登录" });
+  }
+
+  const credentials = getWechatCredentials(c.app, authRecord);
+  if (!credentials) {
+    return c.json(400, { code: "CONFIG_MISSING", message: "微信配置缺失，请先在设置中填写密钥" });
   }
 
   try {
@@ -335,7 +400,7 @@ routerAdd("POST", "/api/wechat/cover", (c) => {
     if (data && typeof data === "object") {
       dataUrl = data.dataUrl || "";
     } else {
-      const parsed = JSON.parse(c.request().body); // 兼容有些时候body为raw json
+      const parsed = JSON.parse(c.request().body);
       dataUrl = parsed.dataUrl || "";
     }
 
@@ -351,8 +416,8 @@ routerAdd("POST", "/api/wechat/cover", (c) => {
     const mimeType = match[1];
     const base64Data = match[2];
 
-    const mediaId = uploadCover(c.app, config.appId, config.appSecret, mimeType, base64Data);
-    putWechatCache(c.app, DEFAULT_COVER_KEY + ":" + config.appId, mediaId);
+    const mediaId = uploadCover(c.app, credentials.appId, credentials.appSecret, mimeType, base64Data);
+    putWechatCache(c.app, DEFAULT_COVER_KEY + ":" + credentials.appId, mediaId);
 
     return c.json(200, { configured: true });
   } catch (err) {
@@ -383,12 +448,14 @@ routerAdd("POST", "/api/wechat/preview", (c) => {
 });
 
 routerAdd("POST", "/api/wechat/drafts", (c) => {
-  let config;
-  try {
-    config = getWechatConfig(c);
-  } catch (err) {
-    if (err.message === "UNAUTHORIZED") return c.json(401, { code: "UNAUTHORIZED", message: "未登录" });
-    if (err.message === "CONFIG_MISSING") return c.json(400, { code: "CONFIG_MISSING", message: "微信配置缺失" });
+  const authRecord = c.get("authRecord");
+  if (!authRecord) {
+    return c.json(401, { code: "UNAUTHORIZED", message: "未登录" });
+  }
+
+  const credentials = getWechatCredentials(c.app, authRecord);
+  if (!credentials) {
+    return c.json(400, { code: "CONFIG_MISSING", message: "微信配置缺失，请先在设置中填写密钥" });
   }
 
   try {
@@ -403,7 +470,7 @@ routerAdd("POST", "/api/wechat/drafts", (c) => {
     }
 
     // 1. 幂等性检查
-    const cacheKey = "draft-request:" + config.appId + ":" + requestId;
+    const cacheKey = "draft-request:" + credentials.appId + ":" + requestId;
     const cachedRaw = getWechatCache(c.app, cacheKey);
     if (cachedRaw) {
       try {
@@ -415,7 +482,7 @@ routerAdd("POST", "/api/wechat/drafts", (c) => {
     }
 
     // 2. 检查公众号封面
-    const coverMediaId = getWechatCache(c.app, DEFAULT_COVER_KEY + ":" + config.appId);
+    const coverMediaId = getWechatCache(c.app, DEFAULT_COVER_KEY + ":" + credentials.appId);
     if (!coverMediaId) {
       return c.json(422, { code: "COVER_NOT_CONFIGURED", message: "请先在设置中上传公众号默认封面" });
     }
@@ -438,17 +505,16 @@ routerAdd("POST", "/api/wechat/drafts", (c) => {
     let mediaId;
     if (draftMediaId) {
       try {
-        mediaId = updateDraft(c.app, config.appId, config.appSecret, draftMediaId, article);
+        mediaId = updateDraft(c.app, credentials.appId, credentials.appSecret, draftMediaId, article);
       } catch (err) {
-        // 如果是无效 media_id (微信返回 40007)，退回到创建新草稿
         if (err.message.includes("40007") || err.message.toLowerCase().includes("invalid media_id")) {
-          mediaId = createDraft(c.app, config.appId, config.appSecret, article);
+          mediaId = createDraft(c.app, credentials.appId, credentials.appSecret, article);
         } else {
           throw err;
         }
       }
     } else {
-      mediaId = createDraft(c.app, config.appId, config.appSecret, article);
+      mediaId = createDraft(c.app, credentials.appId, credentials.appSecret, article);
     }
 
     // 5. 保存到幂等缓存中 (保留 7 天)

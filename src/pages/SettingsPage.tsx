@@ -29,7 +29,8 @@ import { testSyncConnection } from '../lib/sync'
 import {
   getWechatCoverStatus,
   testWechatConnection,
-  uploadWechatCover
+  uploadWechatCover,
+  setupWechatCredentials
 } from '../lib/wechat'
 import { createFullBackup, readFullBackup, replaceLocalData } from '../lib/backup'
 import { downloadBlob } from '../lib/file-download'
@@ -57,7 +58,15 @@ export function SettingsPage() {
   const [syncTesting, setSyncTesting] = useState(false)
   const [syncTestResult, setSyncTestResult] = useState<string | null>(null)
   const [wechatConfig, setWechatConfig] = useState(getWechatDraftConfig())
+  const [tempAppId, setTempAppId] = useState(getWechatDraftConfig().appId)
+  const [tempAppSecret, setTempAppSecret] = useState('')
+  const [wechatSaveResult, setWechatSaveResult] = useState<string | null>(null)
+  const [wechatSaving, setWechatSaving] = useState(false)
   const [wechatPromptTemplates, setWechatPromptTemplates] = useState(getWechatPromptTemplates())
+
+  useEffect(() => {
+    setTempAppId(wechatConfig.appId)
+  }, [wechatConfig.appId])
   const [editingWechatPrompt, setEditingWechatPrompt] = useState<WechatPromptTemplate | null>(null)
   const [wechatTesting, setWechatTesting] = useState(false)
   const [wechatTestResult, setWechatTestResult] = useState<string | null>(null)
@@ -259,6 +268,33 @@ export function SettingsPage() {
     const updated = { ...wechatConfig, ...changes }
     setWechatConfig(updated)
     saveWechatDraftConfig(updated)
+  }
+
+  const handleSaveWechatConfig = async () => {
+    if (!tempAppId.trim()) {
+      setWechatSaveResult('⚠️ AppID 不能为空')
+      return
+    }
+    setWechatSaving(true)
+    setWechatSaveResult(null)
+    try {
+      const res = await setupWechatCredentials(tempAppId.trim(), tempAppSecret.trim())
+      if (res.configured) {
+        const newConfig = {
+          enabled: wechatConfig.enabled,
+          appId: tempAppId.trim(),
+          configured: true
+        }
+        setWechatConfig(newConfig)
+        saveWechatDraftConfig(newConfig)
+        setWechatSaveResult('✅ 微信公众号配置已安全加密保存至云端')
+        setTempAppSecret('')
+      }
+    } catch (err: any) {
+      setWechatSaveResult(`⚠️ 保存失败: ${err.message}`)
+    } finally {
+      setWechatSaving(false)
+    }
   }
 
   const handleTestWechat = async () => {
@@ -745,9 +781,9 @@ export function SettingsPage() {
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>微信公众号 AppID</label>
               <input
                 type="text"
-                value={wechatConfig.appId || ''}
+                value={tempAppId || ''}
                 placeholder="wx1234567890abcdef"
-                onChange={(e) => handleWechatConfigChange({ appId: e.target.value })}
+                onChange={(e) => setTempAppId(e.target.value)}
                 style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
               />
             </div>
@@ -755,9 +791,9 @@ export function SettingsPage() {
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>微信公众号 AppSecret</label>
               <input
                 type="password"
-                value={wechatConfig.appSecret || ''}
-                placeholder="填写您的微信公众号 AppSecret"
-                onChange={(e) => handleWechatConfigChange({ appSecret: e.target.value })}
+                value={tempAppSecret || ''}
+                placeholder={wechatConfig.configured ? "•••••••••••••••• (已安全配置，输入可覆盖)" : "填写您的微信公众号 AppSecret"}
+                onChange={(e) => setTempAppSecret(e.target.value)}
                 style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
               />
             </div>
@@ -765,10 +801,18 @@ export function SettingsPage() {
               AppID 和 AppSecret 保存在您的 PocketBase 私有云端，请求微信时将通过安全后端代理，不会暴露给前端。
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button type="button" className="action primary" onClick={handleTestWechat} disabled={wechatTesting}>
+              <button type="button" className="action primary" onClick={handleSaveWechatConfig} disabled={wechatSaving}>
+                {wechatSaving ? '正在保存...' : '保存微信配置'}
+              </button>
+              <button type="button" className="action" onClick={handleTestWechat} disabled={wechatTesting || !wechatConfig.configured}>
                 {wechatTesting ? '正在测试...' : '测试公众号连接'}
               </button>
             </div>
+            {wechatSaveResult && (
+              <div style={{ fontSize: '12px', background: 'var(--soft)', padding: '8px', borderRadius: '6px' }}>
+                {wechatSaveResult}
+              </div>
+            )}
             {wechatTestResult && (
               <div style={{ fontSize: '12px', background: 'var(--soft)', padding: '8px', borderRadius: '6px' }}>
                 {wechatTestResult}

@@ -68,7 +68,7 @@ export function WechatEditorPage() {
 
   const handlePreview = async () => {
     const config = getWechatDraftConfig()
-    if (!title.trim() || !markdown.trim() || !config.enabled || !config.appId.trim() || !config.appSecret.trim()) return
+    if (!title.trim() || !markdown.trim() || !config.enabled || !config.configured) return
 
     setIsPreviewing(true)
     setMessage('')
@@ -84,7 +84,7 @@ export function WechatEditorPage() {
 
   const handlePublish = async () => {
     const config = getWechatDraftConfig()
-    if (!recording || !title.trim() || !markdown.trim() || !config.enabled || !config.appId.trim() || !config.appSecret.trim()) return
+    if (!recording || !title.trim() || !markdown.trim() || !config.enabled || !config.configured) return
 
     const requestId = crypto.randomUUID()
     setIsPublishing(true)
@@ -122,7 +122,7 @@ export function WechatEditorPage() {
   const isBusy = isRewriting || isPreviewing || isPublishing
   const unavailableReason = !config.enabled
     ? '请先在设置中启用公众号草稿编辑。'
-    : (!config.appId.trim() || !config.appSecret.trim())
+    : !config.configured
       ? '请先在设置中配置公众号的 AppID 与 AppSecret。'
       : ''
 
