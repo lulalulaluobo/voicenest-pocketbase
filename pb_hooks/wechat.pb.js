@@ -1,16 +1,4 @@
-// wechat.pb.js - PocketBase 后端微信公众号凭证安全加密与代理同步// ==========================================
-// 3. 微信 API 操作封装
-// ==========================================
-const TOKEN_SAFETY_MARGIN_MS = 300000;
-const DEFAULT_COVER_KEY = "wechat:default-cover-media-id";// ==========================================
-const MAX_COVER_BYTES = 5 * 1024 * 1024;
-const MAX_COVER_BASE64_LENGTH = Math.ceil(MAX_COVER_BYTES / 3) * 4;
-const MAX_APP_ID_LENGTH = 128;
-const MAX_APP_SECRET_LENGTH = 256;
-const MAX_TITLE_LENGTH = 128;
-const MAX_MARKDOWN_LENGTH = 20000;
-// 6. 自定义路由注册（v0.23+ 回调签名 e.*）
-// ==========================================
+// wechat.pb.js - PocketBase 后端微信公众号凭证安全加密与代理同步
 
 // 安全单向保存微信凭据接口
 // requireAuth 中间件自动解析 Authorization header 到 e.auth；未登录则由中间件直接返回 401
@@ -35,7 +23,7 @@ routerAdd("POST", "/api/wechat/setup-credential", (e) => {
     const appId = body.appId || "";
     const appSecret = body.appSecret || "";
 
-    if (!appId.trim() || appId.length > MAX_APP_ID_LENGTH || appSecret.length > MAX_APP_SECRET_LENGTH) {
+    if (!appId.trim() || appId.length > H.MAX_APP_ID_LENGTH || appSecret.length > H.MAX_APP_SECRET_LENGTH) {
       return e.json(400, { code: "INVALID_REQUEST", message: "微信公众号 AppID 不能为空" });
     }
 
@@ -61,6 +49,7 @@ routerAdd("POST", "/api/wechat/setup-credential", (e) => {
     e.app.save(record);
     return e.json(200, { success: true, configured: true });
   } catch (err) {
+    console.error("[WeChat API] 保存凭据失败: " + (err && err.message ? err.message : "未知错误"));
     return e.json(500, { code: "INTERNAL_ERROR", message: "保存微信凭据失败，请稍后重试" });
   }
 }, $apis.requireAuth());
@@ -100,7 +89,7 @@ routerAdd("GET", "/api/wechat/cover", (e) => {
     return e.json(200, { configured: false });
   }
 
-  const coverMediaId = H.getWechatCache(e.app, DEFAULT_COVER_KEY + ":" + credentials.appId);
+  const coverMediaId = H.getWechatCache(e.app, H.DEFAULT_COVER_KEY + ":" + credentials.appId);
   return e.json(200, { configured: Boolean(coverMediaId) });
 }, $apis.requireAuth());
 
@@ -140,12 +129,12 @@ routerAdd("POST", "/api/wechat/cover", (e) => {
 
     const mimeType = match[1];
     const base64Data = match[2];
-    if (base64Data.length > MAX_COVER_BASE64_LENGTH) {
+    if (base64Data.length > H.MAX_COVER_BASE64_LENGTH) {
       return e.json(413, { code: "COVER_TOO_LARGE", message: "封面图片不能超过 5 MiB" });
     }
 
     const mediaId = H.uploadCover(e.app, credentials.appId, credentials.appSecret, mimeType, base64Data);
-    H.putWechatCache(e.app, DEFAULT_COVER_KEY + ":" + credentials.appId, mediaId);
+    H.putWechatCache(e.app, H.DEFAULT_COVER_KEY + ":" + credentials.appId, mediaId);
 
     return e.json(200, { configured: true });
   } catch (err) {
@@ -168,7 +157,7 @@ routerAdd("POST", "/api/wechat/preview", (e) => {
     const title = body.title || "";
     const markdown = body.markdown || "";
 
-    if (!title.trim() || !markdown.trim() || title.length > MAX_TITLE_LENGTH || markdown.length > MAX_MARKDOWN_LENGTH) {
+    if (!title.trim() || !markdown.trim() || title.length > H.MAX_TITLE_LENGTH || markdown.length > H.MAX_MARKDOWN_LENGTH) {
       return e.json(400, { code: "INVALID_REQUEST", message: "标题和正文不能为空" });
     }
 
@@ -201,7 +190,7 @@ routerAdd("POST", "/api/wechat/drafts", (e) => {
     const markdown = body.markdown || "";
     const draftMediaId = body.draftMediaId || "";
 
-    if (!requestId || !title.trim() || !markdown.trim() || title.length > MAX_TITLE_LENGTH || markdown.length > MAX_MARKDOWN_LENGTH) {
+    if (!requestId || !title.trim() || !markdown.trim() || title.length > H.MAX_TITLE_LENGTH || markdown.length > H.MAX_MARKDOWN_LENGTH) {
       return e.json(400, { code: "INVALID_REQUEST", message: "请求 ID、标题与 Markdown 正文不能为空" });
     }
 
@@ -218,7 +207,7 @@ routerAdd("POST", "/api/wechat/drafts", (e) => {
     }
 
     // 2. 检查公众号封面
-    const coverMediaId = H.getWechatCache(e.app, DEFAULT_COVER_KEY + ":" + credentials.appId);
+    const coverMediaId = H.getWechatCache(e.app, H.DEFAULT_COVER_KEY + ":" + credentials.appId);
     if (!coverMediaId) {
       return e.json(422, { code: "COVER_NOT_CONFIGURED", message: "请先在设置中上传公众号默认封面" });
     }

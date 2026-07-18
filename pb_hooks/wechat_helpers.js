@@ -7,6 +7,15 @@
 // 兼容性：v0.23+ hooks API（routerAdd 回调签名 e.*、e.auth、e.requestInfo().body 等）
 // 服务端版本要求：PocketBase >= 0.23（生产推荐 0.27.x，与前端 SDK 对齐）
 
+// 路由 handler 在 PocketBase JSVM 的独立上下文运行；所有共享常量必须由本模块导出。
+const TOKEN_SAFETY_MARGIN_MS = 300000;
+const DEFAULT_COVER_KEY = "wechat:default-cover-media-id";
+const MAX_COVER_BASE64_LENGTH = Math.ceil((5 * 1024 * 1024) / 3) * 4;
+const MAX_APP_ID_LENGTH = 128;
+const MAX_APP_SECRET_LENGTH = 256;
+const MAX_TITLE_LENGTH = 128;
+const MAX_MARKDOWN_LENGTH = 20000;
+
 
 // ==========================================
 // 1. 本地 KV 缓存工具 (基于 wechat_kv SQLite 表)
@@ -395,6 +404,12 @@ function parseBody(e) {
 }
 
 module.exports = {
+  DEFAULT_COVER_KEY: DEFAULT_COVER_KEY,
+  MAX_COVER_BASE64_LENGTH: MAX_COVER_BASE64_LENGTH,
+  MAX_APP_ID_LENGTH: MAX_APP_ID_LENGTH,
+  MAX_APP_SECRET_LENGTH: MAX_APP_SECRET_LENGTH,
+  MAX_TITLE_LENGTH: MAX_TITLE_LENGTH,
+  MAX_MARKDOWN_LENGTH: MAX_MARKDOWN_LENGTH,
   getWechatCache: getWechatCache,
   putWechatCache: putWechatCache,
   getMasterEncryptionKey: getMasterEncryptionKey,

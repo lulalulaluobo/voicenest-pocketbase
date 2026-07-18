@@ -53,6 +53,16 @@ describe('WeChat draft client', () => {
     expect(readFileSync('src/pages/SettingsPage.tsx', 'utf8')).not.toContain('wechat-authorized')
   })
 
+  it('keeps PocketBase hook constants inside the required helper module', () => {
+    const hook = readFileSync('pb_hooks/wechat.pb.js', 'utf8')
+    const helpers = readFileSync('pb_hooks/wechat_helpers.js', 'utf8')
+
+    expect(hook).toContain('H.MAX_APP_ID_LENGTH')
+    expect(hook).not.toContain('const MAX_APP_ID_LENGTH')
+    expect(helpers).toContain('MAX_APP_ID_LENGTH: MAX_APP_ID_LENGTH')
+    expect(helpers).toContain('TOKEN_SAFETY_MARGIN_MS')
+  })
+
   it('posts markdown to the configured worker with same-site credentials', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(JSON.stringify({
       mediaId: 'draft-1',

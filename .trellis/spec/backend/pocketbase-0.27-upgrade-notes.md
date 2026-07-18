@@ -33,6 +33,8 @@ pocketbase-backend 重构分支初期存在多个阻断生产的问题：
 
 **每个 routerAdd/hook handler 都在独立 context 中序列化执行**，文件级 `function` 声明、`globalThis` 属性、IIFE 闭包对 handler 都**不可见**。
 
+同一限制也适用于文件级常量；例如 `MAX_APP_ID_LENGTH` 放在 `*.pb.js` 顶层后，在 handler 内会报 `is not defined`。共享常量必须定义并导出在 `require()` 的辅助模块中，再以 `H.MAX_APP_ID_LENGTH` 使用。
+
 错误示例（会报 `xxx is not defined`）：
 ```js
 function helper() { return "ok"; }
