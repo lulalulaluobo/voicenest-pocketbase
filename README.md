@@ -58,7 +58,10 @@ npx cap sync  # 将最新前端静态文件拷入 Android 壳工程中
    ```bash
    openssl rand -base64 24 | head -c 32
    ```
-3. 在项目根目录下创建环境变量文件 `.env` 并填入该密钥，以及仅用于**首次初始化** PocketBase 超级管理员的邮箱和高强度密码：
+3. 从示例创建环境变量文件，再填入该密钥，以及仅用于**首次初始化** PocketBase 超级管理员的邮箱和高强度密码：
+   ```bash
+   cp .env.example .env
+   ```
    ```env
    VN_ENCRYPTION_KEY=您的32字节随机密钥字符串
    PB_SUPERUSER_EMAIL=admin@example.com
@@ -68,8 +71,14 @@ npx cap sync  # 将最新前端静态文件拷入 Android 壳工程中
 
 ### 2. 一键启动
 ```bash
-# 构建并启动（首次创建 ./pb_data 时会校验超级管理员变量）
-docker compose up -d --build
+# 本机构建并推送 linux/amd64 镜像（VPS 直接拉取，不在服务器构建）
+export VOICENEST_IMAGE=lulalulaluobo/voicenest:your-release-tag
+docker build --platform linux/amd64 -t "$VOICENEST_IMAGE" .
+docker push "$VOICENEST_IMAGE"
+
+# VPS：在 .env 写入相同的 VOICENEST_IMAGE，再拉取并启动；首次创建 ./pb_data 时会校验超级管理员变量
+docker compose pull
+docker compose up -d
 ```
 * Compose 默认只监听本机 `127.0.0.1:8090`，请通过反向代理对外提供 HTTPS。
 * **前端 PWA 地址**：`https://<您的域名>`

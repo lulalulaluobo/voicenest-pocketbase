@@ -2,9 +2,7 @@ version: '3.8'
 
 services:
   voicenest:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${VOICENEST_IMAGE:-lulalulaluobo/voicenest:latest}
     container_name: voicenest
     ports:
       - "127.0.0.1:8090:8090"

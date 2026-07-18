@@ -80,6 +80,7 @@ PocketBase 内置 `GET /_/{path...}` 提供 admin 静态资源。如果再 `rout
 
 - **VN_ENCRYPTION_KEY** 必须 32 字节随机字符串，缺失或长度不符时 `getMasterEncryptionKey()` 直接 throw 拒绝服务（不降级）
 - `VN_ENCRYPTION_KEY` 仅用 docker-compose 的运行时 environment 注入，禁止作为 Docker `ARG` 或 `ENV` 写入镜像配置
+- 生产镜像在本地以 `linux/amd64` 构建并推送到 `lulalulaluobo/voicenest:<不可变标签>`；VPS 只通过 `VOICENEST_IMAGE` 拉取固定标签，禁止在服务器源码构建
 - 首次创建 `pb_data/data.db` 时，`docker-entrypoint.sh` 使用 `PB_SUPERUSER_EMAIL`、`PB_SUPERUSER_PASSWORD` 创建超级管理员；禁止固定默认账号，已有部署须立即轮换旧账号凭据
 - docker-compose 默认只绑定 `127.0.0.1:8090`；公网流量必须经配置 TLS 的反向代理进入
 - `.dockerignore` 必须排除 `pb_data/`、`node_modules/`、`.git/`，防止数据库和密钥焙进镜像层
