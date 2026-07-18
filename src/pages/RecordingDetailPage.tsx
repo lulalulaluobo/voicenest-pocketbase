@@ -73,13 +73,9 @@ export function RecordingDetailPage() {
     void (async () => {
       const rec = await refreshData()
       if (!rec) return
+      // 音频只存本地：无本地分片则不生成播放 URL（UI 显示「已清理」提示）
       const chunks = await getChunks(recordingId)
-      if (!chunks.length) {
-        if ((rec as any).audioUrl) {
-          setAudioUrl((rec as any).audioUrl)
-        }
-        return
-      }
+      if (!chunks.length) return
       currentUrl = URL.createObjectURL(buildPlaybackBlob(chunks, rec.mimeType))
       setAudioUrl(currentUrl)
     })()

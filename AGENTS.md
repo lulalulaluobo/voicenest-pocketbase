@@ -6,6 +6,7 @@
 - 开始任何开发任务前，必须先使用 `/superpowers` 或等价的 `using-superpowers` skill。
 - 需求澄清、设计、计划、实现和验证遵循 Superpowers 工作流。
 - 践行 Ponytail (防过度设计) 原则：优先使用标准库、原生 API 和已有依赖；拒绝非必要抽象与未要求的功能；确保代码精简，必要时可调用 `ponytail-audit` / `ponytail-review` 审查冗余。
+- **本地优先与数据隐私隔离红线**：所有的录音原始音频（`AudioChunks`）和转写、润色后的文本记录（`Recordings` 表）必须仅保存在客户端本地的 IndexedDB（使用 Dexie 数据库），PocketBase 后端只作为用户鉴权和微信凭证同步代理，禁止创建 recordings 云端数据表或将隐私数据上传至后端服务。
 - **开源调研与临摹**：PRD 确认后，优先在 GitHub 检索成熟开源方案或参考项目。确认可参考的，将其克隆至 `references/` 目录下（已配置 gitignore 过滤）。在制定开发计划前，必须对参考项目的模块设计、可借鉴点进行简要解说并记录到开发文档或 Trellis 中，严禁盲目从 0 造轮子。
 
 ## Trellis

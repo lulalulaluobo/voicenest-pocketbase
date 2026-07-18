@@ -1,51 +1,30 @@
-# Database Guidelines
+# Database Guidelines - 数据库设计与本地优先开发规范
 
-> Database patterns and conventions for this project.
-
----
-
-## Overview
-
-<!--
-Document your project's database conventions here.
-
-Questions to answer:
-- What ORM/query library do you use?
-- How are migrations managed?
-- What are the naming conventions for tables/columns?
-- How do you handle transactions?
--->
-
-(To be filled by the team)
+本指南规范了 VoiceNest 平台下的数据存储、网络分流以及多租户数据防护原则，适用于前端 IndexedDB 以及后端 PocketBase 的开发。
 
 ---
 
-## Query Patterns
+## 🔒 核心原则：本地优先与数据隐私隔离 (Local-First & Privacy)
 
-<!-- How should queries be written? Batch operations? -->
+本项目的最高架构红线为**本地优先（Local-First）**。所有与用户隐私相关的富媒体及个人创作内容，绝对禁止上传至云端服务器。
 
-(To be filled by the team)
+### 1. 本地数据库 (Dexie / IndexedDB) 职责
+* **承载数据**：录音记录列表（`recordings` 表）与音频切片（`audioChunks` 表）。
+* **敏感数据**：用户的录音音频文件、原始 ASR 转写文本、LLM 润色文本、微信草稿内容。
+* **数据流向**：ASR（转文字）和 LLM（润色）完全由客户端直接向大模型服务商发起请求（Fetch），音频与文本数据只在内存中短暂传输给大模型，最终结果直接写入本地数据库，**完全不经过 PocketBase 后端中转**。
 
----
-
-## Migrations
-
-<!-- How to create and run migrations -->
-
-(To be filled by the team)
-
----
-
-## Naming Conventions
-
-<!-- Table names, column names, index names -->
-
-(To be filled by the team)
+### 2. 云端数据库 (PocketBase) 职责
+* **承载数据**：只包含 `users` 用户认证数据，以及 `wechat_accounts` (公众号 AppID / 加密 AppSecret) 与 `wechat_kv` 缓存配置。
+* **主要目的**：处理多租户注册登录状态，安全加密代理公众号 API 请求（绕过前端泄露与 IP 白名单机制）。
 
 ---
 
-## Common Mistakes
+## 🛠️ 设计规范与防错红线
 
-<!-- Database-related mistakes your team has made -->
+### ❌ 常见严重错误（禁止发生）
+1. **禁止在 PocketBase 迁移脚本中创建 `recordings` 或 `audio_chunks` 数据库表**。
+2. **禁止在前端向 PocketBase 发起上传音频二进制或大文本记录的 API 请求**。
+3. **禁止通过后端代理 ASR 语音识别和 LLM 文本处理的请求**（除非是为了处理复杂的网络穿透或不可控 CORS，但必须做到零日志、零盘存暂存，且目前必须采用前端直连大模型的方式）。
 
-(To be filled by the team)
+### 📈 数据备份原则
+用户的语音与日记备份（Backup & Restore）完全在前端通过 `fflate` 本地压缩为 Zip 文件下载，或在本地解压后通过 Dexie 事务写入本地。**备份包的打包与解析禁止在云端服务器处理**。

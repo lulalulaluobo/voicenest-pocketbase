@@ -15,8 +15,6 @@ import { LoginPage } from './components/LoginPage'
 import { BackendSetupPrompt } from './components/BackendSetupPrompt'
 import { pb, isPocketbaseUrlConfigured } from './lib/pocketbase'
 
-import { syncSettingsFromCloud } from './lib/config-store'
-
 import { sweepExpiredStorage } from './lib/retention'
 
 function ServiceWorkerUpdate({ canUpdate }: { canUpdate: boolean }) {
@@ -46,8 +44,8 @@ export function App() {
 
   useEffect(() => {
     if (!isLoggedIn) return
-    void syncSettingsFromCloud()
-      .then(() => recoverIncompleteRecordings())
+    // 录音数据全部本地化，登录后只需恢复本地未完成录音与执行本地过期清理
+    void recoverIncompleteRecordings()
       .then(() => void sweepExpiredStorage())
       .finally(() => setRestored(true))
   }, [isLoggedIn])

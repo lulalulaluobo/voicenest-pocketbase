@@ -24,25 +24,14 @@ export function useProcessor() {
         if (mode === 'full') {
           await updateRecording(id, { status: 'processing', errorMessage: undefined, updatedAt: new Date().toISOString() })
           
-          // 2. 检查并读取分片
+          // 2. 检查并读取分片（音频只存本地，无云端回退）
           let audioBlob: Blob
           const chunks = await getChunks(id)
           if (!chunks.length) {
-            if ((rec as any).audioUrl) {
-              try {
-                const res = await fetch((rec as any).audioUrl)
-                if (!res.ok) throw new Error('下载音频失败')
-                audioBlob = await res.blob()
-              } catch (err: any) {
-                throw new Error(`本地没有音频分片且无法从云端下载音频: ${err.message}`)
-              }
-            } else {
-              throw new Error('该录音没有可用的音频分片数据。')
-            }
-          } else {
-            // 3. 拼接音频 Blob
-            audioBlob = new Blob(chunks.map(c => c.blob), { type: rec.mimeType })
+            throw new Error('该录音的本地音频已被清理，无法重新处理。可在录音列表重新录制。')
           }
+          // 3. 拼接音频 Blob
+          audioBlob = new Blob(chunks.map(c => c.blob), { type: rec.mimeType })
 
           const transcript = await transcribeAudio(audioBlob, getASRConfig())
           await updateRecording(id, { transcript, updatedAt: new Date().toISOString() })

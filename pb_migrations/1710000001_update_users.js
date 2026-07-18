@@ -1,31 +1,14 @@
 // v0.23+ 迁移签名：migrate((app) => {...}, (app) => {...})
 //
-// v0.22 的 SchemaField + collection.schema.addField(...) 已废弃。
-// v0.23+ 改用具体字段类型构造器（JSONField / TextField 等），
-// 并通过 collection.fields.add(...) 添加（FieldsList 的方法名是 add，不是 addField）。
-// 字段查询用 collection.fields.getByName()（不是 getFieldByName）。
+// 历史用途：曾给 users 集合添加 asrConfig/llmConfig/syncConfig 等 8 个配置字段。
+//
+// 2026-07-18 重构后：所有用户配置（ASR/LLM/Obsidian/微信提示词等）改为只存本地 localStorage，
+// 不再同步到 PocketBase users 集合。此迁移改为 no-op：
+//   - 新部署：users 集合保持 PocketBase 默认结构（账号、邮箱、密码等），不加配置字段
+//   - 已部署实例：迁移记录已存在于 _migrations 表，不会重跑，历史字段保留但不被前端使用
+//     （如需清理，可在 PocketBase Admin 后台手动删除这些字段）
 migrate((app) => {
-  const collection = app.findCollectionByNameOrId("users");
-
-  collection.fields.add(new JSONField({ name: "asrConfig" }));
-  collection.fields.add(new JSONField({ name: "llmConfig" }));
-  collection.fields.add(new JSONField({ name: "syncConfig" }));
-  collection.fields.add(new JSONField({ name: "noteTypes" }));
-  collection.fields.add(new JSONField({ name: "wechatDraftConfig" }));
-  collection.fields.add(new JSONField({ name: "wechatPromptTemplates" }));
-  collection.fields.add(new TextField({ name: "audioRetention" }));
-  collection.fields.add(new TextField({ name: "textRetention" }));
-
-  return app.save(collection);
+  // no-op：不再添加配置字段
 }, (app) => {
-  const collection = app.findCollectionByNameOrId("users");
-
-  const names = [
-    "asrConfig", "llmConfig", "syncConfig", "noteTypes",
-    "wechatDraftConfig", "wechatPromptTemplates", "audioRetention", "textRetention"
-  ];
-  for (const name of names) {
-    collection.fields.removeByName(name);
-  }
-  return app.save(collection);
+  // no-op
 });
