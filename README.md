@@ -58,21 +58,24 @@ npx cap sync  # 将最新前端静态文件拷入 Android 壳工程中
    ```bash
    openssl rand -base64 24 | head -c 32
    ```
-3. 在项目根目录下创建环境变量文件 `.env` 并填入该密钥：
+3. 在项目根目录下创建环境变量文件 `.env` 并填入该密钥，以及仅用于**首次初始化** PocketBase 超级管理员的邮箱和高强度密码：
    ```env
    VN_ENCRYPTION_KEY=您的32字节随机密钥字符串
+   PB_SUPERUSER_EMAIL=admin@example.com
+   PB_SUPERUSER_PASSWORD=请设置至少10位的随机高强度密码
    ```
-   ⚠️ **注意**：`.env` 已被 Git 忽略。**切勿**将其公开提交或写入任何前端代码中。若长度不为 32，容器启动时会报错拒绝服务。
+   ⚠️ **注意**：`.env` 已被 Git 忽略。**切勿**将其公开提交或写入任何前端代码中。若加密密钥长度不为 32，容器启动时会报错拒绝服务。首次启动成功后可从 `.env` 删除 `PB_SUPERUSER_EMAIL`、`PB_SUPERUSER_PASSWORD`；请妥善保存管理员密码。
 
 ### 2. 一键启动
 ```bash
-# 构建并启动 (Compose 会强制校验环境变量，未配置会提示报错)
+# 构建并启动（首次创建 ./pb_data 时会校验超级管理员变量）
 docker compose up -d --build
 ```
-* **前端 PWA 地址**：`http://<您的服务器IP>:8090`
-* **管理后台 (已汉化)**：`http://<您的服务器IP>:8090/_/` (首次访问需注册管理员账号)
+* Compose 默认只监听本机 `127.0.0.1:8090`，请通过反向代理对外提供 HTTPS。
+* **前端 PWA 地址**：`https://<您的域名>`
+* **管理后台 (已汉化)**：`https://<您的域名>/_/`
 
-*强烈建议在公网部署时，在 PocketBase 前面套一层 Caddy / Nginx 并配置 SSL 证书（手机 PWA 正常调用麦克风录音权限必须工作在 HTTPS 协议下）。*
+*公网部署必须在 PocketBase 前面配置 Caddy / Nginx 等反向代理及 TLS 证书；手机 PWA 的麦克风权限也需要 HTTPS。已有数据库如曾使用旧版固定 `admin@example.com` / `admin123456` 账号，请立即在管理后台删除或改密该账号。*
 
 ---
 

@@ -16,12 +16,6 @@ ARG TARGETARCH=amd64
 # 服务端版本必须与前端 JS SDK 对齐（package.json 中 pocketbase ^0.27.0）。
 # v0.23+ 起 hooks/migrations API 有破坏性变更，不可与 0.22 混用。
 ARG PB_VERSION=0.27.0
-# 运行期加密主密钥（32 字节随机字符串）。缺失或长度不为 32 时，
-# wechat.pb.js 的 getMasterEncryptionKey() 会直接抛错拒绝启动。
-# 生成方法：openssl rand -base64 24 | head -c 32
-ARG VN_ENCRYPTION_KEY
-ENV VN_ENCRYPTION_KEY=$VN_ENCRYPTION_KEY
-
 RUN apk add --no-cache unzip ca-certificates curl
 
 # Download and install PocketBase based on target platform architecture
@@ -38,8 +32,9 @@ COPY pb_migrations /app/pb_migrations
 
 # Copy custom JS hook scripts
 COPY pb_hooks /app/pb_hooks
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 8090
 
-# Run PocketBase server (Auto upserts default admin on startup)
-CMD ["sh", "-c", "./pocketbase superuser upsert admin@example.com admin123456 --dir=/pb_data && ./pocketbase serve --http=0.0.0.0:8090 --dir=/pb_data --hooksDir=/app/pb_hooks --migrationsDir=/app/pb_migrations"]
+CMD ["/app/docker-entrypoint.sh"]

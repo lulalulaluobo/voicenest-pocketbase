@@ -50,7 +50,7 @@ function putWechatCache(app, key, value) {
 //
 // 安全策略：
 //   - 缺失或长度不为 32 时直接抛错拒绝启动，绝不降级到硬编码备用密钥
-//   - key 通过环境变量 VN_ENCRYPTION_KEY 注入（Dockerfile ARG + compose environment）
+//   - key 仅通过运行时环境变量 VN_ENCRYPTION_KEY 注入
 //   - 生成方法：openssl rand -base64 24 | head -c 32
 function getMasterEncryptionKey() {
   const key = $os.getenv("VN_ENCRYPTION_KEY") || "";
@@ -295,15 +295,16 @@ function renderWechatHtml(source) {
 // 统一错误处理器
 function handleApiError(err, e) {
   console.error("[WeChat API] 处理失败: " + err.message);
+  const upstreamMessage = err && err.message ? err.message : "";
   let statusCode = 500;
   let code = "INTERNAL_ERROR";
-  let message = err.message || "微信公众号服务暂时不可用";
+  let message = "微信公众号服务暂时不可用，请稍后重试";
 
-  if (message.includes("代码: 40164") || message.includes("ip not in whitelist")) {
+  if (upstreamMessage.includes("代码: 40164") || upstreamMessage.includes("ip not in whitelist")) {
     statusCode = 422;
     code = "WECHAT_IP_NOT_ALLOWED";
-    message = "公众号 IP 白名单未配置：" + message;
-  } else if (message.includes("微信 API 错误")) {
+    message = "公众号 IP 白名单未配置，请在微信后台添加服务器公网 IP";
+  } else if (upstreamMessage.includes("微信 API 错误")) {
     statusCode = 502;
     code = "WECHAT_API_ERROR";
   }

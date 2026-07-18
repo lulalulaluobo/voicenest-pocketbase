@@ -79,9 +79,12 @@ PocketBase 内置 `GET /_/{path...}` 提供 admin 静态资源。如果再 `rout
 ## 本分支落地的安全约定
 
 - **VN_ENCRYPTION_KEY** 必须 32 字节随机字符串，缺失或长度不符时 `getMasterEncryptionKey()` 直接 throw 拒绝服务（不降级）
-- docker-compose 用 `${VN_ENCRYPTION_KEY:?...}` 语法，未设置时拒绝启动
+- `VN_ENCRYPTION_KEY` 仅用 docker-compose 的运行时 environment 注入，禁止作为 Docker `ARG` 或 `ENV` 写入镜像配置
+- 首次创建 `pb_data/data.db` 时，`docker-entrypoint.sh` 使用 `PB_SUPERUSER_EMAIL`、`PB_SUPERUSER_PASSWORD` 创建超级管理员；禁止固定默认账号，已有部署须立即轮换旧账号凭据
+- docker-compose 默认只绑定 `127.0.0.1:8090`；公网流量必须经配置 TLS 的反向代理进入
 - `.dockerignore` 必须排除 `pb_data/`、`node_modules/`、`.git/`，防止数据库和密钥焙进镜像层
 - 微信路由全部加 `$apis.requireAuth()` + per-route IP 限流（10/分钟，preview 20/分钟）
+- 微信封面请求在服务端限制为 5 MiB（Base64 编码前），标题限制 128 字符、Markdown 限制 20,000 字符；错误响应不得回显上游异常原文
 - 录音 audio 字段 mimeTypes 精确匹配 `src/lib/audio-mime.ts` 全部候选（含 `;codecs=` 变体）
 
 ## 本地验证 PocketBase 迁移的标准流程
@@ -157,4 +160,3 @@ function detectInitialEndpoint(): string {
 - `src/lib/sync.ts` 中向 `codex-stage1-recording.vercel.app` 降级的 fetchWithProxy 代理逻辑（更早移除）
 
 唯一保留的部署路径是 PocketBase Docker（见 README「部署」章节）。
-
