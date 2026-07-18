@@ -30,6 +30,10 @@ RUN curl -L https://github.com/pocketbase/pocketbase/releases/download/v${PB_VER
     && rm /tmp/pb.zip \
     && chmod +x /app/pocketbase
 
+# Patch PocketBase binary: inject vn_i18n.js into embedded admin HTML
+# 用同长度（94字节）字符串替换一行 prefetch link，不改变二进制大小
+RUN sed -i 's|    <link rel="prefetch" href="./libs/tinymce/plugins/codesample/plugin.min.js" as="script" />|    <script src="/_/vn_i18n.js" defer></script><!-- VN_i18n_pad___________________________ -->|g' /app/pocketbase
+
 # Copy static frontend files to public hosting directory of PocketBase
 COPY --from=build-stage /app/dist /app/pb_public
 

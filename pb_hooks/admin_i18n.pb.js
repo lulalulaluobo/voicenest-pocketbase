@@ -503,24 +503,8 @@ routerAdd("GET", "/_/vn_i18n.js", (e) => {
 });
 
 // ==========================================
-// 3. 精准重写 GET /_/index.html 避开路由冲突 Panic
+// 3. 中文化脚本注入方式说明
+//    vn_i18n.js 通过 Dockerfile 中的二进制补丁注入到 PocketBase
+//    嵌入的管理后台 index.html 中（同长度替换 prefetch link），
+//    不通过路由或中间件注入，避免与内置 /_/{path...} 冲突。
 // ==========================================
-routerAdd("GET", "/_/index.html", (e) => {
-  const html = `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PocketBase 管理后台</title>
-    <link rel="icon" type="image/svg+xml" href="images/logo.svg" />
-    <link rel="stylesheet" href="css/style.css" />
-    <script src="/_/vn_i18n.js"></script>
-</head>
-<body class="light">
-    <div id="app"></div>
-    <script type="module" crossorigin src="js/app.js"></script>
-</body>
-</html>`;
-  
-  return e.html(200, html);
-});
