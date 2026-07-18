@@ -23,10 +23,6 @@ VoiceNest PocketBase 是 VoiceNest 的**自托管、本地优先（Local-First�
    * 微信公众号要求请求源为固定公网 IP（白名单）。本系统通过 VPS 上的 PocketBase 后端作为代理网关发起微信请求。
    * **AES-256-GCM 强加密**：用户的公众号 `AppSecret` 由前端单向提交，在后端使用 32 字节主密钥加密后存储于 SQLite 中。
    * **字段防泄漏**：利用 PocketBase 引擎底层的 `"hidden": true` 过滤机制，`encryptedSecret` 密文字段在任何 API 响应中都会被强制抹除，前端客户端和外界绝无可能再次拉取到密钥。
-3. **🌐 官方管理后台动态汉化 (中文默认)**：
-   * 搭载了无损热插拔汉化钩子（[admin_i18n.pb.js](pb_hooks/admin_i18n.pb.js)），无需解包即可让 PocketBase 官方管理后台**默认以中文呈现**（避开代码和数据区，不产生任何副作用）。
-   * 右下角提供精致的毛玻璃悬浮切换钮，支持在“简体中文 / English”之间无缝切换并保存偏好。
-
 ---
 
 ## 🛠️ 项目运行与编译
@@ -90,7 +86,7 @@ docker compose up -d
 ```
 * Compose 默认只监听本机 `127.0.0.1:8090`，请通过反向代理对外提供 HTTPS。
 * **前端 PWA 地址**：`https://<您的域名>`
-* **管理后台 (已汉化)**：`https://<您的域名>/_/`
+* **PocketBase 管理后台**：`https://<您的域名>/_/`
 
 *公网部署必须在 PocketBase 前面配置 Caddy / Nginx 等反向代理及 TLS 证书；手机 PWA 的麦克风权限也需要 HTTPS。已有数据库如曾使用旧版固定 `admin@example.com` / `admin123456` 账号，请立即在管理后台删除或改密该账号。*
 

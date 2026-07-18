@@ -76,7 +76,7 @@ routerAdd("GET", "/api/x", (e) => {
 
 ### 6. 自定义路由不要重写 `/_/`
 
-PocketBase 内置 `GET /_/{path...}` 提供 admin 静态资源。如果再 `routerAdd("GET", "/_/", ...)` 会触发路由冲突 panic，启动失败。汉化脚本应通过 `/_/vn_i18n.js` 单独路由提供，不要重写 admin 首页。
+PocketBase 内置 `GET /_/{path...}` 提供 admin 静态资源。如果再 `routerAdd("GET", "/_/", ...)` 会触发路由冲突 panic，启动失败。本项目使用 PocketBase 原生管理后台，不注册自定义后台页面或语言路由。
 
 ## 本分支落地的安全约定
 
