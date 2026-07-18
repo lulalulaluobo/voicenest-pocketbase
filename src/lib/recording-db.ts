@@ -61,7 +61,8 @@ export async function syncRecordingToCloud(id: string): Promise<void> {
 
     let remoteRecord: any = null
     try {
-      remoteRecord = await pb.collection('recordings').getFirstListItem(`localId="${id}"`)
+      // 参数化 filter，避免 id 中可能含有的特殊字符破坏查询或被注入
+      remoteRecord = await pb.collection('recordings').getFirstListItem('localId = {:id}', { id })
     } catch (_) {}
 
     const formData = new FormData()
@@ -146,7 +147,10 @@ export async function appendChunk(chunk: AudioChunk): Promise<void> {
 export async function getRecording(id: string): Promise<Recording | undefined> {
   if (pb.authStore.isValid && navigator.onLine) {
     try {
-      const record = await pb.collection('recordings').getFirstListItem(`localId="${id}" || id="${id}"`)
+      const record = await pb.collection('recordings').getFirstListItem(
+        'localId = {:id} || id = {:id}',
+        { id },
+      )
       return mapPocketBaseRecordToRecording(record)
     } catch (err) {
       console.warn('获取云端录音详情失败，降级本地:', err)
@@ -214,7 +218,7 @@ export async function deleteRecording(id: string): Promise<void> {
 
   if (pb.authStore.isValid && navigator.onLine) {
     try {
-      const record = await pb.collection('recordings').getFirstListItem(`localId="${id}"`)
+      const record = await pb.collection('recordings').getFirstListItem('localId = {:id}', { id })
       await pb.collection('recordings').delete(record.id)
     } catch (_) {}
   }

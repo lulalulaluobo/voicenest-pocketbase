@@ -3,20 +3,17 @@ migrate((app) => {
     "name": "wechat_accounts",
     "type": "base",
     "system": false,
-    "schema": [
+    "fields": [
       {
         "name": "owner",
         "type": "relation",
         "required": true,
         "presentable": false,
         "unique": true,
-        "options": {
-          "collectionId": "_pb_users_auth_",
-          "cascadeDelete": true,
-          "minSelect": 1,
-          "maxSelect": 1,
-          "displayFields": null
-        }
+        "collectionId": "_pb_users_auth_",
+        "cascadeDelete": true,
+        "minSelect": 1,
+        "maxSelect": 1
       },
       {
         "name": "appId",

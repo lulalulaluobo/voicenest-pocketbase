@@ -1,6 +1,7 @@
 # standard ignores
 .gemini/
 .superpowers/
+.zcode/
 .obsidian/workspace.json
 node_modules/
 dist/
@@ -12,8 +13,11 @@ references/
 .vercel
 .wrangler/
 .env*
+!.env.example
 workers/wechat-draft/.dev.vars*
 !workers/wechat-draft/.dev.vars.example
+# PocketBase 运行期数据（含用户 SQLite 数据库），绝不提交
+pb_data/
 # Android signing and service configuration
 *.jks
 *.keystore

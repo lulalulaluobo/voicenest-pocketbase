@@ -1,54 +1,31 @@
-migrate((db) => {
-  const dao = new Dao(db);
-  const collection = dao.findCollectionByNameOrId("users");
+// v0.23+ 迁移签名：migrate((app) => {...}, (app) => {...})
+//
+// v0.22 的 SchemaField + collection.schema.addField(...) 已废弃。
+// v0.23+ 改用具体字段类型构造器（JSONField / TextField 等），
+// 并通过 collection.fields.add(...) 添加（FieldsList 的方法名是 add，不是 addField）。
+// 字段查询用 collection.fields.getByName()（不是 getFieldByName）。
+migrate((app) => {
+  const collection = app.findCollectionByNameOrId("users");
 
-  collection.schema.addField(new SchemaField({
-    name: "asrConfig",
-    type: "json"
-  }));
-  collection.schema.addField(new SchemaField({
-    name: "llmConfig",
-    type: "json"
-  }));
-  collection.schema.addField(new SchemaField({
-    name: "syncConfig",
-    type: "json"
-  }));
-  collection.schema.addField(new SchemaField({
-    name: "noteTypes",
-    type: "json"
-  }));
-  collection.schema.addField(new SchemaField({
-    name: "wechatDraftConfig",
-    type: "json"
-  }));
-  collection.schema.addField(new SchemaField({
-    name: "wechatPromptTemplates",
-    type: "json"
-  }));
-  collection.schema.addField(new SchemaField({
-    name: "audioRetention",
-    type: "text"
-  }));
-  collection.schema.addField(new SchemaField({
-    name: "textRetention",
-    type: "text"
-  }));
+  collection.fields.add(new JSONField({ name: "asrConfig" }));
+  collection.fields.add(new JSONField({ name: "llmConfig" }));
+  collection.fields.add(new JSONField({ name: "syncConfig" }));
+  collection.fields.add(new JSONField({ name: "noteTypes" }));
+  collection.fields.add(new JSONField({ name: "wechatDraftConfig" }));
+  collection.fields.add(new JSONField({ name: "wechatPromptTemplates" }));
+  collection.fields.add(new TextField({ name: "audioRetention" }));
+  collection.fields.add(new TextField({ name: "textRetention" }));
 
-  return dao.saveCollection(collection);
-}, (db) => {
-  const dao = new Dao(db);
-  const collection = dao.findCollectionByNameOrId("users");
-  
-  const fields = [
-    "asrConfig", "llmConfig", "syncConfig", "noteTypes", 
+  return app.save(collection);
+}, (app) => {
+  const collection = app.findCollectionByNameOrId("users");
+
+  const names = [
+    "asrConfig", "llmConfig", "syncConfig", "noteTypes",
     "wechatDraftConfig", "wechatPromptTemplates", "audioRetention", "textRetention"
   ];
-  for (const name of fields) {
-    const field = collection.schema.getFieldByName(name);
-    if (field) {
-      collection.schema.removeField(field.id);
-    }
+  for (const name of names) {
+    collection.fields.removeByName(name);
   }
-  return dao.saveCollection(collection);
-})
+  return app.save(collection);
+});

@@ -1,7 +1,8 @@
 // admin_i18n.pb.js - PocketBase 官方管理后台中文化挂钩扩展 (支持中英切换且默认中文)
 
 // 注册 /_/vn_i18n.js 静态脚本路由，提供客户端汉化核心及悬浮切换器
-routerAdd("GET", "/_/vn_i18n.js", (c) => {
+// v0.23+ 回调签名：参数为 event e（不再用 echo.Context c）
+routerAdd("GET", "/_/vn_i18n.js", (e) => {
   const jsContent = `(function() {
     // 1. 初始化偏好 (默认中文)
     let lang = localStorage.getItem("vn_admin_lang") || "zh";
@@ -248,27 +249,12 @@ routerAdd("GET", "/_/vn_i18n.js", (c) => {
       init();
     }
   })();`;
-  
-  return c.string(200, jsContent, "application/javascript; charset=utf-8");
+
+  return e.string(200, jsContent, "application/javascript; charset=utf-8");
 });
 
-// 重写 GET /_/ 管理后台首页路由，注入 /_/vn_i18n.js
-routerAdd("GET", "/_/", (c) => {
-  const html = `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PocketBase 管理后台</title>
-    <link rel="icon" type="image/svg+xml" href="images/logo.svg" />
-    <link rel="stylesheet" href="css/style.css" />
-    <script src="/_/vn_i18n.js"></script>
-</head>
-<body class="light">
-    <div id="app"></div>
-    <script type="module" crossorigin src="js/app.js"></script>
-</body>
-</html>`;
-  
-  return c.html(200, html);
-});
+// 历史上曾重写 GET /_/ 注入汉化脚本，但该路由与 PocketBase 内置的
+// GET /_/{path...} 静态资源路由冲突，会导致 PB 启动时 panic。
+// 已删除该重写块。如需启用汉化，可在浏览器控制台手动执行：
+//   var s=document.createElement('script');s.src='/_/vn_i18n.js';document.head.appendChild(s);
+// 或后续通过 OnAdminsListViewBeforeRender 等 view render hook 正确注入。

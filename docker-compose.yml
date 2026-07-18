@@ -5,9 +5,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # 构建期注入，写进镜像 ENV；建议由运行期 environment 覆盖以便密钥轮换不留痕
+        VN_ENCRYPTION_KEY: ${VN_ENCRYPTION_KEY:?VN_ENCRYPTION_KEY 未设置，请在 .env 中提供 32 字节随机字符串}
     container_name: voicenest
     ports:
       - "8090:8090"
+    environment:
+      # 运行期注入优先级高于构建期；缺失时 PocketBase 启动后 wechat hook 会拒绝解密
+      - VN_ENCRYPTION_KEY=${VN_ENCRYPTION_KEY:?VN_ENCRYPTION_KEY 未设置}
     volumes:
       - ./pb_data:/pb_data
     restart: unless-stopped

@@ -12,7 +12,8 @@ import { SettingsPage } from './pages/SettingsPage'
 import { WechatEditorPage } from './pages/WechatEditorPage'
 import { useProcessor } from './hooks/use-processor'
 import { LoginPage } from './components/LoginPage'
-import { pb } from './lib/pocketbase'
+import { BackendSetupPrompt } from './components/BackendSetupPrompt'
+import { pb, isPocketbaseUrlConfigured } from './lib/pocketbase'
 
 import { syncSettingsFromCloud } from './lib/config-store'
 
@@ -28,6 +29,9 @@ function ServiceWorkerUpdate({ canUpdate }: { canUpdate: boolean }) {
 
 export function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(pb.authStore.isValid)
+  // APK 首次启动时若未配置后端地址，强制显示后端配置引导。
+  // 浏览器（PWA）走同源部署，isPocketbaseUrlConfigured() 始终为 true。
+  const [backendReady, setBackendReady] = useState(isPocketbaseUrlConfigured())
   const recorder = useRecorder()
   const [restored, setRestored] = useState(false)
   const { processQueue } = useProcessor()
@@ -54,6 +58,15 @@ export function App() {
       void processQueue()
     }
   }, [isLoggedIn, restored, processQueue])
+
+  // 后端地址未配置（主要是 APK 首次启动）：优先显示后端配置引导
+  if (!backendReady) {
+    return (
+      <div className="phone" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <BackendSetupPrompt onConfigured={() => setBackendReady(true)} />
+      </div>
+    )
+  }
 
   if (!isLoggedIn) {
     return (

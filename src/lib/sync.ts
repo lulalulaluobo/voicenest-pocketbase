@@ -8,21 +8,8 @@ export function isObsidianConfigured(config: SyncConfig): boolean {
   return Boolean(config.apiToken.trim() && config.vault.trim())
 }
 
-async function fetchWithProxy(url: string, options: RequestInit): Promise<Response> {
-  try {
-    return await fetch(url, options)
-  } catch (err: any) {
-    const isPublic = /^https?:\/\//i.test(url) && !url.includes('localhost') && !url.includes('127.0.0.1')
-    if (isPublic) {
-      console.warn('直连失败或遇到 CORS 跨域拦截，尝试降级通过 Vercel 代理转发:', url)
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      const proxyBase = isLocalhost ? 'https://codex-stage1-recording.vercel.app' : ''
-      const proxyUrl = `${proxyBase}/api/proxy?url=${encodeURIComponent(url)}`
-      return await fetch(proxyUrl, options)
-    }
-    throw err
-  }
-}
+// Fast Note Sync 走前端直连用户自配的 Obsidian 同步服务。
+// 如遇 CORS，由用户在 Fast Note Sync 服务端配置允许的前端 Origin。
 
 export function assertSecureSyncEndpoint(api: string): string {
   let parsed: URL
@@ -76,7 +63,7 @@ export async function syncToObsidian(
     attempts++
     const fullPath = cleanDir ? `${cleanDir}/${currentTitle}.md` : `${currentTitle}.md`
 
-    const response = await fetchWithProxy(url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -119,7 +106,7 @@ export async function testSyncConnection(config: SyncConfig): Promise<void> {
   const baseUrl = assertSecureSyncEndpoint(config.api)
   const url = `${baseUrl}/api/user/info`
   
-  const response = await fetchWithProxy(url, {
+  const response = await fetch(url, {
     method: 'GET',
     headers: {
       'token': config.apiToken

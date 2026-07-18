@@ -1,0 +1,49 @@
+# 构建上下文瘦身：避免把数百 MB 的 node_modules、本地数据库、git 历史塞进镜像
+# 关键安全：防止 pb_data/*.db（含真实用户数据）被焙进镜像层
+
+# 依赖与产物（构建阶段会重新 npm install + npm run build）
+node_modules
+dist
+
+# PocketBase 运行期数据，绝不进镜像
+pb_data
+pb_data/*
+
+# Git 与 IDE
+.git
+.gitignore
+.worktrees
+references
+.vscode
+.idea
+.DS_Store
+
+# 文档与设计稿（不参与运行）
+.trellis
+.codegraph
+.agents
+.claude
+.codex
+.gemini
+.superpowers
+docs
+android
+workers
+*.md
+!README.md
+Voice Inbox PWA - PRD.md
+Voice Inbox PWA - UI Prototype.html
+pocketbase_reuse_guide.md
+
+# 日志与临时文件
+*.log
+
+# 环境变量：构建上下文排除，但镜像内也用不到（运行期由 compose environment 注入）
+.env*
+!.env.example
+
+# Android 签名与配置
+*.jks
+*.keystore
+*.p12
+google-services.json

@@ -19,6 +19,8 @@ This directory contains guidelines for backend development. Fill in each file wi
 | [Error Handling](./error-handling.md) | Error types, handling strategies | To fill |
 | [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
 | [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | To fill |
+| [WeChat Access & CORS](./wechat-access-cors.md) | 公众号代理同步与 CORS 配置 | Filled |
+| [PocketBase 0.27 Upgrade Notes](./pocketbase-0.27-upgrade-notes.md) | v0.22→v0.23+ 破坏性变更、JSVM 作用域坑、安全加固经验 | Filled |
 
 ---
 

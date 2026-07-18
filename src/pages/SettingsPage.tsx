@@ -34,6 +34,7 @@ import {
 } from '../lib/wechat'
 import { createFullBackup, readFullBackup, replaceLocalData } from '../lib/backup'
 import { downloadBlob } from '../lib/file-download'
+import { getPocketbaseUrl, setPocketbaseUrl } from '../lib/pocketbase'
 import defaultWechatCoverUrl from '../assets/default-wechat-cover.png'
 
 const MAX_WECHAT_COVER_BYTES = 5 * 1024 * 1024
@@ -90,6 +91,45 @@ export function SettingsPage() {
 
   // 折叠状态管理：'' | 'asr' | 'llm' | 'sync' | 'wechat' | 'audio_retention' | 'text_retention' | 'backup'
   const [activeCollapse, setActiveCollapse] = useState<string | null>(null)
+
+  // 后端地址配置（APK 必填；Web 走同源默认值）
+  const [backendUrlInput, setBackendUrlInput] = useState(getPocketbaseUrl())
+  const [backendUrlEditing, setBackendUrlEditing] = useState(false)
+  const [backendUrlResult, setBackendUrlResult] = useState<string | null>(null)
+  const [backendUrlTesting, setBackendUrlTesting] = useState(false)
+
+  const handleSaveBackendUrl = async () => {
+    setBackendUrlResult(null)
+    const trimmed = backendUrlInput.trim().replace(/\/+$/, '')
+    if (!trimmed) {
+      setBackendUrlResult('⚠️ 后端地址不能为空')
+      return
+    }
+    let parsed: URL
+    try {
+      parsed = new URL(trimmed)
+    } catch {
+      setBackendUrlResult('⚠️ 地址格式无效，需为完整 HTTPS URL')
+      return
+    }
+    if (parsed.protocol !== 'https:') {
+      setBackendUrlResult('⚠️ 必须使用 HTTPS 地址')
+      return
+    }
+    setBackendUrlTesting(true)
+    try {
+      const res = await fetch(`${parsed.origin}/api/health`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      setPocketbaseUrl(parsed.origin)
+      setBackendUrlInput(parsed.origin)
+      setBackendUrlEditing(false)
+      setBackendUrlResult(`✅ 已保存并验证：${parsed.origin}`)
+    } catch (err: any) {
+      setBackendUrlResult(`⚠️ 无法连接后端：${err.message}`)
+    } finally {
+      setBackendUrlTesting(false)
+    }
+  }
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('wechat-authorized') !== '1') return
@@ -488,6 +528,67 @@ export function SettingsPage() {
           </button>
         </div>
       </header>
+
+      {/* 0. 后端地址（APK 必填；Web 走同源默认值） */}
+      <section className="settings-card">
+        <h3>后端连接</h3>
+        <div className="row" onClick={() => !backendUrlEditing && setBackendUrlEditing(true)}>
+          <div className="row-main">
+            <div className="row-title">PocketBase 后端地址</div>
+            <div className="row-sub">
+              {getPocketbaseUrl() || '未配置（APK 必须填写自己的后端 HTTPS 地址）'}
+            </div>
+          </div>
+          <div style={{ color: 'var(--muted)' }}>{backendUrlEditing ? '▼' : '›'}</div>
+        </div>
+        {backendUrlEditing && (
+          <div style={{ padding: '12px 0', borderTop: '1px dashed var(--line)', display: 'grid', gap: '10px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+              APK 模式下必须配置你自己部署的 PocketBase 后端地址。保存后会重新连接，如已登录需重新登录。
+            </div>
+            <input
+              type="url"
+              value={backendUrlInput}
+              onChange={e => setBackendUrlInput(e.target.value)}
+              placeholder="https://voicenest.example.com"
+              className="input-field"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                borderRadius: '10px',
+                border: '1px solid var(--line)',
+                background: 'var(--soft)',
+                color: 'var(--text)',
+                fontSize: '14px'
+              }}
+            />
+            {backendUrlResult && (
+              <div style={{ fontSize: '13px', color: backendUrlResult.startsWith('✅') ? 'var(--success)' : 'var(--danger)' }}>
+                {backendUrlResult}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="action primary"
+                onClick={handleSaveBackendUrl}
+                disabled={backendUrlTesting}
+                style={{ padding: '10px' }}
+              >
+                {backendUrlTesting ? '验证中…' : '验证并保存'}
+              </button>
+              <button
+                type="button"
+                className="action"
+                onClick={() => { setBackendUrlEditing(false); setBackendUrlResult(null); setBackendUrlInput(getPocketbaseUrl()) }}
+                style={{ padding: '10px' }}
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* 1. 录音与处理卡片 */}
       <section className="settings-card">

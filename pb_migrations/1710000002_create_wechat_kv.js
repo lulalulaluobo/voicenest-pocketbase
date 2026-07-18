@@ -3,7 +3,7 @@ migrate((app) => {
     "name": "wechat_kv",
     "type": "base",
     "system": false,
-    "schema": [
+    "fields": [
       {
         "name": "key",
         "type": "text",
