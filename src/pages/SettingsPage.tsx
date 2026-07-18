@@ -34,7 +34,7 @@ import {
 } from '../lib/wechat'
 import { createFullBackup, readFullBackup, replaceLocalData } from '../lib/backup'
 import { downloadBlob } from '../lib/file-download'
-import { getPocketbaseUrl, setPocketbaseUrl } from '../lib/pocketbase'
+import { getPocketbaseUrl, setPocketbaseUrl, pb } from '../lib/pocketbase'
 import defaultWechatCoverUrl from '../assets/default-wechat-cover.png'
 
 const MAX_WECHAT_COVER_BYTES = 5 * 1024 * 1024
@@ -98,6 +98,11 @@ export function SettingsPage() {
   const [backendUrlResult, setBackendUrlResult] = useState<string | null>(null)
   const [backendUrlTesting, setBackendUrlTesting] = useState(false)
 
+  // 密码修改与退出
+  const [newPasswordInput, setNewPasswordInput] = useState('')
+  const [passwordResetting, setPasswordResetting] = useState(false)
+  const [passwordResult, setPasswordResult] = useState<string | null>(null)
+
   const handleSaveBackendUrl = async () => {
     setBackendUrlResult(null)
     const trimmed = backendUrlInput.trim().replace(/\/+$/, '')
@@ -124,6 +129,38 @@ export function SettingsPage() {
       setBackendUrlResult(`⚠️ 无法连接后端：${err.message}`)
     } finally {
       setBackendUrlTesting(false)
+    }
+  }
+
+  const handleResetUserPassword = async () => {
+    setPasswordResult(null)
+    const val = newPasswordInput.trim()
+    if (val.length < 8) {
+      setPasswordResult('⚠️ 新密码长度必须至少为 8 位')
+      return
+    }
+    if (!pb.authStore.model?.id) {
+      setPasswordResult('⚠️ 无法获取当前登录账号信息')
+      return
+    }
+    setPasswordResetting(true)
+    try {
+      await pb.collection('users').update(pb.authStore.model.id, {
+        password: val,
+        passwordConfirm: val
+      })
+      setPasswordResult('✅ 密码已成功重设！下一次登录请使用新密码。')
+      setNewPasswordInput('')
+    } catch (err: any) {
+      setPasswordResult(`⚠️ 重设失败: ${err.message}`)
+    } finally {
+      setPasswordResetting(false)
+    }
+  }
+
+  const handleUserLogout = () => {
+    if (window.confirm('确认退出当前登录吗？')) {
+      pb.authStore.clear()
     }
   }
 
@@ -1031,6 +1068,72 @@ export function SettingsPage() {
                   style={{ display: 'none' }}
                 />
               </label>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* 5. 账户与安全卡片 */}
+      <section className="settings-card">
+        <h3>账户与安全</h3>
+        <div className="row" onClick={() => toggleCollapse('account')}>
+          <div className="row-main">
+            <div className="row-title">当前账户</div>
+            <div className="row-sub">
+              {pb.authStore.model?.email || pb.authStore.model?.username || '已登录账户'}
+            </div>
+          </div>
+          <div style={{ color: 'var(--muted)' }}>{activeCollapse === 'account' ? '▼' : '›'}</div>
+        </div>
+        {activeCollapse === 'account' && (
+          <div style={{ padding: '12px 0', borderTop: '1px dashed var(--line)', display: 'grid', gap: '10px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+              您无需输入旧密码，可在此直接重设本账户的登录密码。
+            </div>
+            
+            <div style={{ display: 'grid', gap: '4px' }}>
+              <input
+                type="password"
+                value={newPasswordInput}
+                onChange={e => setNewPasswordInput(e.target.value)}
+                placeholder="输入新密码 (至少8位)"
+                className="input-field"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--line)',
+                  background: 'var(--soft)',
+                  color: 'var(--text)',
+                  fontSize: '14px'
+                }}
+              />
+            </div>
+
+            {passwordResult && (
+              <div style={{ fontSize: '13px', color: passwordResult.startsWith('✅') ? 'var(--success)' : 'var(--danger)' }}>
+                {passwordResult}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="action primary"
+                onClick={handleResetUserPassword}
+                disabled={passwordResetting}
+                style={{ padding: '10px' }}
+              >
+                🔒 {passwordResetting ? '正在重设…' : '直接重设密码'}
+              </button>
+              <button
+                type="button"
+                className="action danger"
+                onClick={handleUserLogout}
+                style={{ padding: '10px', background: 'var(--dangerBg)', border: '1px solid var(--line)' }}
+              >
+                🚪 退出当前登录
+              </button>
             </div>
           </div>
         )}

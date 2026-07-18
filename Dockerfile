@@ -9,6 +9,8 @@ RUN npm run build
 # Step 2: Package PocketBase and Frontend static files
 FROM alpine:latest
 
+WORKDIR /app
+
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 # 服务端版本必须与前端 JS SDK 对齐（package.json 中 pocketbase ^0.27.0）。
@@ -39,5 +41,5 @@ COPY pb_hooks /app/pb_hooks
 
 EXPOSE 8090
 
-# Run PocketBase server
-CMD ["/app/pocketbase", "serve", "--http=0.0.0.0:8090", "--dir=/pb_data"]
+# Run PocketBase server (Auto upserts default admin on startup)
+CMD ["sh", "-c", "./pocketbase superuser upsert admin@example.com admin12345 --dir=/pb_data && ./pocketbase serve --http=0.0.0.0:8090 --dir=/pb_data --hooksDir=/app/pb_hooks --migrationsDir=/app/pb_migrations"]

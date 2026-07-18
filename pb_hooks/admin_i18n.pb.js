@@ -1,7 +1,34 @@
 // admin_i18n.pb.js - PocketBase 官方管理后台中文化挂钩扩展 (支持中英切换且默认中文)
 
-// 注册 /_/vn_i18n.js 静态脚本路由，提供客户端汉化核心及悬浮切换器
-// v0.23+ 回调签名：参数为 event e（不再用 echo.Context c）
+// ==========================================
+// 2. 超级管理员免旧密码直接重置 API
+// ==========================================
+routerAdd("POST", "/api/admin/reset-password", (c) => {
+  // 获取当前已在管理后台登录的超级用户实体 (由内置中间件从请求头中解析)
+  const admin = c.get("admin");
+  if (!admin) {
+    return c.json(401, { code: "UNAUTHORIZED", message: "仅限已登录的超级管理员调用" });
+  }
+
+  try {
+    const body = JSON.parse(c.request().body);
+    const newPassword = body.newPassword || "";
+
+    if (newPassword.trim().length < 10) {
+      return c.json(400, { code: "INVALID_PASSWORD", message: "新密码长度必须至少为 10 位" });
+    }
+
+    admin.setPassword(newPassword.trim());
+    c.app.saveAdmin(admin);
+    return c.json(200, { success: true, message: "超级管理员密码重置成功" });
+  } catch (err) {
+    return c.json(500, { code: "INTERNAL_ERROR", message: "重置密码失败: " + err.message });
+  }
+});
+
+// ==========================================
+// 3. 静态中文化 JS 注入脚本定义 (含重设密码控制面板)
+// ==========================================
 routerAdd("GET", "/_/vn_i18n.js", (e) => {
   const jsContent = `(function() {
     // 1. 初始化偏好 (默认中文)
@@ -159,71 +186,145 @@ routerAdd("GET", "/_/vn_i18n.js", (e) => {
       }
     }
 
-    // 5. 注入精致的毛玻璃悬浮语言切换器 UI
+    // 5. 注入精致的毛玻璃悬浮语言切换器与密码修改 UI
     function injectLangSelector() {
       const style = document.createElement("style");
       style.innerHTML = \`
-        #vn-lang-selector {
+        #vn-lang-container {
           position: fixed;
           bottom: 16px;
           right: 16px;
           z-index: 99999;
-          background: rgba(255, 255, 255, 0.8);
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
+          background: rgba(255, 255, 255, 0.85);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
           border: 1px solid rgba(0, 0, 0, 0.08);
-          border-radius: 20px;
-          padding: 6px 12px;
+          border-radius: 14px;
+          padding: 10px 14px;
           font-size: 11px;
           font-family: system-ui, -apple-system, sans-serif;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-          cursor: pointer;
-          user-select: none;
-          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
           display: flex;
-          align-items: center;
+          flex-direction: column;
           gap: 6px;
           color: #444;
-          font-weight: 500;
+          transition: all 0.3s ease;
         }
-        #vn-lang-selector:hover {
-          background: rgba(255, 255, 255, 0.95);
-          transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-        }
-        #vn-lang-selector:active {
-          transform: translateY(0);
-        }
-        .dark-mode-detected #vn-lang-selector {
-          background: rgba(30, 30, 30, 0.8);
+        .dark-mode-detected #vn-lang-container {
+          background: rgba(30, 30, 30, 0.85);
           border: 1px solid rgba(255, 255, 255, 0.08);
           color: #ddd;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
         }
-        .dark-mode-detected #vn-lang-selector:hover {
-          background: rgba(40, 40, 40, 0.95);
+        .vn-btn {
+          background: #07c160;
+          color: white;
+          border: none;
+          padding: 4px 8px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 10px;
+          font-weight: 500;
+        }
+        .vn-btn:hover {
+          opacity: 0.9;
+        }
+        .vn-input {
+          padding: 4px 8px;
+          border-radius: 6px;
+          border: 1px solid #ddd;
+          background: white;
+          color: black;
+          font-size: 10px;
+        }
+        .dark-mode-detected .vn-input {
+          background: #444;
+          border: 1px solid #555;
+          color: white;
         }
       \`;
       document.head.appendChild(style);
       
-      const el = document.createElement("div");
-      el.id = "vn-lang-selector";
-      el.innerText = lang === "zh" ? "🌐 语言: 简体中文" : "🌐 Lang: English";
-      el.addEventListener("click", () => {
+      const container = document.createElement("div");
+      container.id = "vn-lang-container";
+      
+      // 切换语言按钮
+      const langBtn = document.createElement("div");
+      langBtn.style.cursor = "pointer";
+      langBtn.style.fontWeight = "bold";
+      langBtn.innerText = lang === "zh" ? "🌐 语言: 简体中文 (点击切换)" : "🌐 Lang: English (Click)";
+      langBtn.addEventListener("click", () => {
         if (lang === "zh") {
-          lang = "en";
           localStorage.setItem("vn_admin_lang", "en");
-          el.innerText = "🌐 Lang: English";
-          stopObserver();
-          window.location.reload(); // 重载页面以完整恢复为官方英文排版
+          window.location.reload();
         } else {
-          lang = "zh";
           localStorage.setItem("vn_admin_lang", "zh");
-          el.innerText = "🌐 语言: 简体中文";
-          startObserver();
+          window.location.reload();
         }
       });
-      document.body.appendChild(el);
+      container.appendChild(langBtn);
+
+      // 免密码重设超级管理员密码输入区
+      const hr = document.createElement("hr");
+      hr.style.margin = "4px 0";
+      hr.style.border = "none";
+      hr.style.borderTop = "1px solid rgba(0,0,0,0.08)";
+      container.appendChild(hr);
+
+      const label = document.createElement("div");
+      label.innerText = "🔑 免旧密码修改超级密码：";
+      label.style.fontSize = "10px";
+      label.style.color = "#777";
+      container.appendChild(label);
+
+      const inputGroup = document.createElement("div");
+      inputGroup.style.display = "flex";
+      inputGroup.style.gap = "4px";
+
+      const pwInput = document.createElement("input");
+      pwInput.type = "password";
+      pwInput.className = "vn-input";
+      pwInput.placeholder = "输入新密码 (≥10位)";
+      pwInput.style.width = "110px";
+      inputGroup.appendChild(pwInput);
+
+      const saveBtn = document.createElement("button");
+      saveBtn.className = "vn-btn";
+      saveBtn.innerText = "修改";
+      saveBtn.addEventListener("click", async () => {
+        const val = pwInput.value.trim();
+        if (val.length < 10) {
+          alert("密码长度必须至少为 10 位");
+          return;
+        }
+        try {
+          // 抓取当前 localStorage 里的管理员 token 发起免旧密码重置请求
+          const authData = JSON.parse(localStorage.getItem("pocketbase_auth") || "{}");
+          const token = authData.token || "";
+          
+          const response = await fetch("/api/admin/reset-password", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Admin " + token
+            },
+            body: JSON.stringify({ newPassword: val })
+          });
+          const res = await response.json();
+          if (response.ok) {
+            alert("✅ 管理员密码重置成功！下一次请使用新密码登录。");
+            pwInput.value = "";
+          } else {
+            alert("⚠️ 修改失败: " + (res.message || "权限不足"));
+          }
+        } catch (err) {
+          alert("⚠️ 请求失败: " + err.message);
+        }
+      });
+      inputGroup.appendChild(saveBtn);
+      container.appendChild(inputGroup);
+
+      document.body.appendChild(container);
     }
     
     // 6. 辅助暗色模式特征检测
@@ -249,12 +350,29 @@ routerAdd("GET", "/_/vn_i18n.js", (e) => {
       init();
     }
   })();`;
-
+  
   return e.string(200, jsContent, "application/javascript; charset=utf-8");
 });
 
-// 历史上曾重写 GET /_/ 注入汉化脚本，但该路由与 PocketBase 内置的
-// GET /_/{path...} 静态资源路由冲突，会导致 PB 启动时 panic。
-// 已删除该重写块。如需启用汉化，可在浏览器控制台手动执行：
-//   var s=document.createElement('script');s.src='/_/vn_i18n.js';document.head.appendChild(s);
-// 或后续通过 OnAdminsListViewBeforeRender 等 view render hook 正确注入。
+// ==========================================
+// 4. 精准重写 GET /_/index.html 避开路由冲突 Panic
+// ==========================================
+routerAdd("GET", "/_/index.html", (e) => {
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PocketBase 管理后台</title>
+    <link rel="icon" type="image/svg+xml" href="images/logo.svg" />
+    <link rel="stylesheet" href="css/style.css" />
+    <script src="/_/vn_i18n.js"></script>
+</head>
+<body class="light">
+    <div id="app"></div>
+    <script type="module" crossorigin src="js/app.js"></script>
+</body>
+</html>`;
+  
+  return e.html(200, html);
+});
