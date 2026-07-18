@@ -1,4 +1,4 @@
-import { recordingDb } from './recording-db'
+import { recordingDb, updateRecording, deleteRecording } from './recording-db'
 import { getAudioRetention, getTextRetention } from './config-store'
 
 /**
@@ -9,7 +9,7 @@ export async function cleanSyncedAudioChunks(id: string): Promise<void> {
     const recording = await recordingDb.recordings.get(id)
     if (recording && recording.status === 'synced') {
       await recordingDb.audioChunks.where('recordingId').equals(id).delete()
-      await recordingDb.recordings.update(id, {
+      await updateRecording(id, {
         chunkIds: [],
         isAudioCleared: true,
         updatedAt: new Date().toISOString()
@@ -45,10 +45,7 @@ export async function sweepExpiredStorage(): Promise<void> {
     if (expiredRecordings.length > 0) {
       console.log(`[Retention] 扫描到 ${expiredRecordings.length} 条已同步文本及录音到期删除记录`)
       for (const rec of expiredRecordings) {
-        await recordingDb.transaction('rw', recordingDb.recordings, recordingDb.audioChunks, async () => {
-          await recordingDb.audioChunks.where('recordingId').equals(rec.id).delete()
-          await recordingDb.recordings.delete(rec.id)
-        })
+        await deleteRecording(rec.id)
       }
     }
   }

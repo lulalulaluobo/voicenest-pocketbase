@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getChunks, getRecording, recordingDb } from '../lib/recording-db'
+import { getChunks, getRecording, recordingDb, updateRecording } from '../lib/recording-db'
 import { getASRConfig, getLLMConfig, getSyncConfig, getNoteTypes, getAudioRetention } from '../lib/config-store'
 import { transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
@@ -22,7 +22,7 @@ async function syncProcessedRecording(
   }
 
   await syncToObsidian(title, markdown, obsidianDir, config)
-  await recordingDb.recordings.update(recording.id, {
+  await updateRecording(recording.id, {
     status: 'synced',
     errorMessage: undefined,
     updatedAt: new Date().toISOString()
@@ -47,20 +47,31 @@ export function useProcessor() {
       // 如果是全流程，我们需要跑 ASR + LLM + Sync
       if (mode === 'full') {
         // 1. 设置状态为处理中并清除之前的报错
-        await recordingDb.recordings.update(id, {
+        await updateRecording(id, {
           status: 'processing',
           errorMessage: undefined,
           updatedAt: new Date().toISOString()
         })
 
         // 2. 检查并读取分片
+        let audioBlob: Blob
         const chunks = await getChunks(id)
         if (!chunks.length) {
-          throw new Error('该录音没有可用的音频分片数据。')
+          if ((rec as any).audioUrl) {
+            try {
+              const res = await fetch((rec as any).audioUrl)
+              if (!res.ok) throw new Error('下载音频失败')
+              audioBlob = await res.blob()
+            } catch (err: any) {
+              throw new Error(`本地没有音频分片且无法从云端下载音频: ${err.message}`)
+            }
+          } else {
+            throw new Error('该录音没有可用的音频分片数据。')
+          }
+        } else {
+          // 3. 拼接音频 Blob
+          audioBlob = new Blob(chunks.map(c => c.blob), { type: rec.mimeType })
         }
-
-        // 3. 拼接音频 Blob
-        const audioBlob = new Blob(chunks.map(c => c.blob), { type: rec.mimeType })
 
         // 4. 调用 ASR
         let transcriptText = ''
@@ -71,7 +82,7 @@ export function useProcessor() {
         }
 
         // 更新 ASR 结果到本地数据库
-        await recordingDb.recordings.update(id, {
+        await updateRecording(id, {
           transcript: transcriptText,
           updatedAt: new Date().toISOString()
         })
@@ -101,7 +112,7 @@ export function useProcessor() {
         }
 
         // 更新整理结果与标题到本地数据库
-        await recordingDb.recordings.update(id, {
+        await updateRecording(id, {
           localTitle: formatted.title,
           summary: formatted.markdown,
           updatedAt: new Date().toISOString()
@@ -111,7 +122,7 @@ export function useProcessor() {
         await syncProcessedRecording(rec, formatted.title, formatted.markdown, currentType.obsidianPath)
       } else if (mode === 'sync_only') {
         // 仅重新同步已整理的内容
-        await recordingDb.recordings.update(id, {
+        await updateRecording(id, {
           status: 'processing',
           errorMessage: undefined,
           updatedAt: new Date().toISOString()
@@ -129,7 +140,7 @@ export function useProcessor() {
       }
     } catch (err: any) {
       // 捕获异常，写回 errorMessage，状态置为 failed
-      await recordingDb.recordings.update(id, {
+      await updateRecording(id, {
         status: 'failed',
         errorMessage: err.message,
         updatedAt: new Date().toISOString()

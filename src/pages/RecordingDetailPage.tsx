@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import type { Recording } from '../domain/recording'
 import { StatusBadge } from '../components/StatusBadge'
-import { deleteRecording, getChunks, getRecording, recordingDb } from '../lib/recording-db'
+import { deleteRecording, getChunks, getRecording, recordingDb, updateRecording } from '../lib/recording-db'
 import { getRecordingAudioBlob } from '../lib/recording-audio'
 import { getNoteTypes, type UserNoteType } from '../lib/config-store'
 import { useProcessor } from '../hooks/use-processor'
@@ -55,7 +55,7 @@ export function RecordingDetailPage() {
     if (recordingId && recording) {
       const targetType = noteTypes.find(t => t.id === val)
       if (targetType) {
-        await recordingDb.recordings.update(recordingId, {
+        await updateRecording(recordingId, {
           typeId: val,
           typeName: targetType.name,
           updatedAt: new Date().toISOString()
@@ -73,7 +73,12 @@ export function RecordingDetailPage() {
       const rec = await refreshData()
       if (!rec) return
       const chunks = await getChunks(recordingId)
-      if (!chunks.length) return
+      if (!chunks.length) {
+        if ((rec as any).audioUrl) {
+          setAudioUrl((rec as any).audioUrl)
+        }
+        return
+      }
       currentUrl = URL.createObjectURL(await getRecordingAudioBlob(rec, chunks.map((chunk) => chunk.blob)))
       setAudioUrl(currentUrl)
     })()
@@ -87,7 +92,7 @@ export function RecordingDetailPage() {
   const handleTranscriptChange = async (val: string) => {
     setTranscript(val)
     if (recordingId) {
-      await recordingDb.recordings.update(recordingId, {
+      await updateRecording(recordingId, {
         transcript: val,
         updatedAt: new Date().toISOString()
       })
@@ -98,7 +103,7 @@ export function RecordingDetailPage() {
   const handleSummaryChange = async (val: string) => {
     setSummary(val)
     if (recordingId) {
-      await recordingDb.recordings.update(recordingId, {
+      await updateRecording(recordingId, {
         summary: val,
         updatedAt: new Date().toISOString()
       })

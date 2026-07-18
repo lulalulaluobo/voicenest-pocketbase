@@ -7,7 +7,7 @@ import {
   getWechatPromptTemplates,
   type WechatPromptTemplate
 } from '../lib/config-store'
-import { getRecording, recordingDb } from '../lib/recording-db'
+import { getRecording, recordingDb, updateRecording } from '../lib/recording-db'
 import { rewriteWechatArticle } from '../lib/llm'
 import { previewWechatDraft, publishWechatDraft, WechatDraftError } from '../lib/wechat'
 import { ThemeToggle } from '../components/ThemeToggle'
@@ -43,7 +43,7 @@ export function WechatEditorPage() {
     if (!recording) return
     const updated = { ...recording, ...changes, updatedAt: new Date().toISOString() }
     setRecording(updated)
-    void recordingDb.recordings.update(recording.id, changes)
+    void updateRecording(recording.id, changes)
   }
 
   const handleRewrite = async () => {

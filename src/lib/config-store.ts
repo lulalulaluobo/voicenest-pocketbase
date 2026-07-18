@@ -1,6 +1,7 @@
 import type { ASRConfig } from './asr'
 import type { LLMConfig } from './llm'
 import type { SyncConfig } from './sync'
+import { pb } from './pocketbase'
 
 export interface WechatDraftConfig {
   enabled: boolean
@@ -61,7 +62,7 @@ const DEFAULT_NOTE_TYPES: UserNoteType[] = [
   {
     id: 'meeting',
     name: '会议',
-    prompt: '梳理成专业的会议纪要，包含参与人员、核心议题、会议决策以及 Todo 待办事项。',
+    prompt: '整理为专业的会议纪要，包含参与人员、核心议题、会议决策以及 Todo 待办事项。',
     template: '# {{title}}\n\n## 👥 参会背景\n\n## 🎯 决策与共识\n- \n\n## ⏳ 行动项 (Todo)\n- [ ] \n\n## 📋 会议记录\n{{content}}',
     obsidianPath: 'Inbox/Meetings'
   },
@@ -74,6 +75,36 @@ const DEFAULT_NOTE_TYPES: UserNoteType[] = [
   }
 ]
 
+// 异步同步云端配置到本地 localStorage
+export async function syncSettingsFromCloud(): Promise<void> {
+  if (!pb.authStore.isValid || !pb.authStore.model) return
+  try {
+    const user = await pb.collection('users').getOne(pb.authStore.model.id)
+    if (user.asrConfig) localStorage.setItem('vn_asr', JSON.stringify(user.asrConfig))
+    if (user.llmConfig) localStorage.setItem('vn_llm', JSON.stringify(user.llmConfig))
+    if (user.syncConfig) localStorage.setItem('vn_sync', JSON.stringify(user.syncConfig))
+    if (user.noteTypes) localStorage.setItem('vn_note_types', JSON.stringify(user.noteTypes))
+    if (user.wechatDraftConfig) localStorage.setItem('vn_wechat_draft', JSON.stringify(user.wechatDraftConfig))
+    if (user.wechatPromptTemplates) localStorage.setItem('vn_wechat_prompt_templates', JSON.stringify(user.wechatPromptTemplates))
+    if (user.audioRetention) localStorage.setItem('vn_audio_retention', user.audioRetention)
+    if (user.textRetention) localStorage.setItem('vn_text_retention', user.textRetention)
+  } catch (err) {
+    console.error('从云端同步配置失败，将沿用本地配置:', err)
+  }
+}
+
+// 异步写回云端
+async function saveToCloud(key: string, value: any): Promise<void> {
+  if (!pb.authStore.isValid || !pb.authStore.model) return
+  try {
+    await pb.collection('users').update(pb.authStore.model.id, {
+      [key]: value
+    })
+  } catch (err) {
+    console.error(`保存 ${key} 至云端失败:`, err)
+  }
+}
+
 export function getASRConfig(): ASRConfig {
   const data = localStorage.getItem('vn_asr')
   return data ? JSON.parse(data) : { type: 'openai', endpoint: 'https://api.openai.com/v1', apiKey: '', model: 'whisper-1' }
@@ -81,6 +112,7 @@ export function getASRConfig(): ASRConfig {
 
 export function saveASRConfig(cfg: ASRConfig): void {
   localStorage.setItem('vn_asr', JSON.stringify(cfg))
+  void saveToCloud('asrConfig', cfg)
 }
 
 export function getLLMConfig(): LLMConfig {
@@ -90,6 +122,7 @@ export function getLLMConfig(): LLMConfig {
 
 export function saveLLMConfig(cfg: LLMConfig): void {
   localStorage.setItem('vn_llm', JSON.stringify(cfg))
+  void saveToCloud('llmConfig', cfg)
 }
 
 export function getSyncConfig(): SyncConfig {
@@ -99,6 +132,7 @@ export function getSyncConfig(): SyncConfig {
 
 export function saveSyncConfig(cfg: SyncConfig): void {
   localStorage.setItem('vn_sync', JSON.stringify(cfg))
+  void saveToCloud('syncConfig', cfg)
 }
 
 export function getWechatDraftConfig(): WechatDraftConfig {
@@ -108,6 +142,7 @@ export function getWechatDraftConfig(): WechatDraftConfig {
 
 export function saveWechatDraftConfig(config: WechatDraftConfig): void {
   localStorage.setItem('vn_wechat_draft', JSON.stringify(config))
+  void saveToCloud('wechatDraftConfig', config)
 }
 
 export function getWechatPromptTemplates(): WechatPromptTemplate[] {
@@ -121,6 +156,7 @@ export function getWechatPromptTemplates(): WechatPromptTemplate[] {
 
 export function saveWechatPromptTemplates(templates: WechatPromptTemplate[]): void {
   localStorage.setItem('vn_wechat_prompt_templates', JSON.stringify(templates))
+  void saveToCloud('wechatPromptTemplates', templates)
 }
 
 export function getNoteTypes(): UserNoteType[] {
@@ -134,6 +170,7 @@ export function getNoteTypes(): UserNoteType[] {
 
 export function saveNoteTypes(types: UserNoteType[]): void {
   localStorage.setItem('vn_note_types', JSON.stringify(types))
+  void saveToCloud('noteTypes', types)
 }
 
 export type AudioRetentionType = 'immediate' | '7d' | '30d' | 'forever'
@@ -145,6 +182,7 @@ export function getAudioRetention(): AudioRetentionType {
 
 export function saveAudioRetention(val: AudioRetentionType): void {
   localStorage.setItem('vn_audio_retention', val)
+  void saveToCloud('audioRetention', val)
 }
 
 export function getTextRetention(): TextRetentionType {
@@ -153,4 +191,5 @@ export function getTextRetention(): TextRetentionType {
 
 export function saveTextRetention(val: TextRetentionType): void {
   localStorage.setItem('vn_text_retention', val)
+  void saveToCloud('textRetention', val)
 }

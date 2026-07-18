@@ -11,6 +11,10 @@ import { RecordingsPage } from './pages/RecordingsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { WechatEditorPage } from './pages/WechatEditorPage'
 import { useProcessor } from './hooks/use-processor'
+import { LoginPage } from './components/LoginPage'
+import { pb } from './lib/pocketbase'
+
+import { syncSettingsFromCloud } from './lib/config-store'
 
 import { sweepExpiredStorage } from './lib/retention'
 
@@ -23,22 +27,41 @@ function ServiceWorkerUpdate({ canUpdate }: { canUpdate: boolean }) {
 }
 
 export function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(pb.authStore.isValid)
   const recorder = useRecorder()
   const [restored, setRestored] = useState(false)
   const { processQueue } = useProcessor()
 
   useEffect(() => {
-    void recoverIncompleteRecordings()
+    // 监听 authStore 变化以更新状态
+    const unsubscribe = pb.authStore.onChange(() => {
+      setIsLoggedIn(pb.authStore.isValid)
+    })
+    return () => unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    if (!isLoggedIn) return
+    void syncSettingsFromCloud()
+      .then(() => recoverIncompleteRecordings())
       .then(() => void sweepExpiredStorage())
       .finally(() => setRestored(true))
-  }, [])
+  }, [isLoggedIn])
 
   // 当恢复录音库完毕且网络在线时，自动对积压的离线同步队列触发消费整理一次
   useEffect(() => {
-    if (restored) {
+    if (isLoggedIn && restored) {
       void processQueue()
     }
-  }, [restored, processQueue])
+  }, [isLoggedIn, restored, processQueue])
+
+  if (!isLoggedIn) {
+    return (
+      <div className="phone" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <LoginPage onLoginSuccess={() => setIsLoggedIn(true)} />
+      </div>
+    )
+  }
 
   if (!restored) return <div className="phone" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p className="empty-state">正在恢复本地录音…</p></div>
 
@@ -58,3 +81,4 @@ export function App() {
     </BrowserRouter>
   )
 }
+

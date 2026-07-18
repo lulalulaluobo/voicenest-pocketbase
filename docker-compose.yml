@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  voicenest:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voicenest
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./pb_data:/pb_data
+    restart: unless-stopped

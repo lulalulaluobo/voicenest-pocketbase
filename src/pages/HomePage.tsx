@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useRecorder } from '../hooks/use-recorder'
-import { recordingDb } from '../lib/recording-db'
+import { recordingDb, updateRecording } from '../lib/recording-db'
 import { getNoteTypes, type UserNoteType } from '../lib/config-store'
 import { useProcessor } from '../hooks/use-processor'
 import { ThemeToggle } from '../components/ThemeToggle'
@@ -40,7 +40,7 @@ export function HomePage({ recorder }: { recorder: ReturnType<typeof useRecorder
         if (navigator.onLine) {
           void processRecording(id, 'full')
         } else {
-          await recordingDb.recordings.update(id, {
+          await updateRecording(id, {
             status: 'waiting_network',
             updatedAt: new Date().toISOString()
           })
