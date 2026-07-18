@@ -4,7 +4,6 @@ import { pb } from '../lib/pocketbase'
 export function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
   const [isRegister, setIsRegister] = useState(false)
   const [identity, setIdentity] = useState('')
-  const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
@@ -18,23 +17,22 @@ export function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
 
     try {
       if (isRegister) {
-        if (!email.trim() || !username.trim()) {
-          throw new Error('邮箱和用户名不能为空')
+        if (!username.trim()) {
+          throw new Error('用户名不能为空')
         }
         if (password !== passwordConfirm) {
           throw new Error('两次输入的密码不一致')
         }
         await pb.collection('users').create({
           username: username.trim(),
-          email: email.trim(),
           password,
           passwordConfirm,
         })
         // 注册成功后自动登录
-        await pb.collection('users').authWithPassword(email.trim(), password)
+        await pb.collection('users').authWithPassword(username.trim(), password)
       } else {
         if (!identity.trim()) {
-          throw new Error('请输入账号或邮箱')
+          throw new Error('请输入用户名')
         }
         await pb.collection('users').authWithPassword(identity.trim(), password)
       }
@@ -89,58 +87,36 @@ export function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
         )}
 
         {isRegister ? (
-          <>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>用户名</label>
-              <input
-                type="text"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                required
-                className="input-field"
-                placeholder="例如 user123"
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  border: '1px solid var(--line)',
-                  background: 'var(--soft)',
-                  color: 'var(--text)',
-                  fontSize: '15px'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>邮箱</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                className="input-field"
-                placeholder="email@example.com"
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  borderRadius: '12px',
-                  border: '1px solid var(--line)',
-                  background: 'var(--soft)',
-                  color: 'var(--text)',
-                  fontSize: '15px'
-                }}
-              />
-            </div>
-          </>
+          <div>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>用户名</label>
+            <input
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              required
+              className="input-field"
+              placeholder="例如 user123"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                border: '1px solid var(--line)',
+                background: 'var(--soft)',
+                color: 'var(--text)',
+                fontSize: '15px'
+              }}
+            />
+          </div>
         ) : (
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>账号 (用户名或邮箱)</label>
+            <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>用户名</label>
             <input
               type="text"
               value={identity}
               onChange={e => setIdentity(e.target.value)}
               required
               className="input-field"
-              placeholder="请输入用户名或邮箱"
+              placeholder="请输入用户名"
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -153,6 +129,7 @@ export function LoginPage({ onLoginSuccess }: { onLoginSuccess: () => void }) {
             />
           </div>
         )}
+
 
         <div>
           <label style={{ display: 'block', marginBottom: '6px', fontSize: '14px', fontWeight: '500' }}>密码</label>
