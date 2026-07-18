@@ -42,4 +42,4 @@ COPY pb_hooks /app/pb_hooks
 EXPOSE 8090
 
 # Run PocketBase server (Auto upserts default admin on startup)
-CMD ["sh", "-c", "./pocketbase superuser upsert admin@example.com admin12345 --dir=/pb_data && ./pocketbase serve --http=0.0.0.0:8090 --dir=/pb_data --hooksDir=/app/pb_hooks --migrationsDir=/app/pb_migrations"]
+CMD ["sh", "-c", "./pocketbase superuser upsert admin@example.com admin123456 --dir=/pb_data && ./pocketbase serve --http=0.0.0.0:8090 --dir=/pb_data --hooksDir=/app/pb_hooks --migrationsDir=/app/pb_migrations"]

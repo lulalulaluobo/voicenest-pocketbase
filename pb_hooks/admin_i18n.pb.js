@@ -1,7 +1,7 @@
-// admin_i18n.pb.js - PocketBase 官方管理后台中文化挂钩扩展 (支持中英切换且默认中文)
+// admin_i18n.pb.js - PocketBase 官方管理后台中文化挂钩扩展 (支持中英切换且默认中文，并包含默认管理员改密强制弹窗)
 
 // ==========================================
-// 2. 超级管理员免旧密码直接重置 API
+// 1. 超级管理员免旧密码直接重置 API
 // ==========================================
 routerAdd("POST", "/api/admin/reset-password", (c) => {
   // 获取当前已在管理后台登录的超级用户实体 (由内置中间件从请求头中解析)
@@ -20,6 +20,24 @@ routerAdd("POST", "/api/admin/reset-password", (c) => {
 
     admin.setPassword(newPassword.trim());
     c.app.saveAdmin(admin);
+
+    // 在 wechat_kv 表中写入改密成功标记以供前台检测
+    try {
+      let kvRecord;
+      try {
+        kvRecord = c.app.findFirstRecordByData("wechat_kv", "key", "admin:password_changed");
+      } catch (_) {
+        const collection = c.app.findCollectionByNameOrId("wechat_kv");
+        kvRecord = new Record(collection);
+        kvRecord.set("key", "admin:password_changed");
+      }
+      kvRecord.set("value", "true");
+      c.app.save(kvRecord);
+    } catch (kvErr) {
+      // 即使 KV 写入失败，也仅在控制台输出警告，不阻断主流程改密成功返回
+      console.log("[VoiceNest] 警告: 写入管理员改密标志失败: " + kvErr.message);
+    }
+
     return c.json(200, { success: true, message: "超级管理员密码重置成功" });
   } catch (err) {
     return c.json(500, { code: "INTERNAL_ERROR", message: "重置密码失败: " + err.message });
@@ -27,10 +45,23 @@ routerAdd("POST", "/api/admin/reset-password", (c) => {
 });
 
 // ==========================================
-// 3. 静态中文化 JS 注入脚本定义 (含重设密码控制面板)
+// 2. 静态中文化 JS 注入脚本定义 (含强制改密遮罩与重设密码控制面板)
 // ==========================================
 routerAdd("GET", "/_/vn_i18n.js", (e) => {
+  // 后端先从 wechat_kv 里检测是否已经执行过改密
+  let needsReset = true;
+  try {
+    const record = $app.findFirstRecordByData("wechat_kv", "key", "admin:password_changed");
+    if (record && record.get("value") === "true") {
+      needsReset = false;
+    }
+  } catch (_) {
+    // 没找到代表尚未修改默认密码，needsReset 保持为 true
+  }
+
   const jsContent = `(function() {
+    const NEEDS_RESET_PASSWORD = ${needsReset};
+
     // 1. 初始化偏好 (默认中文)
     let lang = localStorage.getItem("vn_admin_lang") || "zh";
     
@@ -186,7 +217,7 @@ routerAdd("GET", "/_/vn_i18n.js", (e) => {
       }
     }
 
-    // 5. 注入精致的毛玻璃悬浮语言切换器与密码修改 UI
+    // 5. 注入一键改密与中英文切换面板 UI
     function injectLangSelector() {
       const style = document.createElement("style");
       style.innerHTML = \`
@@ -298,7 +329,6 @@ routerAdd("GET", "/_/vn_i18n.js", (e) => {
           return;
         }
         try {
-          // 抓取当前 localStorage 里的管理员 token 发起免旧密码重置请求
           const authData = JSON.parse(localStorage.getItem("pocketbase_auth") || "{}");
           const token = authData.token || "";
           
@@ -314,6 +344,9 @@ routerAdd("GET", "/_/vn_i18n.js", (e) => {
           if (response.ok) {
             alert("✅ 管理员密码重置成功！下一次请使用新密码登录。");
             pwInput.value = "";
+            // 如果存在强制修改遮罩，同步移除
+            const modal = document.getElementById("vn-reset-modal");
+            if (modal) modal.remove();
           } else {
             alert("⚠️ 修改失败: " + (res.message || "权限不足"));
           }
@@ -326,8 +359,94 @@ routerAdd("GET", "/_/vn_i18n.js", (e) => {
 
       document.body.appendChild(container);
     }
+
+    // 6. 首次登录强制修改管理员初始密码弹窗 UI 注入
+    function injectResetPasswordModal() {
+      if (document.getElementById("vn-reset-modal")) return;
+
+      const el = document.createElement("div");
+      el.id = "vn-reset-modal";
+      el.style.cssText = "position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); z-index: 100000; display: flex; align-items: center; justify-content: center; font-family: system-ui, -apple-system, sans-serif;";
+      
+      el.innerHTML = \`
+        <div style="background: white; padding: 32px; border-radius: 16px; width: 360px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 16px; border: 1px solid rgba(0,0,0,0.06); text-align: center;" id="vn-reset-card">
+            <div style="font-size: 36px; margin-bottom: 4px;">🔒</div>
+            <h3 style="margin: 0; font-size: 18px; font-weight: 700; color: #333;" id="vn-reset-title">设置您的新管理员密码</h3>
+            <p style="margin: 0; font-size: 13px; color: #666; line-height: 1.5;" id="vn-reset-desc">安全建议：为了确保您的语音收件箱系统绝对安全，请立即修改您的超级管理员默认密码！</p>
+            <input type="password" id="vn-reset-pw" placeholder="输入新密码 (至少 10 位)" style="padding: 11px 14px; border-radius: 10px; border: 1px solid #ddd; font-size: 14px; background: white; color: black; outline: none; width: 100%; box-sizing: border-box;" />
+            <button id="vn-reset-submit" style="background: #07c160; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 14px; transition: opacity 0.2s; width: 100%;">立即修改并激活</button>
+            <div id="vn-reset-error" style="color: #ff4d4f; font-size: 12px; display: none; text-align: left; margin-top: 4px;"></div>
+         </div>
+      \`;
+      
+      document.body.appendChild(el);
+
+      // 适配暗色模式
+      const isDark = document.documentElement.classList.contains("dark-mode-detected");
+      if (isDark) {
+        const card = document.getElementById("vn-reset-card");
+        const title = document.getElementById("vn-reset-title");
+        const desc = document.getElementById("vn-reset-desc");
+        const input = document.getElementById("vn-reset-pw");
+        if (card) card.style.background = "#1e1e1e";
+        if (card) card.style.borderColor = "rgba(255,255,255,0.08)";
+        if (title) title.style.color = "#eee";
+        if (desc) desc.style.color = "#aaa";
+        if (input) {
+          input.style.background = "#333";
+          input.style.borderColor = "#444";
+          input.style.color = "white";
+        }
+      }
+
+      // 绑定重设事件
+      const submitBtn = document.getElementById("vn-reset-submit");
+      const pwInput = document.getElementById("vn-reset-pw");
+      const errorDiv = document.getElementById("vn-reset-error");
+
+      submitBtn.addEventListener("click", async () => {
+        const val = pwInput.value.trim();
+        if (val.length < 10) {
+          errorDiv.innerText = "⚠️ 密码长度必须至少为 10 位";
+          errorDiv.style.display = "block";
+          return;
+        }
+        errorDiv.style.display = "none";
+        submitBtn.disabled = true;
+        submitBtn.innerText = "正在提交...";
+
+        try {
+          const authData = JSON.parse(localStorage.getItem("pocketbase_auth") || "{}");
+          const token = authData.token || "";
+
+          const response = await fetch("/api/admin/reset-password", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Admin " + token
+            },
+            body: JSON.stringify({ newPassword: val })
+          });
+          const res = await response.json();
+          if (response.ok) {
+            alert("✅ 默认密码修改成功！请牢记您的新管理员密码。");
+            el.remove(); // 直接剥离弹窗遮罩，完美复原页面控制权限！
+          } else {
+            errorDiv.innerText = "⚠️ 修改失败: " + (res.message || "权限拒绝");
+            errorDiv.style.display = "block";
+            submitBtn.disabled = false;
+            submitBtn.innerText = "立即修改并激活";
+          }
+        } catch (err) {
+          errorDiv.innerText = "⚠️ 网络连接失败: " + err.message;
+          errorDiv.style.display = "block";
+          submitBtn.disabled = false;
+          submitBtn.innerText = "立即修改并激活";
+        }
+      });
+    }
     
-    // 6. 辅助暗色模式特征检测
+    // 7. 辅助暗色模式特征检测
     function detectDarkMode() {
       if (document.body.classList.contains("dark") || 
           document.documentElement.getAttribute("data-theme") === "dark" ||
@@ -342,6 +461,12 @@ routerAdd("GET", "/_/vn_i18n.js", (e) => {
       if (lang === "zh") {
         startObserver();
       }
+
+      // 检测管理员是否已登录，如已登录且仍用着默认密码，强制弹出遮罩限制操作
+      const isAuth = !!localStorage.getItem("pocketbase_auth");
+      if (isAuth && typeof NEEDS_RESET_PASSWORD !== "undefined" && NEEDS_RESET_PASSWORD) {
+        injectResetPasswordModal();
+      }
     }
     
     if (document.readyState === "loading") {
@@ -355,7 +480,7 @@ routerAdd("GET", "/_/vn_i18n.js", (e) => {
 });
 
 // ==========================================
-// 4. 精准重写 GET /_/index.html 避开路由冲突 Panic
+// 3. 精准重写 GET /_/index.html 避开路由冲突 Panic
 // ==========================================
 routerAdd("GET", "/_/index.html", (e) => {
   const html = `<!DOCTYPE html>
