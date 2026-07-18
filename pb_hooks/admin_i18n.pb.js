@@ -499,7 +499,8 @@ routerAdd("GET", "/_/vn_i18n.js", (e) => {
     }
   })();`;
   
-  return e.string(200, jsContent, "application/javascript; charset=utf-8");
+  e.response.header().set("Content-Type", "application/javascript; charset=utf-8");
+  return e.string(200, jsContent);
 });
 
 // ==========================================
