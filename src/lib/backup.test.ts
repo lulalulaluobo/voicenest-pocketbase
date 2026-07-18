@@ -145,4 +145,43 @@ describe('full backup', () => {
 
     await expect(readFullBackup(archive)).rejects.toThrow('录音清单无效')
   })
+
+  it('restores version 1 backup and updates missing fields', async () => {
+    const archive = new Blob([zipSync({
+      'manifest.json': strToU8(JSON.stringify({
+        format: 'voicenest-backup',
+        version: 1,
+        exportedAt: '2026-07-15T00:00:00.000Z',
+        recordingCount: 1,
+        audioEntries: [],
+      })),
+      'settings.json': strToU8(JSON.stringify({ vn_asr: 'restored-setting' })),
+      'recordings.json': strToU8(JSON.stringify([{
+        id: 'v1-rec',
+        createdAt: '2026-07-15T00:00:00.000Z',
+        updatedAt: '2026-07-15T00:00:00.000Z',
+        durationMs: 5000,
+        mimeType: 'audio/webm',
+        chunkIds: [],
+        status: 'ready',
+      }])),
+    })])
+
+    const backup = await readFullBackup(archive)
+    expect(backup.manifest.version).toBe(1)
+    
+    await replaceLocalData(backup)
+    const list = await listRecordings()
+    expect(list).toMatchObject([{
+      id: 'v1-rec',
+      typeId: 'default',
+      typeName: '未分类',
+      localTitle: '',
+      recovered: false,
+      interrupted: false,
+      status: 'ready'
+    }])
+    expect(localStorage.getItem('vn_asr')).toBe('restored-setting')
+  })
 })
+

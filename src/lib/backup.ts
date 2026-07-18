@@ -83,7 +83,11 @@ function isAudioEntry(value: unknown): value is AudioEntry {
 function validateManifest(value: unknown): asserts value is BackupManifest {
   if (!value || typeof value !== 'object') throw new Error('备份清单无效')
   const manifest = value as Partial<BackupManifest>
-  if (manifest.format !== BACKUP_FORMAT || manifest.version !== BACKUP_VERSION) {
+  if (manifest.format !== BACKUP_FORMAT) {
+    throw new Error('不支持的备份格式')
+  }
+  const version = manifest.version as number | undefined
+  if (version !== 1 && version !== 2) {
     throw new Error('不支持的备份版本')
   }
   if (typeof manifest.recordingCount !== 'number' || !Number.isSafeInteger(manifest.recordingCount)
@@ -99,15 +103,15 @@ function isRecording(value: unknown): value is Recording {
   return typeof recording.id === 'string'
     && typeof recording.createdAt === 'string'
     && typeof recording.updatedAt === 'string'
-    && typeof recording.typeId === 'string'
-    && typeof recording.typeName === 'string'
+    && (recording.typeId === undefined || typeof recording.typeId === 'string')
+    && (recording.typeName === undefined || typeof recording.typeName === 'string')
     && typeof recording.durationMs === 'number' && Number.isFinite(recording.durationMs) && recording.durationMs >= 0
     && typeof recording.mimeType === 'string'
     && Array.isArray(recording.chunkIds) && recording.chunkIds.every((id) => typeof id === 'string')
     && typeof recording.status === 'string' && RECORDING_STATUSES.has(recording.status)
-    && typeof recording.recovered === 'boolean'
-    && typeof recording.interrupted === 'boolean'
-    && typeof recording.localTitle === 'string'
+    && (recording.recovered === undefined || typeof recording.recovered === 'boolean')
+    && (recording.interrupted === undefined || typeof recording.interrupted === 'boolean')
+    && (recording.localTitle === undefined || typeof recording.localTitle === 'string')
     && (recording.transcript === undefined || typeof recording.transcript === 'string')
     && (recording.summary === undefined || typeof recording.summary === 'string')
     && (recording.errorMessage === undefined || typeof recording.errorMessage === 'string')
@@ -196,10 +200,22 @@ export async function readFullBackup(file: Blob): Promise<FullBackup> {
 }
 
 export async function replaceLocalData(backup: FullBackup): Promise<void> {
+  // 对可能缺失 typeId/typeName/localTitle 的旧版本记录进行平滑升级填充，防止 UI 渲染故障
+  const normalizedRecordings = backup.recordings.map((rec) => {
+    return {
+      ...rec,
+      typeId: rec.typeId ?? 'default',
+      typeName: rec.typeName ?? '未分类',
+      localTitle: rec.localTitle ?? '',
+      recovered: rec.recovered ?? false,
+      interrupted: rec.interrupted ?? false
+    } as Recording
+  })
+
   await recordingDb.transaction('rw', recordingDb.recordings, recordingDb.audioChunks, async () => {
     await recordingDb.audioChunks.clear()
     await recordingDb.recordings.clear()
-    await recordingDb.recordings.bulkPut(backup.recordings)
+    await recordingDb.recordings.bulkPut(normalizedRecordings)
     await recordingDb.audioChunks.bulkPut(backup.chunks)
   })
 
