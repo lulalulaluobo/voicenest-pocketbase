@@ -23,7 +23,7 @@ import {
   type UserNoteType,
   type WechatPromptTemplate
 } from '../lib/config-store'
-import { transcribeAudio } from '../lib/asr'
+import { testASRConnection, transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
 import { testSyncConnection } from '../lib/sync'
 import {
@@ -147,6 +147,12 @@ export function SettingsPage() {
     setAsrTesting(true)
     setAsrTestResult(null)
     try {
+      if (asrConfig.type === 'step') {
+        await testASRConnection(asrConfig)
+        setAsrTestResult('✅ StepAudio API Key 验证成功！')
+        return
+      }
+
       function base64ToBlob(base64: string, mimeType: string) {
         const byteCharacters = atob(base64)
         const byteNumbers = new Array(byteCharacters.length)
@@ -162,7 +168,7 @@ export function SettingsPage() {
       const text = await transcribeAudio(dummyBlob, asrConfig)
       setAsrTestResult(`✅ 连接成功！转写完成，响应: "${text}"`)
     } catch (err: any) {
-      if (err.message.includes('no speech found') || err.message.includes('request_params_invalid')) {
+      if (err.message.includes('no speech found') || err.message.includes('no_speech_found') || err.message.includes('request_params_invalid')) {
         setAsrTestResult(`✅ 连接成功！已成功连接并鉴权 StepAudio 引擎（由于发送的是超短静音测试音频，引擎未识别到语音内容）`)
       } else {
         setAsrTestResult(`⚠️ 测试连接结果：${err.message}`)
@@ -695,6 +701,9 @@ export function SettingsPage() {
                 onChange={(e) => handleSyncFieldChange('api', e.target.value)}
                 style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
               />
+              <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                需使用手机可访问的 HTTPS 地址，并在 FNS 服务端允许此站点的 CORS 请求。
+              </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>Vault 名称</label>

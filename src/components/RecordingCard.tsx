@@ -9,6 +9,7 @@ import { downloadBlob } from '../lib/file-download'
 import { useProcessor } from '../hooks/use-processor'
 import { getWechatStatusLabel } from '../lib/wechat'
 import { getWechatDraftConfig } from '../lib/config-store'
+import { buildPlaybackBlob } from '../lib/audio-playback'
 
 function formatDuration(durationMs: number) {
   const seconds = Math.floor(durationMs / 1000)
@@ -59,7 +60,7 @@ export function RecordingCard({ recording, highlighted = false, onRefresh }: Rec
         alert('没有可播放的音频分片')
         return
       }
-      const url = URL.createObjectURL(await getRecordingAudioBlob(recording, chunks.map((chunk) => chunk.blob)))
+      const url = URL.createObjectURL(buildPlaybackBlob(chunks, recording.mimeType))
       const audio = new Audio(url)
       audio.onended = () => setIsPlaying(false)
       audio.onerror = () => {

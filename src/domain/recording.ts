@@ -38,6 +38,7 @@ export interface Recording {
   wechatRequestId?: string
   wechatTitle?: string
   wechatMarkdown?: string
+  retryCount?: number
 }
 
 export interface AudioChunk {

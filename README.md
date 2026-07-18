@@ -40,6 +40,7 @@ npm run build
 
 ## 部署
 
+<<<<<<< HEAD
 VoiceNest 可拆分为两部分部署：静态前端与微信公众号 Worker。前端可部署到 Vercel 或 Cloudflare Pages；二者提供免费平台子域名（`.vercel.app` / `.pages.dev`），不是免费自定义域名。Worker 使用 Cloudflare 提供的 `workers.dev` 地址，不需要购买域名。
 
 需要在不影响生产资源的前提下演练 Cloudflare Pages + Worker 全链路时，阅读[测试部署指南](docs/cloudflare-pages-test-deployment.md)。
@@ -99,3 +100,7 @@ VoiceNest 可拆分为两部分部署：静态前端与微信公众号 Worker。
 ```
 
 手机测试必须通过部署后的 HTTPS 地址访问。录音与 IndexedDB 数据始终保存在该手机本地；模型 API Key 也仅保存在该设备的浏览器存储中。
+
+Vercel 仅托管构建后的静态 PWA 文件，不需要后端、环境变量或 Vercel Function。手机测试需要通过 Vercel 提供的 HTTPS 地址访问；浏览器内的录音和 IndexedDB 数据始终保存在该手机本地。
+
+若使用 Fast Note Sync，同步服务必须提供手机可访问的 HTTPS 地址，并正确配置 CORS；`localhost` 或 HTTP 地址无法从 HTTPS PWA 中访问。
