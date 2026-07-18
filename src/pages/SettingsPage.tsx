@@ -109,11 +109,7 @@ export function SettingsPage() {
     try {
       parsed = new URL(trimmed)
     } catch {
-      setBackendUrlResult('⚠️ 地址格式无效，需为完整 HTTPS URL')
-      return
-    }
-    if (parsed.protocol !== 'https:') {
-      setBackendUrlResult('⚠️ 必须使用 HTTPS 地址')
+      setBackendUrlResult('⚠️ 地址格式无效，需为完整 URL')
       return
     }
     setBackendUrlTesting(true)

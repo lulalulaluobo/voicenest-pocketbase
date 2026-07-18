@@ -12,8 +12,7 @@ export function BackendSetupPrompt({ onConfigured }: { onConfigured: () => void 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    const trimmed = url.trim().    replace(/^http:\/\//i, 'https://'). // 强制 HTTPS
-      replace(/\/+$/, '')
+    const trimmed = url.trim().replace(/\/+$/, '')
 
     if (!trimmed) {
       setError('请输入 PocketBase 后端地址')
@@ -24,12 +23,7 @@ export function BackendSetupPrompt({ onConfigured }: { onConfigured: () => void 
     try {
       parsed = new URL(trimmed)
     } catch {
-      setError('地址格式无效，请输入完整的 HTTPS URL，例如 https://voicenest.example.com')
-      return
-    }
-
-    if (parsed.protocol !== 'https:') {
-      setError('APK 必须使用 HTTPS 地址；自签名证书的 HTTP 服务无法访问。')
+      setError('地址格式无效，请输入完整的 URL，例如 http://10.0.2.2:8090')
       return
     }
 
