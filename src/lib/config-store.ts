@@ -116,7 +116,6 @@ function readStoredJson<T>(key: string, fallback: T): T {
     return fallback
   }
 }
-}
 
 export function getASRConfig(): ASRConfig {
   return readStoredJson('vn_asr', { type: 'openai', endpoint: 'https://api.openai.com/v1', apiKey: '', model: 'whisper-1' })
