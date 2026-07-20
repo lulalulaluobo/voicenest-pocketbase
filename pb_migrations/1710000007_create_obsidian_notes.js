@@ -10,7 +10,7 @@ migrate((app) => {
       { name: 'path', type: 'text', required: false, max: 500 },
       { name: 'syncedAt', type: 'date', required: false },
     ],
-    indexes: ['CREATE INDEX idx_obsidian_notes_pending ON obsidian_notes (owner, syncedAt, created)'],
+    indexes: [],
     listRule: 'owner = @request.auth.id',
     viewRule: 'owner = @request.auth.id',
     createRule: 'owner = @request.auth.id',
