@@ -14,9 +14,9 @@ routerAdd('GET', '/api/obsidian/sync/changes', (e) => {
   const owner = require(`${__hooks}/obsidian_sync_helpers.js`).requireToken(e); if (!owner) return
   const requested = Number(e.requestInfo().query.limit || 50)
   const limit = Number.isSafeInteger(requested) && requested >= 1 && requested <= 200 ? requested : 50
-  const notes = e.app.findRecordsByFilter('obsidian_notes', 'owner = {:owner} && syncedAt = null', 'created,id', limit, 0, { owner: owner })
-  const items = notes.map((note) => ({ id: note.id, title: note.get('title'), markdown: note.get('markdown'), path: note.get('path'), created: note.get('created') }))
-  const last = items.length ? `${items[items.length - 1].created}|${items[items.length - 1].id}` : String(e.requestInfo().query.cursor || '')
+  const notes = e.app.findRecordsByFilter('obsidian_notes', 'owner = {:owner} && syncedAt = ""', 'id', limit, 0, { owner: owner })
+  const items = notes.map((note) => ({ id: note.id, title: note.get('title'), markdown: note.get('markdown'), path: note.get('path') }))
+  const last = items.length ? items[items.length - 1].id : String(e.requestInfo().query.cursor || '')
   return e.json(200, { notes: items, last_id: last })
 })
 
