@@ -25,6 +25,7 @@ import {
 import { testASRConnection, transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
 import { checkForAppUpdate, downloadAndInstallAppUpdate } from '../lib/app-update'
+import { createObsidianSyncToken } from '../lib/obsidian-sync'
 import {
   getWechatCoverStatus,
   testWechatConnection,
@@ -53,6 +54,8 @@ export function SettingsPage() {
 
   const [updateBusy, setUpdateBusy] = useState(false)
   const [updateResult, setUpdateResult] = useState<string | null>(null)
+  const [obsidianToken, setObsidianToken] = useState<string | null>(null)
+  const [creatingObsidianToken, setCreatingObsidianToken] = useState(false)
   const [wechatConfig, setWechatConfig] = useState(getWechatDraftConfig())
   const [tempAppId, setTempAppId] = useState(getWechatDraftConfig().appId)
   const [tempAppSecret, setTempAppSecret] = useState('')
@@ -294,6 +297,17 @@ export function SettingsPage() {
       setUpdateResult(error instanceof Error ? `更新失败：${error.message}` : '更新失败，请稍后重试。')
     } finally {
       setUpdateBusy(false)
+    }
+  }
+
+  const handleCreateObsidianToken = async () => {
+    setCreatingObsidianToken(true)
+    try {
+      setObsidianToken(await createObsidianSyncToken())
+    } catch (error) {
+      setObsidianToken(error instanceof Error ? error.message : '无法生成同步 Token。')
+    } finally {
+      setCreatingObsidianToken(false)
     }
   }
 
@@ -771,7 +785,13 @@ export function SettingsPage() {
         <div className="row">
           <div className="row-main">
             <div className="row-title">Obsidian 本地插件同步</div>
-            <div className="row-sub">整理后的笔记会进入 PocketBase 队列，由本地插件单向拉取到 Vault。</div>
+            <div className="row-sub">整理后的笔记会进入 PocketBase 队列，由插件使用可撤销 Token 单向拉取到 Vault。</div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <button type="button" className="action primary" onClick={() => void handleCreateObsidianToken()} disabled={creatingObsidianToken}>
+                {creatingObsidianToken ? '正在生成…' : '生成插件同步 Token'}
+              </button>
+            </div>
+            {obsidianToken && <div style={{ marginTop: '8px', fontSize: '12px', wordBreak: 'break-all', color: 'var(--muted)' }}>仅显示一次，请复制到 Obsidian 插件：{obsidianToken}</div>}
           </div>
         </div>
 
