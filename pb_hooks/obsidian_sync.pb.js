@@ -29,9 +29,8 @@ routerAdd('POST', '/api/obsidian/sync/ack', (e) => {
     if (typeof id !== 'string') continue
     try {
       const note = e.app.findRecordById('obsidian_notes', id)
-      if (note.get('owner') !== owner || note.get('syncedAt')) continue
-      note.set('syncedAt', new Date().toISOString())
-      e.app.save(note); acked++
+      if (note.get('owner') !== owner) continue
+      e.app.delete(note); acked++
     } catch (_) {}
   }
   return e.json(200, { acked: acked })
