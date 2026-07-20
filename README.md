@@ -105,7 +105,7 @@ docker compose up -d
 
 1. **下载安装 APK**：手机安装编译好的 APK。首次启动时可点击“使用免费公共后端”连接 `https://voicenest.lucc.fun`，或填写您自建的 PocketBase HTTPS 地址（例如 `https://pb.yourdomain.com`）。
 2. **注册与登录**：点击“注册”账号并自动登录，您的账号将独占独立的云端微信加密数据行。
-3. **配置 Obsidian 本地插件（可选）**：运行 `cd obsidian-plugin && npm install && npm run build`，将 `main.js` 和 `manifest.json` 放入 Vault 的 `.obsidian/plugins/voicenest-sync/` 后启用。在 VoiceNest 设置页生成可撤销的同步 Token，粘贴到插件；插件通过 `changes → 写入 Vault → ack → cursor` 单向拉取，成功确认后才推进游标。
+3. **配置 Obsidian 本地插件（可选）**：运行 `cd obsidian-plugin && npm install && npm run build`，将 `main.js` 和 `manifest.json` 放入 Vault 的 `.obsidian/plugins/voicenest-sync/` 后启用。在 VoiceNest 设置页生成可撤销的同步 Token，粘贴到插件；插件通过 `changes → 写入 Vault → ack → cursor` 单向拉取，服务端会以空日期字段识别待同步笔记，成功确认后才推进游标。
 4. **安全配置微信**：
    * 进入“设置” -> “公众号草稿箱”，输入您的公众号 `AppID` 与 `AppSecret` 点击**保存**（自动单向加密上传）。
    * 将您 VPS 的公网固定 IP 填入微信公众号后台的“IP白名单”中，随后在设置页中点击“测试公众号连接”验证。
