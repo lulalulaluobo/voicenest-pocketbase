@@ -54,7 +54,7 @@ function vnSettings(): Record<string, string> {
   const entries: Array<[string, string]> = []
   for (let index = 0; index < localStorage.length; index += 1) {
     const key = localStorage.key(index)
-    if (key?.startsWith('vn_')) entries.push([key, localStorage.getItem(key) ?? ''])
+    if (key?.startsWith('vn_') && key !== 'vn_sync') entries.push([key, localStorage.getItem(key) ?? ''])
   }
   return Object.fromEntries(entries)
 }

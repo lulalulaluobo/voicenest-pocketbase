@@ -1,0 +1,9 @@
+{
+  "id": "voicenest-sync",
+  "name": "VoiceNest Sync",
+  "version": "1.0.3",
+  "minAppVersion": "1.4.0",
+  "description": "从 VoiceNest PocketBase 单向同步笔记到当前 Vault",
+  "author": "VoiceNest",
+  "isDesktopOnly": false
+}

@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+def releaseStoreFile = System.getenv('VOICENEST_RELEASE_STORE_FILE')
+def releaseStorePassword = System.getenv('VOICENEST_RELEASE_STORE_PASSWORD')
+def releaseKeyAlias = System.getenv('VOICENEST_RELEASE_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('VOICENEST_RELEASE_KEY_PASSWORD')
+def releaseSigningReady = [releaseStoreFile, releaseStorePassword, releaseKeyAlias, releaseKeyPassword].every { it }
+def requestedReleaseTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+
+if (requestedReleaseTask && !releaseSigningReady) {
+    throw new GradleException('Release 签名需要 VOICENEST_RELEASE_STORE_FILE、VOICENEST_RELEASE_STORE_PASSWORD、VOICENEST_RELEASE_KEY_ALIAS、VOICENEST_RELEASE_KEY_PASSWORD。')
+}
+
 android {
     namespace = "fun.lucc.voicenest"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +18,8 @@ android {
         applicationId "fun.lucc.voicenest"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "1.0.2"
+        versionCode 4
+        versionName "1.0.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -20,6 +31,21 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    signingConfigs {
+        if (releaseSigningReady) {
+            release {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (releaseSigningReady) signingConfig signingConfigs.release
         }
     }
 }

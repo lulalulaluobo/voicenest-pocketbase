@@ -50,6 +50,13 @@ npx cap sync android  # 将最新前端静态文件拷入 Android 壳工程中
   ```
   生成的 APK 路径为：`android/app/build/outputs/apk/debug/app-debug.apk`。
 
+**正式签名 APK：** release 构建必须提供同一套 keystore，缺任一变量会失败，避免误发布 debug 包。
+```bash
+set -a && source /Users/luluen/.voicenest-release/credentials.env && set +a
+cd android && ./gradlew assembleRelease
+```
+发布到 GitHub Release 时，资产必须命名为 `VoiceNest-v<versionName>-<versionCode>-release.apk`，tag 为 `v<versionName>`；应用会校验 GitHub SHA-256、包名、版本号和签名后才请求 Android 安装。
+
 ---
 
 ## 🚀 Docker 生产部署
@@ -98,7 +105,7 @@ docker compose up -d
 
 1. **下载安装 APK**：手机安装编译好的 APK。首次启动时可点击“使用免费公共后端”连接 `https://voicenest.lucc.fun`，或填写您自建的 PocketBase HTTPS 地址（例如 `https://pb.yourdomain.com`）。
 2. **注册与登录**：点击“注册”账号并自动登录，您的账号将独占独立的云端微信加密数据行。
-3. **配置 Fast Note Sync（可选）**：在“设置” -> “Fast Note Sync (Obsidian)”填入 FNS 的 HTTPS API 地址、Token 与 Vault。FNS 服务端必须允许应用来源 `https://localhost` 跨域访问；不要再填写已移除的 Cloudflare Worker 地址。
+3. **配置 Obsidian 本地插件（可选）**：运行 `cd obsidian-plugin && npm install && npm run build`，将 `main.js` 和 `manifest.json` 放入 Vault 的 `.obsidian/plugins/voicenest-sync/` 后启用。插件使用 VoiceNest 后端地址与登录邮箱/密码单向拉取已整理笔记；成功写入后才标记队列完成。
 4. **安全配置微信**：
    * 进入“设置” -> “公众号草稿箱”，输入您的公众号 `AppID` 与 `AppSecret` 点击**保存**（自动单向加密上传）。
    * 将您 VPS 的公网固定 IP 填入微信公众号后台的“IP白名单”中，随后在设置页中点击“测试公众号连接”验证。

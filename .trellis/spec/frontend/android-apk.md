@@ -19,7 +19,7 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 ## 3. Contracts
 
 - `capacitor.config.json` 固定包含 `appId: "fun.lucc.voicenest"`、`appName: "声笺"`、`webDir: "dist"` 和 `server.androidScheme: "https"`。公众号请求走用户配置的 PocketBase 地址，不配置 Cloudflare Worker、Access 或 `allowNavigation` 白名单。
-- Android WebView 的预期 Origin 为 `https://localhost`。FNS 请求统一经已配置的 PocketBase 同源代理转发；FNS 仅需提供手机可访问的 HTTPS 地址，无需为 `https://localhost` 或 VoiceNest 网页域名配置 CORS。
+- Android WebView 的预期 Origin 为 `https://localhost`。整理后的笔记写入 PocketBase 的 `obsidian_notes` 队列，由 Obsidian 本地插件单向拉取；APK 不保存 Obsidian 凭据。
 - `android/app/src/main/AndroidManifest.xml` 必须声明 `INTERNET`、`MODIFY_AUDIO_SETTINGS` 与 `RECORD_AUDIO`；Capacitor 对音频捕获会同时请求后两项。
 - `MainActivity` 必须接受 Cookie 与第三方 Cookie、在页面完成时 `CookieManager.flush()`，并只在首次加载 `https://localhost` 时注销遗留 Service Worker 后重载；不得清空 WebView 数据、Dexie 或 Cookie。
 - Android 内不注册新的 PWA Service Worker。设置页“公众号草稿箱”只展示 AppID/AppSecret 的保存和连通性测试；不得添加 Worker 授权 URL、`wechat-authorized` 回调或外部浏览器跳转。
@@ -34,7 +34,7 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 | 使用 `capacitor.config.ts` 且项目 TypeScript 为 7 | Capacitor CLI 读取配置失败；使用等价的 `capacitor.config.json`。 |
 | 未设置 JBR/Android SDK 环境变量 | Capacitor/Gradle 无法定位 Java 或 SDK；使用 Android Studio JBR 与 `$HOME/Library/Android/sdk`。 |
 | 未声明 `MODIFY_AUDIO_SETTINGS` | Capacitor 音频捕获会把权限请求整体拒绝，即使用户已授权麦克风。 |
-| FNS 只提供 HTTP、地址带路径或指向内网 | PocketBase FNS 代理拒绝请求；设置页应提示填写可访问的公共 HTTPS 基础地址。 |
+| release 签名变量缺失 | Gradle 必须拒绝 `assembleRelease`，避免发布无法覆盖更新的 Debug APK。 |
 | 从旧网页备份恢复公众号配置 | 旧 AppID/状态可以恢复，但不会恢复旧 Worker 代码；用户需在设置页重新保存有效 AppID/AppSecret。 |
 | APK 版本未递增且遗留 Service Worker 接管页面 | 旧页面可能继续执行已删除的授权逻辑；递增版本并由 `MainActivity` 首次加载时注销遗留 Service Worker。 |
 | Android 对 `blob:` 链接调用 `<a download>` | WebView 不会开始文件下载；必须调用 `FileDownload.begin`/`append`/`finish`。 |
@@ -55,7 +55,7 @@ ANDROID_HOME="$HOME/Library/Android/sdk" \
 3. 真机安装后验证麦克风授权、十秒录音播放/跳转、重启持久化和完整 ZIP 导入。
 4. 覆盖安装版本号更高的 APK 后，验证不会打开系统浏览器，且本地数据仍存在。
 5. 真机填写 AppID/AppSecret、保存后重启 App，并测试公众号连接仍成功。
-6. 为 FNS 配置 HTTPS 地址，验证同源 PocketBase FNS 代理的 Token 测试和笔记同步；不得要求 FNS 配置 `https://localhost` CORS。
+6. 用同一 keystore 连续构建两个递增 versionCode 的 release APK，验证可覆盖安装；设置页检查 GitHub Release 后仅在摘要、包名、版本和签名一致时请求系统安装。
 7. Android 点击下载音频与完整备份，检查 `Download/声笺` 中的文件可被系统文件管理器读取；模拟器至少验证一次 `begin`/`append`/`finish` 写入。
 
 ## 7. Wrong vs Correct

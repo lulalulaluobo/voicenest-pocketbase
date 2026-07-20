@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { testASRConnection, transcribeAudio } from './asr'
 import { formatNote, rewriteWechatArticle } from './llm'
-import { assertSecureSyncEndpoint, normalizeObsidianDirectory, sanitizeNoteFilename, syncToObsidian } from './sync'
 
 describe('API Clients Unit Tests', () => {
   const originalFetch = globalThis.fetch
@@ -189,59 +188,4 @@ describe('API Clients Unit Tests', () => {
     })).rejects.toThrow('ASR API 调用失败 (401)')
   })
 
-  it('should sync markdown file to Obsidian via Fast Note Sync', async () => {
-    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ status: true }),
-      status: 200
-    } as Response)
-
-    await expect(
-      syncToObsidian('测试文件', '# 内容', 'Inbox/Ideas', {
-        api: 'https://fns.example.test',
-        apiToken: 'token-xyz',
-        vault: 'my-vault'
-      })
-    ).resolves.not.toThrow()
-
-    expect(globalThis.fetch).toHaveBeenCalledWith('http://127.0.0.1:8090/api/fns/note', expect.objectContaining({
-      method: 'POST',
-      body: expect.stringContaining('"api":"https://fns.example.test"'),
-    }))
-  })
-
-  it('should auto append suffix and retry when note already exists', async () => {
-    // 第一次模拟返回 Note already exists (code 431)
-    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ status: false, code: 431, message: 'Note already exists' }),
-      status: 200
-    } as Response)
-
-    // 第二次重试成功
-    vi.mocked(globalThis.fetch).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ status: true, code: 1 }),
-      status: 200
-    } as Response)
-
-    await expect(
-      syncToObsidian('重名文件', '# 内容', 'Inbox/Ideas', {
-        api: 'https://fns.example.test',
-        apiToken: 'token-xyz',
-        vault: 'my-vault'
-      })
-    ).resolves.not.toThrow()
-
-    expect(globalThis.fetch).toHaveBeenCalledTimes(2)
-  })
-
-  it('rejects non-HTTPS Fast Note Sync endpoints', () => {
-    expect(() => assertSecureSyncEndpoint('http://localhost:8080')).toThrow('HTTPS')
-  })
-
-  it('rejects path traversal and strips unsafe filename characters', () => {
-    expect(() => normalizeObsidianDirectory('../Inbox')).toThrow('..')
-    expect(sanitizeNoteFilename('../会议:总结?')).toBe('会议 总结')
-  })
 })

@@ -20,8 +20,8 @@ This directory contains guidelines for backend development. Fill in each file wi
 | [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | To fill |
 | [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | To fill |
 | [WeChat Access & CORS](./wechat-access-cors.md) | 公众号代理同步与 CORS 配置 | Filled |
-| [FNS Same-Origin Proxy](./fns-same-origin-proxy.md) | PWA/APP 通过 PocketBase 访问 Fast Note Sync | Filled |
 | [PocketBase 0.27 Upgrade Notes](./pocketbase-0.27-upgrade-notes.md) | v0.22→v0.23+ 破坏性变更、JSVM 作用域坑、安全加固经验 | Filled |
+| [Obsidian Local Sync](./obsidian-local-sync.md) | 本地插件单向同步队列与签名发布约束 | Active |
 
 ---
 

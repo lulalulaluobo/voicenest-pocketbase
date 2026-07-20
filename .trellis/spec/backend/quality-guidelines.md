@@ -21,7 +21,6 @@ Questions to answer:
 ## Active Contracts
 
 - [微信公众号 Worker 与 Access CORS 契约](./wechat-access-cors.md)
-- [FNS 同源代理契约](./fns-same-origin-proxy.md)
 
 ---
 

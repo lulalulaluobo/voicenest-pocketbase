@@ -27,7 +27,6 @@ describe('full backup', () => {
 
   it('round-trips settings, recordings, text and binary audio', async () => {
     localStorage.setItem('vn_asr', JSON.stringify({ apiKey: 'asr-secret' }))
-    localStorage.setItem('vn_sync', JSON.stringify({ apiToken: 'obsidian-token' }))
     await createRecording({ id: 'r1', typeId: 'idea', typeName: '随想', mimeType: 'audio/webm', localTitle: '标题' })
     await recordingDb.recordings.update('r1', {
       transcript: '原始转写',
@@ -52,7 +51,7 @@ describe('full backup', () => {
     await replaceLocalData(await readFullBackup(archive))
 
     expect(localStorage.getItem('vn_asr')).toContain('asr-secret')
-    expect(localStorage.getItem('vn_sync')).toContain('obsidian-token')
+    expect(localStorage.getItem('vn_sync')).toBeNull()
     expect(localStorage.getItem('vn_current_only')).toBeNull()
     expect(await listRecordings()).toMatchObject([{
       id: 'r1',

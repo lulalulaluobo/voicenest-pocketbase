@@ -1,6 +1,5 @@
 import type { ASRConfig } from './asr'
 import type { LLMConfig } from './llm'
-import type { SyncConfig } from './sync'
 
 export interface WechatDraftConfig {
   enabled: boolean
@@ -101,14 +100,6 @@ export function getLLMConfig(): LLMConfig {
 
 export function saveLLMConfig(cfg: LLMConfig): void {
   localStorage.setItem('vn_llm', JSON.stringify(cfg))
-}
-
-export function getSyncConfig(): SyncConfig {
-  return readStoredJson('vn_sync', { api: '', apiToken: '', vault: '' })
-}
-
-export function saveSyncConfig(cfg: SyncConfig): void {
-  localStorage.setItem('vn_sync', JSON.stringify(cfg))
 }
 
 export function getWechatDraftConfig(): WechatDraftConfig {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { useNavigate } from 'react-router-dom'
 import { ThemeToggle } from '../components/ThemeToggle'
 import {
@@ -6,8 +7,6 @@ import {
   saveASRConfig,
   getLLMConfig,
   saveLLMConfig,
-  getSyncConfig,
-  saveSyncConfig,
   getWechatDraftConfig,
   saveWechatDraftConfig,
   getWechatPromptTemplates,
@@ -25,7 +24,7 @@ import {
 } from '../lib/config-store'
 import { testASRConnection, transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
-import { testSyncConnection } from '../lib/sync'
+import { checkForAppUpdate, downloadAndInstallAppUpdate } from '../lib/app-update'
 import {
   getWechatCoverStatus,
   testWechatConnection,
@@ -52,11 +51,8 @@ export function SettingsPage() {
   const [llmTesting, setLlmTesting] = useState(false)
   const [llmTestResult, setLlmTestResult] = useState<string | null>(null)
 
-  // Sync
-  const [syncConfig, setSyncConfig] = useState(getSyncConfig())
-  const [fnsJsonInput, setFnsJsonInput] = useState('')
-  const [syncTesting, setSyncTesting] = useState(false)
-  const [syncTestResult, setSyncTestResult] = useState<string | null>(null)
+  const [updateBusy, setUpdateBusy] = useState(false)
+  const [updateResult, setUpdateResult] = useState<string | null>(null)
   const [wechatConfig, setWechatConfig] = useState(getWechatDraftConfig())
   const [tempAppId, setTempAppId] = useState(getWechatDraftConfig().appId)
   const [tempAppSecret, setTempAppSecret] = useState('')
@@ -277,55 +273,27 @@ export function SettingsPage() {
     }
   }
 
-  // Sync Save
-  const handleSyncFieldChange = (field: string, value: string) => {
-    const updated = { ...syncConfig, [field]: value }
-    setSyncConfig(updated)
-    saveSyncConfig(updated)
-  }
-
-  const handleParseFnsJson = (rawText: string) => {
-    try {
-      const parsed = JSON.parse(rawText.trim())
-      const missing = ["api", "apiToken", "vault"].filter((k) => !String(parsed[k] || "").trim())
-      if (missing.length) {
-        alert(`FNS 配置缺少必需字段: ${missing.join(", ")}`)
-        return
-      }
-      const updated = {
-        api: String(parsed.api).trim().replace(/\/+$/, ""),
-        apiToken: String(parsed.apiToken).trim(),
-        vault: String(parsed.vault).trim()
-      }
-      setSyncConfig(updated)
-      saveSyncConfig(updated)
-      setFnsJsonInput('')
-      alert("FNS 配置已成功解析并填充，已自动保存！")
-    } catch (err: any) {
-      alert("解析失败，请确保粘贴的是合法的 FNS 配置 JSON 字符串")
+  const handleCheckUpdate = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      setUpdateResult('APK 更新仅可在 Android 应用内检查。')
+      return
     }
-  }
-
-  const handleClipboardImport = async () => {
+    setUpdateBusy(true)
+    setUpdateResult(null)
     try {
-      const text = await navigator.clipboard.readText()
-      setFnsJsonInput(text)
-      handleParseFnsJson(text)
-    } catch (err) {
-      alert("无法读取系统剪贴板，请在输入框内手动粘贴后点击“解析并填充”")
-    }
-  }
-
-  const handleTestSync = async () => {
-    setSyncTesting(true)
-    setSyncTestResult(null)
-    try {
-      await testSyncConnection(syncConfig)
-      setSyncTestResult("✅ Obsidian 连接测试成功！已成功握手 Fast Note Sync 插件")
-    } catch (err: any) {
-      setSyncTestResult(`⚠️ 连接测试失败: ${err.message}`)
+      const update = await checkForAppUpdate()
+      if (!update.available) {
+        setUpdateResult('当前已是最新版本。')
+      } else if (window.confirm(`发现 v${update.versionName}，是否下载并安装？`)) {
+        await downloadAndInstallAppUpdate()
+        setUpdateResult('下载与校验完成，请在 Android 系统安装页确认。')
+      } else {
+        setUpdateResult(`发现新版本 v${update.versionName}。`)
+      }
+    } catch (error) {
+      setUpdateResult(error instanceof Error ? `更新失败：${error.message}` : '更新失败，请稍后重试。')
     } finally {
-      setSyncTesting(false)
+      setUpdateBusy(false)
     }
   }
 
@@ -800,90 +768,26 @@ export function SettingsPage() {
           </div>
         )}
 
-        {/* Fast Note Sync */}
-        <div className="row" onClick={() => toggleCollapse('sync')}>
+        <div className="row">
           <div className="row-main">
-            <div className="row-title">Fast Note Sync (Obsidian)</div>
-            <div className="row-sub">{syncConfig.api ? `已连接 · Vault: ${syncConfig.vault}` : '未配置'}</div>
+            <div className="row-title">Obsidian 本地插件同步</div>
+            <div className="row-sub">整理后的笔记会进入 PocketBase 队列，由本地插件单向拉取到 Vault。</div>
           </div>
-          <div style={{ color: 'var(--muted)' }}>{activeCollapse === 'sync' ? '▼' : '›'}</div>
         </div>
-        {activeCollapse === 'sync' && (
-          <div style={{ padding: '12px 0', borderTop: '1px dashed var(--line)', display: 'grid', gap: '8px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>一键导入 FNS JSON</label>
-              <textarea
-                value={fnsJsonInput}
-                onChange={(e) => setFnsJsonInput(e.target.value)}
-                placeholder='例: {"api":"https://...","apiToken":"...","vault":"obsidian"}'
-                style={{ minHeight: '60px', fontSize: '12px', fontFamily: 'monospace' }}
-              />
-              <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
-                <button
-                  type="button"
-                  className="action"
-                  onClick={handleClipboardImport}
-                  style={{ padding: '6px 10px', fontSize: '12px' }}
-                >
-                  📋 剪贴板导入
-                </button>
-                <button
-                  type="button"
-                  className="action primary"
-                  onClick={() => handleParseFnsJson(fnsJsonInput)}
-                  disabled={!fnsJsonInput.trim()}
-                  style={{ padding: '6px 10px', fontSize: '12px' }}
-                >
-                  解析并填充
-                </button>
-              </div>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>FNS 基础地址 (API)</label>
-              <input
-                type="text"
-                value={syncConfig.api}
-                onChange={(e) => handleSyncFieldChange('api', e.target.value)}
-                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
-              />
-              <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                需使用手机可访问的 HTTPS 地址。VoiceNest 会通过已登录的同源后端访问 FNS，无需修改 FNS 的 CORS 配置。
-              </div>
+        <div className="row">
+          <div className="row-main">
+            <div className="row-title">VoiceNest 更新</div>
+            <div className="row-sub">GitHub Release 提供正式签名 APK；下载前会校验摘要、包名、版本和签名。</div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
+              <a className="action" href="https://github.com/lulalulaluobo/voicenest-pocketbase" target="_blank" rel="noreferrer">GitHub 仓库</a>
+              <button type="button" className="action primary" onClick={() => void handleCheckUpdate()} disabled={updateBusy}>
+                {updateBusy ? '正在检查…' : '检查 APK 更新'}
+              </button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>Vault 名称</label>
-              <input
-                type="text"
-                value={syncConfig.vault}
-                onChange={(e) => handleSyncFieldChange('vault', e.target.value)}
-                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
-              />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#81766c' }}>API Token</label>
-              <input
-                type="password"
-                value={syncConfig.apiToken}
-                onChange={(e) => handleSyncFieldChange('apiToken', e.target.value)}
-                style={{ minHeight: '40px', padding: '0 8px', borderRadius: '6px', border: '1px solid var(--line)', background: 'var(--card2)', color: 'var(--text)' }}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={handleTestSync}
-              disabled={syncTesting}
-              style={{ minHeight: '40px', background: 'var(--accent)', color: 'var(--accentText)', border: 0, borderRadius: '6px', fontWeight: 'bold', marginTop: '6px' }}
-            >
-              {syncTesting ? '正在测试...' : '测试 FNS 连接'}
-            </button>
-            {syncTestResult && (
-              <div style={{ fontSize: '12px', background: 'var(--soft)', padding: '8px', borderRadius: '6px', marginTop: '4px' }}>
-                {syncTestResult}
-              </div>
-            )}
+            {updateResult && <div style={{ fontSize: '12px', marginTop: '8px', color: 'var(--muted)' }}>{updateResult}</div>}
           </div>
-        )}
+        </div>
 
         <div className="row" onClick={() => toggleCollapse('wechat')}>
           <div className="row-main">

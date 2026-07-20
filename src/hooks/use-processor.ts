@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getChunks, getRecording, recordingDb, updateRecording } from '../lib/recording-db'
-import { getASRConfig, getAudioRetention, getLLMConfig, getNoteTypes, getSyncConfig } from '../lib/config-store'
+import { getASRConfig, getAudioRetention, getLLMConfig, getNoteTypes } from '../lib/config-store'
 import { transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
-import { syncToObsidian } from '../lib/sync'
+import { enqueueObsidianNote } from '../lib/obsidian-queue'
 import { cleanSyncedAudioChunks } from '../lib/retention'
 import { createSerialTaskRunner, shouldRetryProcessingError } from '../lib/processing-queue'
 
@@ -50,7 +50,7 @@ export function useProcessor() {
             summary: formatted.markdown,
             updatedAt: new Date().toISOString(),
           })
-          await syncToObsidian(formatted.title, formatted.markdown, currentType.obsidianPath, getSyncConfig())
+          await enqueueObsidianNote(formatted.title, formatted.markdown, currentType.obsidianPath)
         } else {
           await updateRecording(id, { status: 'processing', errorMessage: undefined, updatedAt: new Date().toISOString() })
           const latest = await getRecording(id)
@@ -58,7 +58,7 @@ export function useProcessor() {
           const noteTypes = getNoteTypes()
           const currentType = noteTypes.find((type) => type.id === latest.typeId) || noteTypes[0]
           if (!currentType) throw new Error('未找到可用的笔记类型配置。')
-          await syncToObsidian(latest.localTitle, latest.summary, currentType.obsidianPath, getSyncConfig())
+          await enqueueObsidianNote(latest.localTitle, latest.summary, currentType.obsidianPath)
         }
 
         await updateRecording(id, {
