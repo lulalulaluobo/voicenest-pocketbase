@@ -38,11 +38,16 @@ export default class VoiceNestSync extends Plugin {
       const ackIds: string[] = []
       for (const note of response.notes || []) {
         const directory = (note.path || this.settings.directory).replace(/^\/+|\/+$/g, '')
-        const filename = `${note.id}-${note.title.replace(/[\\/:*?"<>|]/g, ' ').trim() || '未命名笔记'}.md`
-        const path = directory ? `${directory}/${filename}` : filename
+        const title = note.title.replace(/[\\/:*?"<>|]/g, ' ').trim() || '未命名笔记'
+        const basePath = directory ? `${directory}/${title}` : title
         if (directory && !this.app.vault.getAbstractFileByPath(directory)) await this.app.vault.createFolder(directory)
+        const existing = this.app.vault.getMarkdownFiles().find((candidate) => this.app.metadataCache.getFileCache(candidate)?.frontmatter?.voicenest_id === note.id)
+        let path = `${basePath}.md`
+        let target = this.app.vault.getAbstractFileByPath(path)
+        for (let suffix = 2; target && target !== existing; suffix++) { path = `${basePath} (${suffix}).md`; target = this.app.vault.getAbstractFileByPath(path) }
+        if (existing && existing.path !== path) await this.app.fileManager.renameFile(existing, path)
         const content = `---\nvoicenest_id: ${note.id}\n---\n\n# ${note.title}\n\n${note.markdown}`
-        const file = this.app.vault.getAbstractFileByPath(path)
+        const file = existing || this.app.vault.getAbstractFileByPath(path)
         if (file instanceof TFile) await this.app.vault.modify(file, content); else await this.app.vault.create(path, content)
         ackIds.push(note.id)
       }
