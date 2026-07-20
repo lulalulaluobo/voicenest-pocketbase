@@ -359,6 +359,18 @@ h3 {
   background: #fff;
 }
 
+.record-btn.paused {
+  background: var(--card2);
+  border-color: var(--line);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .12);
+}
+
+.record-btn.paused::after {
+  inset: 27px 32px;
+  border-radius: 2px;
+  background: var(--text);
+}
+
 .rec-hint {
   margin-top: 18px;
   font-size: 13px;

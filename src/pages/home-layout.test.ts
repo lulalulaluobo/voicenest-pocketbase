@@ -11,4 +11,12 @@ describe('home layout', () => {
     expect(homePage).toContain('className="view home-view"')
     expect(styles).toMatch(/\.home-view\s*\{[^}]*height:\s*100dvh;[^}]*overflow:\s*hidden;/s)
   })
+
+  it('uses the main control for pause and resume, with confirmed cancellation', () => {
+    expect(homePage).toContain("recorder.state === 'recording' ? '暂停录音'")
+    expect(homePage).toContain("recorder.state === 'paused' ? '继续录音'")
+    expect(homePage).toContain("window.confirm('取消本次录音？已录制的内容将不会保存。')")
+    expect(homePage).toContain('>结束</button>')
+    expect(homePage).toContain('>取消</button>')
+  })
 })

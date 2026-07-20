@@ -53,7 +53,15 @@ export function HomePage({ recorder }: { recorder: ReturnType<typeof useRecorder
     if (!selectedType) return
     if (recorder.state === 'idle') {
       void recorder.start(selectedType)
+    } else if (recorder.state === 'recording') {
+      recorder.pause()
+    } else {
+      recorder.resume()
     }
+  }
+
+  const cancel = () => {
+    if (window.confirm('取消本次录音？已录制的内容将不会保存。')) void recorder.cancel()
   }
 
   return (
@@ -99,25 +107,20 @@ export function HomePage({ recorder }: { recorder: ReturnType<typeof useRecorder
         <div className="timer">{formatElapsed(recorder.elapsedMs)}</div>
         
         <button
-          className={`record-btn ${recorder.state === 'recording' ? 'recording' : ''}`}
+          className={`record-btn ${recorder.state === 'recording' ? 'recording' : ''} ${recorder.state === 'paused' ? 'paused' : ''}`}
           onClick={handleRecordClick}
-          aria-label="录音主控"
+          aria-label={recorder.state === 'recording' ? '暂停录音' : recorder.state === 'paused' ? '继续录音' : '开始录音'}
         />
 
         <div className="rec-hint">
-          {recorder.state === 'idle' ? '点击开始录音' : '请保持页面前台'}
+          {recorder.state === 'idle' ? '点击开始录音' : recorder.state === 'paused' ? '点击继续录音' : '点击暂停录音'}
         </div>
       </div>
 
-      {/* 暂停与结束控制行 */}
+      {/* 结束与取消控制行 */}
       <div className={`pause-row ${recorder.state !== 'idle' ? 'show' : ''}`}>
-        {recorder.state === 'recording' && (
-          <button className="ghost" onClick={recorder.pause}>暂停</button>
-        )}
-        {recorder.state === 'paused' && (
-          <button className="ghost" onClick={recorder.resume}>继续</button>
-        )}
         <button className="ghost" onClick={() => void complete()}>结束</button>
+        <button className="ghost danger" onClick={cancel}>取消</button>
       </div>
 
       {/* 更多分类抽屉 */}

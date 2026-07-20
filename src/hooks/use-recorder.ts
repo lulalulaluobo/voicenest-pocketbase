@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { UserNoteType } from '../lib/config-store'
-import { appendChunk, createRecording, finishRecording } from '../lib/recording-db'
+import { appendChunk, createRecording, deleteRecording, finishRecording } from '../lib/recording-db'
 import { selectAudioMime } from '../lib/audio-mime'
 
 export type RecorderState = 'idle' | 'recording' | 'paused'
@@ -166,5 +166,10 @@ export function useRecorder() {
 
   const stop = useCallback(() => complete('ready'), [complete])
 
-  return { state, elapsedMs, error, start, pause, resume, stop, clearError: () => setError(null) }
+  const cancel = useCallback(async () => {
+    const recordingId = await complete('interrupted')
+    if (recordingId) await deleteRecording(recordingId)
+  }, [complete])
+
+  return { state, elapsedMs, error, start, pause, resume, stop, cancel, clearError: () => setError(null) }
 }
