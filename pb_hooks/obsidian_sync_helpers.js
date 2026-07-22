@@ -6,6 +6,8 @@ function requireToken(e) {
   }
   try {
     const token = e.app.findFirstRecordByFilter('obsidian_tokens', 'tokenHash = {:hash}', { hash: $security.sha256(authorization.slice(7)) })
+    token.set('lastUsedAt', new Date().toISOString())
+    e.app.save(token)
     return token.get('owner') || null
   } catch (_) {
     e.json(401, { code: 'UNAUTHORIZED', message: '同步 Token 无效或已撤销。' })

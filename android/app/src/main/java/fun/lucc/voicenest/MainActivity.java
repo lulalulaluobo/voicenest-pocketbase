@@ -30,6 +30,12 @@ public class MainActivity extends BridgeActivity {
         });
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        AppUpdatePlugin.resumePendingInstall(this);
+    }
+
     private void clearLegacyServiceWorkers(WebView view, String url) {
         if (serviceWorkersCleared || !url.startsWith("https://localhost")) {
             return;

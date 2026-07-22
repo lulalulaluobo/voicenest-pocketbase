@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Capacitor } from '@capacitor/core'
-import { setPocketbaseUrl } from '../lib/pocketbase'
+import { isAllowedPocketbaseUrl, setPocketbaseUrl } from '../lib/pocketbase'
 
 const PUBLIC_BACKEND_URL = 'https://voicenest.lucc.fun'
 
@@ -25,6 +25,10 @@ export function BackendSetupPrompt({ onConfigured }: { onConfigured: () => void 
       parsed = new URL(trimmed)
     } catch {
       setError('地址格式无效，请输入完整的 URL，例如 http://10.0.2.2:8090')
+      return
+    }
+    if (!isAllowedPocketbaseUrl(parsed)) {
+      setError('后端地址必须使用 HTTPS；仅本地开发地址允许 HTTP。')
       return
     }
 

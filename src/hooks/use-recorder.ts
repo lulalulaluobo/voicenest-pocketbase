@@ -57,7 +57,7 @@ export function useRecorder() {
     if (!recorder || !recordingId || finalizingRef.current) return null
 
     finalizingRef.current = true
-    const stopped = new Promise<void>((resolve) => recorder.addEventListener('stop', () => resolve(), { once: true }))
+    const stopped = recorder.state === 'inactive' ? Promise.resolve() : new Promise<void>((resolve) => recorder.addEventListener('stop', () => resolve(), { once: true }))
     const durationMs = elapsedBeforeRef.current + (segmentStartedAtRef.current ? Date.now() - segmentStartedAtRef.current : 0)
 
     if (recorder.state !== 'inactive') recorder.stop()
@@ -90,8 +90,9 @@ export function useRecorder() {
       return
     }
 
+    let stream: MediaStream | null = null
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mimeType = selectAudioMime(MediaRecorder.isTypeSupported)
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
       const id = crypto.randomUUID()
@@ -142,6 +143,7 @@ export function useRecorder() {
       recorder.start(5000)
       setState('recording')
     } catch (startError) {
+      stream?.getTracks().forEach((track) => track.stop())
       setError(recorderErrorMessage(startError))
     }
   }, [complete])

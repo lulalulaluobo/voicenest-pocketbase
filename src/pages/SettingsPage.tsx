@@ -25,7 +25,7 @@ import {
 import { testASRConnection, transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
 import { checkForAppUpdate, downloadAndInstallAppUpdate } from '../lib/app-update'
-import { createObsidianSyncToken } from '../lib/obsidian-sync'
+import { createObsidianSyncToken, listObsidianSyncTokens, revokeObsidianSyncToken, type ObsidianSyncToken } from '../lib/obsidian-sync'
 import {
   getWechatCoverStatus,
   testWechatConnection,
@@ -33,7 +33,7 @@ import {
   setupWechatCredentials
 } from '../lib/wechat'
 import { exportFullBackup, readFullBackup, replaceLocalData } from '../lib/backup'
-import { getPocketbaseUrl, setPocketbaseUrl, pb } from '../lib/pocketbase'
+import { getPocketbaseUrl, isAllowedPocketbaseUrl, setPocketbaseUrl, pb } from '../lib/pocketbase'
 import defaultWechatCoverUrl from '../assets/default-wechat-cover.png'
 
 const MAX_WECHAT_COVER_BYTES = 5 * 1024 * 1024
@@ -56,6 +56,7 @@ export function SettingsPage() {
   const [updateResult, setUpdateResult] = useState<string | null>(null)
   const [obsidianToken, setObsidianToken] = useState<string | null>(null)
   const [creatingObsidianToken, setCreatingObsidianToken] = useState(false)
+  const [obsidianTokens, setObsidianTokens] = useState<ObsidianSyncToken[]>([])
   const [wechatConfig, setWechatConfig] = useState(getWechatDraftConfig())
   const [tempAppId, setTempAppId] = useState(getWechatDraftConfig().appId)
   const [tempAppSecret, setTempAppSecret] = useState('')
@@ -113,6 +114,10 @@ export function SettingsPage() {
       parsed = new URL(trimmed)
     } catch {
       setBackendUrlResult('⚠️ 地址格式无效，需为完整 URL')
+      return
+    }
+    if (!isAllowedPocketbaseUrl(parsed)) {
+      setBackendUrlResult('⚠️ 后端地址必须使用 HTTPS；仅本地开发地址允许 HTTP')
       return
     }
     setBackendUrlTesting(true)
@@ -304,11 +309,18 @@ export function SettingsPage() {
     setCreatingObsidianToken(true)
     try {
       setObsidianToken(await createObsidianSyncToken())
+      setObsidianTokens(await listObsidianSyncTokens())
     } catch (error) {
       setObsidianToken(error instanceof Error ? error.message : '无法生成同步 Token。')
     } finally {
       setCreatingObsidianToken(false)
     }
+  }
+
+  const loadObsidianTokens = async () => setObsidianTokens(await listObsidianSyncTokens())
+  const handleRevokeObsidianToken = async (id: string) => {
+    await revokeObsidianSyncToken(id)
+    await loadObsidianTokens()
   }
 
   const handleWechatConfigChange = (changes: Partial<typeof wechatConfig>) => {
@@ -790,8 +802,10 @@ export function SettingsPage() {
               <button type="button" className="action primary" onClick={() => void handleCreateObsidianToken()} disabled={creatingObsidianToken}>
                 {creatingObsidianToken ? '正在生成…' : '生成插件同步 Token'}
               </button>
+              <button type="button" className="action" onClick={() => void loadObsidianTokens()}>管理 Token</button>
             </div>
             {obsidianToken && <div style={{ marginTop: '8px', fontSize: '12px', wordBreak: 'break-all', color: 'var(--muted)' }}>仅显示一次，请复制到 Obsidian 插件：{obsidianToken}</div>}
+            {obsidianTokens.map((token) => <div key={token.id} style={{ display: 'flex', gap: '8px', marginTop: '8px', fontSize: '12px', alignItems: 'center' }}><span>{token.label} · 最近使用：{token.lastUsedAt || '从未'}</span><button type="button" className="action danger" onClick={() => void handleRevokeObsidianToken(token.id)}>撤销</button></div>)}
           </div>
         </div>
 

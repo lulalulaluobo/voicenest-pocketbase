@@ -1,7 +1,7 @@
 import { Notice, Plugin, PluginSettingTab, Setting, TFile, requestUrl, type App } from 'obsidian'
 
 interface Settings { baseUrl: string, apiToken: string, directory: string, interval: number }
-interface Note { id: string, title: string, markdown: string, path: string }
+interface Note { id: string, sourceId: string, title: string, markdown: string, path: string }
 interface PluginData { cursor?: string }
 const defaults: Settings = { baseUrl: '', apiToken: '', directory: 'VoiceNest', interval: 30 }
 
@@ -25,7 +25,9 @@ export default class VoiceNestSync extends Plugin {
     if (this.timer !== null) this.registerInterval(this.timer)
   }
   private async request(path: string, method = 'GET', body?: unknown) {
-    return requestUrl({ url: `${this.settings.baseUrl.replace(/\/+$/, '')}${path}`, method, body: body ? JSON.stringify(body) : undefined, headers: { Authorization: `Bearer ${this.settings.apiToken}`, ...(body ? { 'Content-Type': 'application/json' } : {}) } })
+    const baseUrl = new URL(this.settings.baseUrl)
+    if (baseUrl.protocol !== 'https:' && !['localhost', '127.0.0.1', '10.0.2.2'].includes(baseUrl.hostname)) throw new Error('后端地址必须使用 HTTPS。')
+    return requestUrl({ url: `${baseUrl.origin}${path}`, method, body: body ? JSON.stringify(body) : undefined, headers: { Authorization: `Bearer ${this.settings.apiToken}`, ...(body ? { 'Content-Type': 'application/json' } : {}) } })
   }
   async sync(manual: boolean) {
     if (this.syncing) return
@@ -41,12 +43,12 @@ export default class VoiceNestSync extends Plugin {
         const title = note.title.replace(/[\\/:*?"<>|]/g, ' ').trim() || '未命名笔记'
         const basePath = directory ? `${directory}/${title}` : title
         if (directory && !this.app.vault.getAbstractFileByPath(directory)) await this.app.vault.createFolder(directory)
-        const existing = this.app.vault.getMarkdownFiles().find((candidate) => this.app.metadataCache.getFileCache(candidate)?.frontmatter?.voicenest_id === note.id)
+        const existing = this.app.vault.getMarkdownFiles().find((candidate) => this.app.metadataCache.getFileCache(candidate)?.frontmatter?.voicenest_id === note.sourceId)
         let path = `${basePath}.md`
         let target = this.app.vault.getAbstractFileByPath(path)
         for (let suffix = 2; target && target !== existing; suffix++) { path = `${basePath} (${suffix}).md`; target = this.app.vault.getAbstractFileByPath(path) }
         if (existing && existing.path !== path) await this.app.fileManager.renameFile(existing, path)
-        const content = `---\nvoicenest_id: ${note.id}\n---\n\n# ${note.title}\n\n${note.markdown}`
+        const content = `---\nvoicenest_id: ${note.sourceId}\n---\n\n${note.markdown}`
         const file = existing || this.app.vault.getAbstractFileByPath(path)
         if (file instanceof TFile) await this.app.vault.modify(file, content); else await this.app.vault.create(path, content)
         ackIds.push(note.id)

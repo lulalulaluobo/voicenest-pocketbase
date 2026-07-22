@@ -276,7 +276,7 @@ export function RecordingDetailPage() {
           <div className="row-main">
             <div className="row-title">当前状态</div>
             <div className="row-sub">
-              {recording.status === 'synced' ? '已同步 · 可重新同步或整理' : '未同步 · 待激活上传'}
+              {recording.status === 'synced' ? '已同步至 Obsidian' : recording.status === 'queued' ? '已入队 · 等待 Obsidian 插件确认' : '未同步 · 待激活上传'}
             </div>
           </div>
           {recording.status === 'synced' ? (

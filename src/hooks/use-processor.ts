@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getChunks, getRecording, recordingDb, updateRecording } from '../lib/recording-db'
-import { getASRConfig, getAudioRetention, getLLMConfig, getNoteTypes } from '../lib/config-store'
+import { getASRConfig, getLLMConfig, getNoteTypes } from '../lib/config-store'
 import { transcribeAudio } from '../lib/asr'
 import { formatNote } from '../lib/llm'
-import { enqueueObsidianNote } from '../lib/obsidian-queue'
+import { enqueueObsidianNote, getAcknowledgedObsidianSourceIds } from '../lib/obsidian-queue'
 import { cleanSyncedAudioChunks } from '../lib/retention'
+import { getAudioRetention } from '../lib/config-store'
 import { createSerialTaskRunner, shouldRetryProcessingError } from '../lib/processing-queue'
 
 const runSerialProcessing = createSerialTaskRunner()
@@ -50,7 +51,7 @@ export function useProcessor() {
             summary: formatted.markdown,
             updatedAt: new Date().toISOString(),
           })
-          await enqueueObsidianNote(formatted.title, formatted.markdown, currentType.obsidianPath)
+          await enqueueObsidianNote(id, formatted.title, formatted.markdown, currentType.obsidianPath)
         } else {
           await updateRecording(id, { status: 'processing', errorMessage: undefined, updatedAt: new Date().toISOString() })
           const latest = await getRecording(id)
@@ -58,15 +59,14 @@ export function useProcessor() {
           const noteTypes = getNoteTypes()
           const currentType = noteTypes.find((type) => type.id === latest.typeId) || noteTypes[0]
           if (!currentType) throw new Error('未找到可用的笔记类型配置。')
-          await enqueueObsidianNote(latest.localTitle, latest.summary, currentType.obsidianPath)
+          await enqueueObsidianNote(id, latest.localTitle, latest.summary, currentType.obsidianPath)
         }
 
         await updateRecording(id, {
-          status: 'synced',
+          status: 'queued',
           retryCount: 0,
           updatedAt: new Date().toISOString(),
         })
-        if (getAudioRetention() === 'immediate') await cleanSyncedAudioChunks(id)
       } catch (error) {
         const latest = await getRecording(id)
         const retryCount = (latest?.retryCount ?? 0) + 1
@@ -87,6 +87,12 @@ export function useProcessor() {
 
   const processQueue = useCallback(async () => {
     if (!navigator.onLine) return
+    const queued = await recordingDb.recordings.where('status').equals('queued').toArray()
+    const acknowledged = await getAcknowledgedObsidianSourceIds(queued.map((recording) => recording.id))
+    for (const id of acknowledged) {
+      await updateRecording(id, { status: 'synced', updatedAt: new Date().toISOString() })
+      if (getAudioRetention() === 'immediate') await cleanSyncedAudioChunks(id)
+    }
     const waiting = await recordingDb.recordings.where('status').equals('waiting_network').toArray()
     for (const recording of waiting) {
       await processRecording(recording.id, recording.summary ? 'sync_only' : 'full')

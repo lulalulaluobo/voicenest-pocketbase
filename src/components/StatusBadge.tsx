@@ -7,6 +7,7 @@ const labels: Record<RecordingStatus, string> = {
   interrupted: '已中断',
   waiting_network: '等待网络',
   processing: '处理中',
+  queued: '等待 Obsidian 同步',
   synced: '已同步',
   failed: '失败',
 }

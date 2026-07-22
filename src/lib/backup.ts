@@ -13,6 +13,7 @@ const RECORDING_STATUSES = new Set([
   'interrupted',
   'waiting_network',
   'processing',
+  'queued',
   'synced',
   'failed',
 ])

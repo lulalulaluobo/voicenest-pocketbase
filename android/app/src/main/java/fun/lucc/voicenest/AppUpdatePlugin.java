@@ -33,6 +33,7 @@ public class AppUpdatePlugin extends Plugin {
     private static final int MAX_METADATA_BYTES = 128 * 1024;
     private static final long MAX_APK_BYTES = 200L * 1024 * 1024;
     private ReleaseUpdate available;
+    private static File pendingInstall;
 
     @PluginMethod
     public void check(PluginCall call) {
@@ -124,12 +125,26 @@ public class AppUpdatePlugin extends Plugin {
 
     private void install(File apk) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !getContext().getPackageManager().canRequestPackageInstalls()) {
+            pendingInstall = apk;
             getContext().startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getContext().getPackageName())));
             return;
         }
-        Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", apk);
+        pendingInstall = null;
+        installVerified(getContext(), apk);
+    }
+
+    public static void resumePendingInstall(android.content.Context context) {
+        if (pendingInstall == null || !pendingInstall.exists()) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.getPackageManager().canRequestPackageInstalls()) return;
+        File apk = pendingInstall;
+        pendingInstall = null;
+        installVerified(context, apk);
+    }
+
+    private static void installVerified(android.content.Context context, File apk) {
+        Uri uri = FileProvider.getUriForFile(context, context.getPackageName() + ".fileprovider", apk);
         Intent intent = new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        getContext().startActivity(intent);
+        context.startActivity(intent);
     }
 
     private HttpURLConnection open(String value) throws Exception { HttpURLConnection c = (HttpURLConnection) new URL(value).openConnection(); c.setConnectTimeout(15000); c.setReadTimeout(30000); c.setInstanceFollowRedirects(true); return c; }

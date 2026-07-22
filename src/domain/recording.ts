@@ -5,6 +5,7 @@ export type RecordingStatus =
   | 'interrupted'
   | 'waiting_network'
   | 'processing'
+  | 'queued'
   | 'synced'
   | 'failed'
 

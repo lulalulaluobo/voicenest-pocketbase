@@ -7,24 +7,26 @@
 ## 2. Signatures
 
 ```text
-obsidian_notes { owner, title, markdown, path, syncedAt }
-POST /api/collections/obsidian_notes/records
-GET  /api/collections/obsidian_notes/records?filter=syncedAt = ''
-PATCH /api/collections/obsidian_notes/records/:id { syncedAt }
+obsidian_notes { owner, sourceId, title, markdown, path }
+obsidian_sync_receipts { owner, sourceId, ackedAt }
+POST /api/obsidian/queue { sourceId, title, markdown, path }
+GET  /api/obsidian/sync/changes
+POST /api/obsidian/sync/ack { noteIds }
+GET  /api/obsidian/sync/status?sourceIds=<csv>
 ```
 
 release 构建要求 `VOICENEST_RELEASE_STORE_FILE`、`VOICENEST_RELEASE_STORE_PASSWORD`、`VOICENEST_RELEASE_KEY_ALIAS` 和 `VOICENEST_RELEASE_KEY_PASSWORD`。
 
 ## 3. Contracts
 
-`owner` 必须是登录用户 id，collection 的所有 API rule 都是 `owner = @request.auth.id`。插件完成 Vault 写入后才 PATCH `syncedAt`；其输出文件名以 note id 开头，以便重试覆盖原文件。
+`sourceId` 必须是客户端本地录音 id，且 `(owner, sourceId)` 唯一。前端只能调用受控入队接口，不能直接创建 Collection 记录。插件完成 Vault 写入后才 ACK；后端删除正文队列项并保留 7 天无正文回执，插件 YAML 使用 `voicenest_id: sourceId`，以便重试覆盖原文件。
 
 ## 4. Validation & Error Matrix
 
 | 条件 | 结果 |
 | --- | --- |
 | 前端未登录 | 拒绝入队并提示登录。 |
-| 插件写入失败 | 不更新 `syncedAt`，下次继续拉取。 |
+| 插件写入失败 | 不 ACK，正文留在队列，下次继续拉取。 |
 | release 签名变量缺失 | Gradle 拒绝 release 构建。 |
 | 更新 APK 摘要、包名、版本或签名不一致 | 不请求 Android 安装。 |
 
@@ -47,5 +49,5 @@ release 构建要求 `VOICENEST_RELEASE_STORE_FILE`、`VOICENEST_RELEASE_STORE_P
 await fetch('https://fns.example/api/note', { body: markdown })
 
 // Correct: 前端仅写入自己的 PocketBase 队列
-await pb.collection('obsidian_notes').create({ owner, title, markdown, path })
+await pb.send('/api/obsidian/queue', { method: 'POST', body: { sourceId, title, markdown, path } })
 ```

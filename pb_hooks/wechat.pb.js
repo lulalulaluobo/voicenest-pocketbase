@@ -29,17 +29,23 @@ routerAdd("POST", "/api/wechat/setup-credential", (e) => {
 
     // 查询当前用户的记录
     let record;
+    let isNew = false;
     try {
       record = e.app.findFirstRecordByFilter("wechat_accounts", "owner = {:owner}", { owner: authRecord.id });
     } catch (_) {
       const collection = e.app.findCollectionByNameOrId("wechat_accounts");
       record = new Record(collection);
       record.set("owner", authRecord.id);
+      isNew = true;
+    }
+
+    if (!appSecret.trim() && (isNew || record.get("appId") !== appId.trim())) {
+      return e.json(400, { code: "INVALID_REQUEST", message: "首次配置或修改 AppID 时必须填写 AppSecret" });
     }
 
     record.set("appId", appId.trim());
 
-    // 只有在前端传了非空 AppSecret 时才进行加密并更新。若为空，则说明仅修改了 AppID 且沿用原密码。
+    // 同一 AppID 可保留已有 Secret；首次配置与改 AppID 必须提交新的 Secret。
     if (appSecret.trim()) {
       const key = H.getMasterEncryptionKey();
       const encrypted = $security.encrypt(appSecret.trim(), key);

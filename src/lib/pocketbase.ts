@@ -44,10 +44,18 @@ export function isPocketbaseUrlConfigured(): boolean {
   return Boolean(pb.baseUrl)
 }
 
+export function isAllowedPocketbaseUrl(url: URL): boolean {
+  if (url.protocol === 'https:') return true
+  return url.protocol === 'http:' && ['localhost', '127.0.0.1', '10.0.2.2'].includes(url.hostname)
+}
+
 // 用户配置后端地址后调用：写入 localStorage 持久化，并实时更新 SDK 的 baseUrl
 export function setPocketbaseUrl(url: string): void {
   const normalized = url.trim().replace(/\/+$/, '')
   if (normalized) {
+    const parsed = new URL(normalized)
+    if (!isAllowedPocketbaseUrl(parsed)) throw new Error('后端地址必须使用 HTTPS；仅本地开发地址允许 HTTP。')
+    pb.authStore.clear()
     localStorage.setItem(POCKETBASE_URL_KEY, normalized)
     pb.baseUrl = normalized
   } else {
