@@ -1,5 +1,13 @@
 import { pb } from './pocketbase'
 
+async function syncApiError(response: Response, fallback: string): Promise<Error> {
+  try {
+    const data = await response.json() as { message?: string }
+    if (data.message) return new Error(data.message)
+  } catch (_) {}
+  return new Error(fallback)
+}
+
 export async function createObsidianSyncToken(): Promise<string> {
   if (!pb.authStore.token) throw new Error('请先登录 VoiceNest 后端。')
   const baseUrl = new URL(pb.baseUrl).origin
@@ -8,7 +16,7 @@ export async function createObsidianSyncToken(): Promise<string> {
     headers: { Authorization: `Bearer ${pb.authStore.token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ label: 'Obsidian 插件' }),
   })
-  if (!response.ok) throw new Error('无法生成同步 Token。')
+  if (!response.ok) throw await syncApiError(response, '无法生成同步 Token。')
   const data = await response.json() as { token?: string }
   if (!data.token) throw new Error('同步 Token 响应无效。')
   return data.token
@@ -19,12 +27,12 @@ export interface ObsidianSyncToken { id: string, label: string, lastUsedAt?: str
 export async function listObsidianSyncTokens(): Promise<ObsidianSyncToken[]> {
   const baseUrl = new URL(pb.baseUrl).origin
   const response = await fetch(`${baseUrl}/api/obsidian/tokens`, { headers: { Authorization: `Bearer ${pb.authStore.token}` } })
-  if (!response.ok) throw new Error('无法读取同步 Token。')
+  if (!response.ok) throw await syncApiError(response, '无法读取同步 Token。')
   return ((await response.json()) as { tokens?: ObsidianSyncToken[] }).tokens || []
 }
 
 export async function revokeObsidianSyncToken(id: string): Promise<void> {
   const baseUrl = new URL(pb.baseUrl).origin
   const response = await fetch(`${baseUrl}/api/obsidian/tokens/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${pb.authStore.token}` } })
-  if (!response.ok) throw new Error('无法撤销同步 Token。')
+  if (!response.ok) throw await syncApiError(response, '无法撤销同步 Token。')
 }
