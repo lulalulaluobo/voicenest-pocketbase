@@ -56,6 +56,7 @@ export function SettingsPage() {
   const [updateResult, setUpdateResult] = useState<string | null>(null)
   const [obsidianToken, setObsidianToken] = useState<string | null>(null)
   const [showObsidianTokenModal, setShowObsidianTokenModal] = useState(false)
+  const [showObsidianTokenManager, setShowObsidianTokenManager] = useState(false)
   const [creatingObsidianToken, setCreatingObsidianToken] = useState(false)
   const [obsidianTokens, setObsidianTokens] = useState<ObsidianSyncToken[]>([])
   const [wechatConfig, setWechatConfig] = useState(getWechatDraftConfig())
@@ -319,7 +320,7 @@ export function SettingsPage() {
     }
   }
 
-  const loadObsidianTokens = async () => setObsidianTokens(await listObsidianSyncTokens())
+  const loadObsidianTokens = async () => { setObsidianTokens(await listObsidianSyncTokens()); setShowObsidianTokenManager(true) }
   const handleRevokeObsidianToken = async (id: string) => {
     await revokeObsidianSyncToken(id)
     await loadObsidianTokens()
@@ -807,7 +808,6 @@ export function SettingsPage() {
               <button type="button" className="action" onClick={(event) => { event.stopPropagation(); void loadObsidianTokens() }}>管理 Token</button>
             </div>
             {obsidianToken && <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--muted)' }}>新 Token 已生成，请在弹窗中复制后关闭。</div>}
-            {obsidianTokens.map((token) => <div key={token.id} style={{ display: 'flex', gap: '8px', marginTop: '8px', fontSize: '12px', alignItems: 'center' }}><span>{token.label} · 最近使用：{token.lastUsedAt || '从未'}</span><button type="button" className="action danger" onClick={() => void handleRevokeObsidianToken(token.id)}>撤销</button></div>)}
           </div>
         </div>
 
@@ -1106,6 +1106,17 @@ export function SettingsPage() {
             <p style={{ fontSize: '13px', color: 'var(--muted)' }}>此 Token 只会由服务器返回一次。复制到 Obsidian 插件后再关闭。</p>
             <textarea readOnly value={obsidianToken} onFocus={(event) => event.currentTarget.select()} style={{ width: '100%', minHeight: '96px', wordBreak: 'break-all' }} />
             <button type="button" className="action primary" onClick={() => void navigator.clipboard.writeText(obsidianToken)}>复制 Token</button>
+          </div>
+        </>
+      )}
+
+      {showObsidianTokenManager && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.42)' }} onClick={() => setShowObsidianTokenManager(false)} />
+          <div className="sheet show" style={{ zIndex: 85 }}>
+            <div className="grab" />
+            <div className="sheet-head"><h3>管理同步 Token</h3><button className="icon-btn" onClick={() => setShowObsidianTokenManager(false)}>×</button></div>
+            {obsidianTokens.length ? obsidianTokens.map((token) => <div key={token.id} style={{ display: 'flex', gap: '8px', marginBottom: '10px', fontSize: '13px', alignItems: 'center' }}><span style={{ flex: 1 }}>{token.label} · 最近使用：{token.lastUsedAt || '从未'}</span><button type="button" className="action danger" onClick={() => void handleRevokeObsidianToken(token.id)}>撤销</button></div>) : <p style={{ color: 'var(--muted)' }}>没有可管理的同步 Token。</p>}
           </div>
         </>
       )}
