@@ -15,4 +15,11 @@ function requireToken(e) {
   }
 }
 
-module.exports = { requireToken: requireToken }
+function cleanupExpiredObsidianSync(app) {
+  const queueCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const receiptCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  for (const record of app.findRecordsByFilter('obsidian_notes', 'queuedAt < {:cutoff}', 'id', 500, 0, { cutoff: queueCutoff })) app.delete(record)
+  for (const record of app.findRecordsByFilter('obsidian_sync_receipts', 'ackedAt < {:cutoff}', 'id', 500, 0, { cutoff: receiptCutoff })) app.delete(record)
+}
+
+module.exports = { requireToken: requireToken, cleanupExpiredObsidianSync: cleanupExpiredObsidianSync }

@@ -1,10 +1,3 @@
-function cleanupExpiredObsidianSync(app) {
-  const queueCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  const receiptCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-  for (const record of app.findRecordsByFilter('obsidian_notes', 'created < {:cutoff}', 'id', 500, 0, { cutoff: queueCutoff })) app.delete(record)
-  for (const record of app.findRecordsByFilter('obsidian_sync_receipts', 'ackedAt < {:cutoff}', 'id', 500, 0, { cutoff: receiptCutoff })) app.delete(record)
-}
-
 routerAdd('POST', '/api/obsidian/tokens', (e) => {
   const limited = require(`${__hooks}/wechat_helpers.js`).enforceRateLimit(e, 'obsidian-token', 3, 60)
   if (limited) return limited
@@ -22,8 +15,8 @@ routerAdd('POST', '/api/obsidian/tokens', (e) => {
 }, $apis.requireAuth())
 
 routerAdd('GET', '/api/obsidian/tokens', (e) => {
-  const tokens = e.app.findRecordsByFilter('obsidian_tokens', 'owner = {:owner}', '-created', 3, 0, { owner: e.auth.id })
-  return e.json(200, { tokens: tokens.map((token) => ({ id: token.id, label: token.get('label'), created: token.get('created'), lastUsedAt: token.get('lastUsedAt') })) })
+  const tokens = e.app.findRecordsByFilter('obsidian_tokens', 'owner = {:owner}', 'id', 3, 0, { owner: e.auth.id })
+  return e.json(200, { tokens: tokens.map((token) => ({ id: token.id, label: token.get('label'), lastUsedAt: token.get('lastUsedAt') })) })
 }, $apis.requireAuth())
 
 routerAdd('DELETE', '/api/obsidian/tokens/{id}', (e) => {
@@ -38,7 +31,7 @@ routerAdd('DELETE', '/api/obsidian/tokens/{id}', (e) => {
 routerAdd('POST', '/api/obsidian/queue', (e) => {
   const limited = require(`${__hooks}/wechat_helpers.js`).enforceRateLimit(e, 'obsidian-queue', 30, 60)
   if (limited) return limited
-  cleanupExpiredObsidianSync(e.app)
+  require(`${__hooks}/obsidian_sync_helpers.js`).cleanupExpiredObsidianSync(e.app)
   const body = e.requestInfo().body || {}
   const sourceId = String(body.sourceId || '').trim()
   const title = String(body.title || '').trim()
@@ -53,7 +46,7 @@ routerAdd('POST', '/api/obsidian/queue', (e) => {
     note = new Record(e.app.findCollectionByNameOrId('obsidian_notes'))
     note.set('owner', e.auth.id); note.set('sourceId', sourceId)
   }
-  note.set('title', title); note.set('markdown', markdown); note.set('path', path)
+  note.set('title', title); note.set('markdown', markdown); note.set('path', path); note.set('queuedAt', new Date().toISOString())
   try { e.app.delete(e.app.findFirstRecordByFilter('obsidian_sync_receipts', 'owner = {:owner} && sourceId = {:sourceId}', { owner: e.auth.id, sourceId: sourceId })) } catch (_) {}
   e.app.save(note)
   return e.json(200, { id: note.id, sourceId: sourceId })
@@ -71,7 +64,7 @@ routerAdd('GET', '/api/obsidian/sync/status', (e) => {
 
 routerAdd('GET', '/api/obsidian/sync/changes', (e) => {
   const owner = require(`${__hooks}/obsidian_sync_helpers.js`).requireToken(e); if (!owner) return
-  cleanupExpiredObsidianSync(e.app)
+  require(`${__hooks}/obsidian_sync_helpers.js`).cleanupExpiredObsidianSync(e.app)
   const requested = Number(e.requestInfo().query.limit || 50)
   const limit = Number.isSafeInteger(requested) && requested >= 1 && requested <= 200 ? requested : 50
   const notes = e.app.findRecordsByFilter('obsidian_notes', 'owner = {:owner} && syncedAt = ""', 'id', limit, 0, { owner: owner })

@@ -14,7 +14,7 @@ export async function createObsidianSyncToken(): Promise<string> {
   return data.token
 }
 
-export interface ObsidianSyncToken { id: string, label: string, created: string, lastUsedAt?: string }
+export interface ObsidianSyncToken { id: string, label: string, lastUsedAt?: string }
 
 export async function listObsidianSyncTokens(): Promise<ObsidianSyncToken[]> {
   const baseUrl = new URL(pb.baseUrl).origin
