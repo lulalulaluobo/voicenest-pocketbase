@@ -57,6 +57,7 @@ export function SettingsPage() {
   const [obsidianToken, setObsidianToken] = useState<string | null>(null)
   const [showObsidianTokenModal, setShowObsidianTokenModal] = useState(false)
   const [showObsidianTokenManager, setShowObsidianTokenManager] = useState(false)
+  const [obsidianTokenManagerError, setObsidianTokenManagerError] = useState<string | null>(null)
   const [creatingObsidianToken, setCreatingObsidianToken] = useState(false)
   const [obsidianTokens, setObsidianTokens] = useState<ObsidianSyncToken[]>([])
   const [wechatConfig, setWechatConfig] = useState(getWechatDraftConfig())
@@ -312,7 +313,6 @@ export function SettingsPage() {
     try {
       setObsidianToken(await createObsidianSyncToken())
       setShowObsidianTokenModal(true)
-      setObsidianTokens(await listObsidianSyncTokens())
     } catch (error) {
       setObsidianToken(error instanceof Error ? error.message : '无法生成同步 Token。')
     } finally {
@@ -320,7 +320,12 @@ export function SettingsPage() {
     }
   }
 
-  const loadObsidianTokens = async () => { setObsidianTokens(await listObsidianSyncTokens()); setShowObsidianTokenManager(true) }
+  const loadObsidianTokens = async () => {
+    setShowObsidianTokenManager(true)
+    setObsidianTokenManagerError(null)
+    try { setObsidianTokens(await listObsidianSyncTokens()) }
+    catch (error) { setObsidianTokenManagerError(error instanceof Error ? error.message : '无法读取同步 Token。') }
+  }
   const handleRevokeObsidianToken = async (id: string) => {
     await revokeObsidianSyncToken(id)
     await loadObsidianTokens()
@@ -1100,7 +1105,7 @@ export function SettingsPage() {
       {showObsidianTokenModal && obsidianToken && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.42)' }} onClick={() => setShowObsidianTokenModal(false)} />
-          <div className="sheet show" style={{ zIndex: 85 }}>
+          <div style={{ position: 'fixed', zIndex: 85, left: '16px', right: '16px', top: '50%', transform: 'translateY(-50%)', maxWidth: '430px', margin: 'auto', padding: '20px', borderRadius: '20px', background: 'var(--card)', boxShadow: '0 18px 50px rgba(0,0,0,.25)' }}>
             <div className="grab" />
             <div className="sheet-head"><h3>复制 Obsidian 同步 Token</h3><button className="icon-btn" onClick={() => setShowObsidianTokenModal(false)}>×</button></div>
             <p style={{ fontSize: '13px', color: 'var(--muted)' }}>此 Token 只会由服务器返回一次。复制到 Obsidian 插件后再关闭。</p>
@@ -1113,10 +1118,10 @@ export function SettingsPage() {
       {showObsidianTokenManager && (
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.42)' }} onClick={() => setShowObsidianTokenManager(false)} />
-          <div className="sheet show" style={{ zIndex: 85 }}>
+          <div style={{ position: 'fixed', zIndex: 85, left: '16px', right: '16px', top: '50%', transform: 'translateY(-50%)', maxWidth: '430px', margin: 'auto', padding: '20px', borderRadius: '20px', background: 'var(--card)', boxShadow: '0 18px 50px rgba(0,0,0,.25)' }}>
             <div className="grab" />
             <div className="sheet-head"><h3>管理同步 Token</h3><button className="icon-btn" onClick={() => setShowObsidianTokenManager(false)}>×</button></div>
-            {obsidianTokens.length ? obsidianTokens.map((token) => <div key={token.id} style={{ display: 'flex', gap: '8px', marginBottom: '10px', fontSize: '13px', alignItems: 'center' }}><span style={{ flex: 1 }}>{token.label} · 最近使用：{token.lastUsedAt || '从未'}</span><button type="button" className="action danger" onClick={() => void handleRevokeObsidianToken(token.id)}>撤销</button></div>) : <p style={{ color: 'var(--muted)' }}>没有可管理的同步 Token。</p>}
+            {obsidianTokenManagerError ? <p style={{ color: 'var(--danger)' }}>{obsidianTokenManagerError}</p> : obsidianTokens.length ? obsidianTokens.map((token) => <div key={token.id} style={{ display: 'flex', gap: '8px', marginBottom: '10px', fontSize: '13px', alignItems: 'center' }}><span style={{ flex: 1 }}>{token.label} · 最近使用：{token.lastUsedAt || '从未'}</span><button type="button" className="action danger" onClick={() => void handleRevokeObsidianToken(token.id)}>撤销</button></div>) : <p style={{ color: 'var(--muted)' }}>正在读取 Token…</p>}
           </div>
         </>
       )}
