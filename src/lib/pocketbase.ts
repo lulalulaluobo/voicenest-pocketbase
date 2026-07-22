@@ -15,7 +15,15 @@ function detectInitialEndpoint(): string {
   // 兼容 SSR / 测试环境（vitest node 环境）：localStorage / window / Capacitor 均不可用时降级
   if (typeof localStorage !== 'undefined') {
     const stored = localStorage.getItem(POCKETBASE_URL_KEY)
-    if (stored) return stored
+    if (stored) {
+      try {
+        const normalized = new URL(stored).origin
+        localStorage.setItem(POCKETBASE_URL_KEY, normalized)
+        return normalized
+      } catch {
+        localStorage.removeItem(POCKETBASE_URL_KEY)
+      }
+    }
   }
 
   // Capacitor.isNativePlatform() 在 APK 内为 true，在浏览器内为 false
