@@ -35,6 +35,25 @@ describe('API Clients Unit Tests', () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(1)
   })
 
+  it('waits 15 minutes before aborting ASR when no timeout is configured', async () => {
+    vi.useFakeTimers()
+    let signal: AbortSignal | undefined
+    globalThis.fetch = vi.fn((_url, request) => new Promise<Response>((_, reject) => {
+      signal = (request as RequestInit).signal as AbortSignal
+      signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+    }))
+
+    const pending = transcribeAudio(new Blob(['audio']), {
+      type: 'openai', endpoint: 'https://api.openai.com/v1', apiKey: 'sk-test', model: 'whisper-1',
+    })
+    const rejected = pending.then(() => null, (error) => error)
+
+    await vi.advanceTimersByTimeAsync(899_999)
+    expect(signal?.aborted).toBe(false)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(await rejected).toMatchObject({ message: 'aborted' })
+  })
+
   it('checks StepAudio credentials through the model list endpoint', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce({
       ok: true,

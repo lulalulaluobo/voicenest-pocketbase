@@ -6,6 +6,8 @@ export interface ASRConfig {
   timeoutMs?: number
 }
 
+const defaultASRTimeoutMs = 15 * 60 * 1000
+
 export async function testASRConnection(config: ASRConfig): Promise<void> {
   const response = await fetch(`${config.endpoint.replace(/\/+$/, '')}/models`, {
     headers: { Authorization: `Bearer ${config.apiKey}` },
@@ -74,7 +76,7 @@ export async function transcribeAudio(blob: Blob, config: ASRConfig): Promise<st
 
   const url = `${config.endpoint.replace(/\/+$/, '')}/audio/transcriptions`
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs || 30000)
+  const timeoutId = setTimeout(() => controller.abort(), config.timeoutMs || defaultASRTimeoutMs)
 
   try {
     const response = await fetch(url, {
