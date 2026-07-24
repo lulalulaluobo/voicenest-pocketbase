@@ -1,0 +1,2 @@
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"前端客户端变更的构建与测试要求。"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"确认浏览器请求中止边界与 ASR 服务端无关。"}
